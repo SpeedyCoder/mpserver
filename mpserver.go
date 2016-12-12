@@ -31,6 +31,13 @@ func ReportError(errChan chan Value, val Value, err error) {
 }
 
 //-------------------- Components ----------------------------------
+func StringComponent(in chan Value, out chan Value, s string) {
+    for val := range in {
+        val.Result = s
+        out <- val
+    }
+    close(out)
+}
 
 //-------------------- Output Writers ------------------------------
 func ErrorWriter(in chan Value) {
