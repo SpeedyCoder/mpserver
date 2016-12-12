@@ -23,7 +23,7 @@ func main() {
     go Hello(in, out)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
-    mpserver.Link(mux, "/hello", in, done)
+    mpserver.Listen(mux, "/hello", in, done)
     log.Println("Listening...")
     http.ListenAndServe(":3000", mux)
 }

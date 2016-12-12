@@ -17,7 +17,7 @@ type Value struct {
 }
 
 //-------------------- Helper Functions ----------------------------
-func Link(s *http.ServeMux, url string ,out chan Value, done chan bool) {
+func Listen(s *http.ServeMux, url string ,out chan Value, done chan bool) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
         // w.Header().Set("Server", "mpserver")
         out <- Value{ w, r , nil, done}
