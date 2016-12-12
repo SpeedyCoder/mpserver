@@ -1,19 +1,19 @@
-package main
+package mpserver
 
 import (
-  	"log"
+    "log"
     "errors"
-  	"net/http"
+    "net/http"
     "encoding/json"
 )
 
 type Any interface{}
 
 type Value struct {
-    writer http.ResponseWriter
-    request *http.Request
-    value Any
-    done chan bool
+    Writer http.ResponseWriter
+    Request *http.Request
+    Result Any
+    Done chan bool
 }
 
 //-------------------- Helper Functions ----------------------------
@@ -26,7 +26,7 @@ func Link(s *http.ServeMux, url string ,out chan Value, done chan bool) {
 }
 
 func ReportError(errChan chan Value, val Value, err error) {
-    val.value = err
+    val.Result = err
     errChan <- val
 }
 
@@ -35,71 +35,47 @@ func ReportError(errChan chan Value, val Value, err error) {
 //-------------------- Output Writers ------------------------------
 func ErrorWriter(in chan Value) {
     for val := range in {
-        err, ok := val.value.(error)
+        err, ok := val.Result.(error)
         if (!ok) {
             http.Error(
-                val.writer, 
+                val.Writer, 
                 "ErrorWriter couldn't write the error", 
                 http.StatusInternalServerError)
         } else {
-            http.Error(val.writer, err.Error(), http.StatusInternalServerError)
+            http.Error(val.Writer, err.Error(), http.StatusInternalServerError)
         }
-        val.done <- true
+        val.Done <- true
     }
 }
 
 func StringWriter(in chan Value, errChan chan Value) {
     for val := range in {
-        s, ok := val.value.(string)
+        s, ok := val.Result.(string)
         if (!ok) {
             ReportError(errChan, val, 
                 errors.New("Passed in wrong type to StringWriter."))
         } else {
             log.Println(s)
-            val.writer.Write([]byte(s))
+            val.Writer.Write([]byte(s))
             log.Println("Written: " + s)
-            val.done <- true
+            val.Done <- true
         }   
     }
 }
 
 func JsonWriter(in chan Value, errChan chan Value) {
     for val := range in {
-        js, err := json.Marshal(val.value)
+        js, err := json.Marshal(val.Result)
         if err != nil {
             ReportError(errChan, val, err)
             return
         }
 
-        (val.writer).Header().Set("Content-Type", "application/json")
-        (val.writer).Write(js)
-        val.done <- true
+        (val.Writer).Header().Set("Content-Type", "application/json")
+        (val.Writer).Write(js)
+        val.Done <- true
     }
 }
-
-func Hello(in chan Value, out chan Value) {
-    for val := range in {
-        val.value = "Hello world!"
-        out <- val
-    }
-    close(out)
-}
-
-func main() {
-    mux := http.NewServeMux()
-    in := make(chan Value)
-    out := make(chan Value)
-    errChan := make(chan Value)
-    done := make(chan bool)
-    go Hello(in, out)
-    go StringWriter(out, errChan)
-    go ErrorWriter(errChan)
-    Link(mux, "/hello", in, done)
-    log.Println("Listening...")
-    http.ListenAndServe(":3000", mux)
-}
-
-
 
 
 
