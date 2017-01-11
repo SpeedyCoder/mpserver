@@ -8,14 +8,14 @@ import(
 
 func main() {
     mux := http.NewServeMux()
-    in := make(chan mpserver.Value)
-    out := make(chan mpserver.Value)
-    errChan := make(chan mpserver.Value)
+    in := make(mpserver.ValueChan)
+    out := make(mpserver.ValueChan)
+    errChan := make(mpserver.ValueChan)
     done := make(chan bool)
-    go mpserver.StringComponent(in, out, "Hello world!")
+    go mpserver.StringComponent("Hello world!")([]mpserver.ValueChan{in}, []mpserver.ValueChan{out})
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
     mpserver.Listen(mux, "/hello", in, done)
-    log.Println("Listening...")
+    log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)
 }

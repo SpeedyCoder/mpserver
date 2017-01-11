@@ -16,6 +16,8 @@ type Value struct {
     Done chan bool
 }
 
+type ValueChan chan Value
+
 //-------------------- Helper Functions ----------------------------
 func Listen(s *http.ServeMux, url string ,out chan Value, done chan bool) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
@@ -31,12 +33,18 @@ func ReportError(errChan chan Value, val Value, err error) {
 }
 
 //-------------------- Components ----------------------------------
-func StringComponent(in chan Value, out chan Value, s string) {
-    for val := range in {
-        val.Result = s
-        out <- val
+type Component func (ins []ValueChan, outs []ValueChan)
+
+func StringComponent(s string) Component {
+    return func (ins []ValueChan, outs []ValueChan) {
+        in := ins[0]
+        out := outs[0]
+        for val := range in {
+            val.Result = s
+            out <- val
+        }
+        close(out)
     }
-    close(out)
 }
 
 //-------------------- Output Writers ------------------------------
