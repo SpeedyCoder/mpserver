@@ -4,6 +4,7 @@ import(
     "log"
     "net/http"
     "mpserver"
+    "time"
 )
 
 func main() {
@@ -12,7 +13,9 @@ func main() {
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
     done := make(chan bool)
-    go mpserver.StringComponent("Hello world!")([]mpserver.ValueChan{in}, []mpserver.ValueChan{out})
+    sComp := mpserver.StringComponent("Hello world!")
+    lbComp := mpserver.LoadBalancingComponent(time.Second, time.Second*5, sComp)
+    go lbComp(in, out)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
     mpserver.Listen(mux, "/hello", in, done)

@@ -21,7 +21,7 @@ type ValueChan chan Value
 //-------------------- Helper Functions ----------------------------
 func Listen(s *http.ServeMux, url string ,out chan Value, done chan bool) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
-        // w.Header().Set("Server", "mpserver")
+        w.Header().Set("Server", "mpserver")
         out <- Value{ w, r , nil, done}
         <- done
     })
@@ -33,12 +33,10 @@ func ReportError(errChan chan Value, val Value, err error) {
 }
 
 //-------------------- Components ----------------------------------
-type Component func (ins []ValueChan, outs []ValueChan)
+type Component func (in, out ValueChan)
 
 func StringComponent(s string) Component {
-    return func (ins []ValueChan, outs []ValueChan) {
-        in := ins[0]
-        out := outs[0]
+    return func (in, out ValueChan) {
         for val := range in {
             val.Result = s
             out <- val
@@ -57,6 +55,7 @@ func ErrorWriter(in chan Value) {
                 "ErrorWriter couldn't write the error", 
                 http.StatusInternalServerError)
         } else {
+            log.Println(err.Error())
             http.Error(val.Writer, err.Error(), http.StatusInternalServerError)
         }
         val.Done <- true
@@ -70,9 +69,7 @@ func StringWriter(in chan Value, errChan chan Value) {
             ReportError(errChan, val, 
                 errors.New("Passed in wrong type to StringWriter."))
         } else {
-            log.Println(s)
             val.Writer.Write([]byte(s))
-            log.Println("Written: " + s)
             val.Done <- true
         }   
     }
