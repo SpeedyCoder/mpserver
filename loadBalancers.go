@@ -8,7 +8,7 @@ import (
 func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, c Component) Component{
 	toWorkers := make(ValueChan)
 
-	var worker = func (c Component, out ValueChan, end chan bool) {
+	var worker = func (c Component, out chan<- Value, end chan bool) {
 		toComponent := make(ValueChan)
 		fromComponent := make(ValueChan)
 		go c(toComponent, fromComponent)
@@ -32,7 +32,7 @@ func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, c Component
 		}
 	}
 
-    return func (in, out ValueChan) {
+    return func (in <-chan Value, out chan<- Value) {
     	chans := make([](chan bool), 1)
     	chans[0] = make(chan bool, 1)
     	go worker(c, out, chans[0])

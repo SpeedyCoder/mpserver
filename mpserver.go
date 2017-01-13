@@ -33,10 +33,10 @@ func ReportError(errChan chan Value, val Value, err error) {
 }
 
 //-------------------- Components ----------------------------------
-type Component func (in, out ValueChan)
+type Component func (in <-chan Value, out chan<- Value)
 
 func StringComponent(s string) Component {
-    return func (in, out ValueChan) {
+    return func (in <-chan Value, out chan<- Value) {
         for val := range in {
             val.Result = s
             out <- val

@@ -33,7 +33,7 @@ type cacheValue struct {
 }
 
 func CacheComponent(c Component, expiration time.Duration) Component {
-	return func (in, out ValueChan) {
+	return func (in <-chan Value, out chan<- Value) {
 		toWorker := make(ValueChan)
 		fromWorker := make(ValueChan)
 		go c(toWorker, fromWorker)
