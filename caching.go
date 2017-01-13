@@ -3,6 +3,7 @@ package mpserver
 import (
 	"net/http"
 	"log"
+	"time"
 )
 
 /** TODO:
@@ -26,30 +27,43 @@ func requestToString(r *http.Request) string {
     return res
 }
 
-func CacheComponent(c Component) Component {
+type cacheValue struct {
+	value Any
+	time time.Time
+}
+
+func CacheComponent(c Component, expiration time.Duration) Component {
 	return func (in, out ValueChan) {
 		toWorker := make(ValueChan)
 		fromWorker := make(ValueChan)
 		go c(toWorker, fromWorker)
 
-		cache := make(map[string](Any)
+		cache := make(map[string]cacheValue)
+		var computeAndAdd = func (key string, val Value, now time.Time) {
+			toWorker <- val
+            res := <- fromWorker
+            cache[key] = cacheValue{res.Result, now.Add(expiration)}
+            out <- res
+		}
 
 	    for val := range in {
 	    	if (stringInSlice(val.Request.Method, CachableMethods)) {
 	    		key := requestToString(val.Request)
 		        elem, in := cache[key]
+		        now := time.Now()
 
 		        if (in) {
-		            log.Println("In cache")
-		            log.Println(elem)
-		            val.Result = elem
-		            out <- val
+		            if (elem.time.After(now)) {
+		            	log.Println("In cache\n")
+		            	val.Result = elem.value
+		            	out <- val
+		            } else {
+		            	log.Println("Cache expired\n")
+		            	computeAndAdd(key, val, now)
+		            }
 		        } else {
-		            // Not in cache
-		            toWorker <- val
-		            res := <- fromWorker
-		            cache[key] = res.Result
-		            out <- res
+		        	log.Println("Not in cache\n")
+		            computeAndAdd(key, val, now)
 		        }
 	    	} else {
 	    		// Method is not Cachable
