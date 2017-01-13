@@ -35,6 +35,26 @@ func ReportError(errChan chan Value, val Value, err error) {
 //-------------------- Components ----------------------------------
 type Component func (in <-chan Value, out chan<- Value)
 
+// TODO: test this
+func LinkComponents(components ...Component) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        iters := len(components) - 1
+        if (iters == 0) {
+            components[0](in, out)
+        } else {
+            current := make(ValueChan)
+            go components[0](in, current)
+            for i:=1; i<iters; i++ {
+                next := make(ValueChan)
+                go components[i](current, next)
+                current = next
+            }
+            components[iters](current, out)
+        }
+        
+    }
+}
+
 func StringComponent(s string) Component {
     return func (in <-chan Value, out chan<- Value) {
         for val := range in {

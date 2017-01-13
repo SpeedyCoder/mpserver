@@ -8,7 +8,7 @@ import (
 )
 
 /** TODO:
-  * 	cache invalidation 
+  * 	remove oldest elements when the cache is full
 */
 
 func stringInSlice(a string, list []string) bool {
@@ -46,6 +46,8 @@ func cacheCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time
 			elem, _ := cache.Get(key)
 			cv := elem.(cacheValue)
 			if (cv.time.Before(time.Now())) {
+				// Cache can be updated at this point, so the following
+				// Remove can remove an entry, which hasn't expired yet
 				cache.Remove(key)
 				log.Println("Item removed")
 			}
