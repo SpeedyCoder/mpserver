@@ -28,13 +28,13 @@ func requestToString(r *http.Request) string {
     return res
 }
 
-type cacheValue struct {
-	value Any
-	time time.Time
+type MapValue struct {
+	Value Any
+	Time time.Time
 }
 
 // Method that removes expired items from the cache
-func cacheCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time.Duration) {
+func mapCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time.Duration) {
 	done := false
 	for !done {
 		time.Sleep(sleepTime)
@@ -44,8 +44,8 @@ func cacheCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time
 		}
 		for _, key := range cache.Keys() {
 			elem, _ := cache.Get(key)
-			cv := elem.(cacheValue)
-			if (cv.time.Before(time.Now())) {
+			mapValue := elem.(MapValue)
+			if (mapValue.Time.Before(time.Now())) {
 				// Cache can be updated at this point, so the following
 				// Remove can remove an entry, which hasn't expired yet
 				cache.Remove(key)
@@ -63,12 +63,12 @@ func CacheComponent(c Component, expiration time.Duration) Component {
 
 		cleanerShutDown := make(chan bool, 1)
 		cache := cmap.New()
-		go cacheCleaner(cache, cleanerShutDown, expiration)
+		go mapCleaner(cache, cleanerShutDown, expiration)
 
 		var computeAndAdd = func (key string, val Value, now time.Time) {
 			toWorker <- val
             res := <- fromWorker
-            cache.Set(key, cacheValue{res.Result, now.Add(expiration)})
+            cache.Set(key, MapValue{res.Result, now.Add(expiration)})
             out <- res
 		}
 
@@ -79,10 +79,10 @@ func CacheComponent(c Component, expiration time.Duration) Component {
 		        now := time.Now()
 
 		        if (in) {
-		        	cv := elem.(cacheValue)
-		            if (cv.time.After(now)) {
+		        	mapValue := elem.(MapValue)
+		            if (mapValue.Time.After(now)) {
 		            	log.Println("In cache\n")
-		            	val.Result = cv.value
+		            	val.Result = mapValue.Value
 		            	out <- val
 		            } else {
 		            	log.Println("Cache expired\n")

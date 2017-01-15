@@ -19,8 +19,9 @@ type Value struct {
 type ValueChan chan Value
 
 //-------------------- Helper Functions ----------------------------
-func Listen(s *http.ServeMux, url string ,out chan Value, done chan bool) {
+func Listen(s *http.ServeMux, url string, out chan Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
+        done := make(chan bool)
         w.Header().Set("Server", "mpserver")
         out <- Value{ w, r , nil, done}
         <- done
@@ -66,7 +67,7 @@ func StringComponent(s string) Component {
 }
 
 //-------------------- Output Writers ------------------------------
-func ErrorWriter(in chan Value) {
+func ErrorWriter(in <-chan Value) {
     for val := range in {
         err, ok := val.Result.(error)
         if (!ok) {
@@ -80,6 +81,18 @@ func ErrorWriter(in chan Value) {
         }
         val.Done <- true
     }
+}
+
+func ErrorSplitter(in <-chan Value, out chan<- Value, errChan chan<- Value) {
+    for val := range in {
+        if _, ok := val.Result.(error); ok {
+            errChan <- val
+        } else {
+            out <- val
+        }
+    }
+    close(errChan)
+    close(out)
 }
 
 func StringWriter(in chan Value, errChan chan Value) {
