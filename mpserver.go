@@ -1,7 +1,10 @@
 package mpserver
 
 import (
+    // "log"
     "net/http"
+    "os"
+    "strings"
 )
 
 type Any interface{}
@@ -11,6 +14,7 @@ type Value struct {
     Request *http.Request
     Result Any
     Done chan bool
+    ResponseCode int
 }
 
 type ValueChan chan Value
@@ -20,14 +24,9 @@ func Listen(s *http.ServeMux, url string, out chan Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ w, r , nil, done}
+        out <- Value{ w, r , nil, done, 0}
         <- done
     })
-}
-
-func ReportError(errChan chan<- Value, val Value, err error) {
-    val.Result = err
-    errChan <- val
 }
 
 //-------------------- Components ----------------------------------
@@ -62,5 +61,26 @@ func StringComponent(s string) Component {
         close(out)
     }
 }
+
+func FileComponent(dir, prefix string) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        for val := range in {
+            f, err := os.Open(
+                dir + strings.TrimPrefix(val.Request.URL.Path, prefix))
+            if (err != nil) {
+                val.ResponseCode = http.StatusBadRequest
+                val.Result = err
+                out <- val
+                continue
+            }
+
+            val.Result = f
+            out <- val
+        }
+        close(out)
+    }
+}
+
+
 
 
