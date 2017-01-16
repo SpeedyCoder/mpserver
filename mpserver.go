@@ -81,6 +81,19 @@ func FileComponent(dir, prefix string) Component {
     }
 }
 
+type Condition func (r *http.Request) bool
+
+func Splitter(cond Condition, in <-chan Value, out1, out2 chan<- Value) {
+    for val := range in {
+        if (cond(val.Request)) {
+            out1 <- val
+        } else {
+            out2 <- val
+        }
+    }
+    close(out1); close(out2)
+}
+
 
 
 

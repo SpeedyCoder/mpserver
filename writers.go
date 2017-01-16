@@ -84,7 +84,8 @@ func JsonWriter(in <-chan Value, errChan chan<- Value) {
     }
 }
 
-// TODO: test this
+// TODO: sort out Content-Type header
+
 func GzipWriter(in <-chan Value, errChan chan<- Value) {
 	for val := range in {
 		reader, ok := val.Result.(io.ReadCloser)
@@ -103,6 +104,27 @@ func GzipWriter(in <-chan Value, errChan chan<- Value) {
 		go func() {
 			io.Copy(gzipWriter, reader)
 			gzipWriter.Close()
+			reader.Close()
+			val.Done <- true
+		} ()
+	}
+}
+
+func Writer(in <-chan Value, errChan chan<- Value) {
+	for val := range in {
+		reader, ok := val.Result.(io.ReadCloser)
+		if (!ok) {
+			ReportError(errChan, val, 
+                errors.New("Passed in wrong type to Writer."))
+			continue
+		}
+		responseCode := GetResponseCode(val, http.StatusOK)
+        val.Writer.WriteHeader(responseCode)
+
+		// Do the writing in a separate goroutine, so that the
+		// writer can process another value
+		go func() {
+			io.Copy(val.Writer, reader)
 			reader.Close()
 			val.Done <- true
 		} ()
