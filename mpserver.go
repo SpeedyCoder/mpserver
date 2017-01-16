@@ -1,10 +1,7 @@
 package mpserver
 
 import (
-    "log"
-    "errors"
     "net/http"
-    "encoding/json"
 )
 
 type Any interface{}
@@ -28,7 +25,7 @@ func Listen(s *http.ServeMux, url string, out chan Value) {
     })
 }
 
-func ReportError(errChan chan Value, val Value, err error) {
+func ReportError(errChan chan<- Value, val Value, err error) {
     val.Result = err
     errChan <- val
 }
@@ -65,66 +62,5 @@ func StringComponent(s string) Component {
         close(out)
     }
 }
-
-//-------------------- Output Writers ------------------------------
-func ErrorWriter(in <-chan Value) {
-    for val := range in {
-        err, ok := val.Result.(error)
-        if (!ok) {
-            http.Error(
-                val.Writer, 
-                "ErrorWriter couldn't write the error", 
-                http.StatusInternalServerError)
-        } else {
-            log.Println(err.Error())
-            http.Error(val.Writer, err.Error(), http.StatusInternalServerError)
-        }
-        val.Done <- true
-    }
-}
-
-func ErrorSplitter(in <-chan Value, out chan<- Value, errChan chan<- Value) {
-    for val := range in {
-        if _, ok := val.Result.(error); ok {
-            errChan <- val
-        } else {
-            out <- val
-        }
-    }
-    close(errChan)
-    close(out)
-}
-
-func StringWriter(in chan Value, errChan chan Value) {
-    for val := range in {
-        s, ok := val.Result.(string)
-        if (!ok) {
-            ReportError(errChan, val, 
-                errors.New("Passed in wrong type to StringWriter."))
-        } else {
-            val.Writer.Write([]byte(s))
-            val.Done <- true
-        }   
-    }
-}
-
-func JsonWriter(in chan Value, errChan chan Value) {
-    for val := range in {
-        js, err := json.Marshal(val.Result)
-        if err != nil {
-            ReportError(errChan, val, err)
-            return
-        }
-
-        (val.Writer).Header().Set("Content-Type", "application/json")
-        (val.Writer).Write(js)
-        val.Done <- true
-    }
-}
-
-
-
-
-
 
 
