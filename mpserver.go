@@ -1,7 +1,7 @@
 package mpserver
 
 import (
-    // "log"
+    "log"
     "net/http"
     "os"
     "strings"
@@ -62,9 +62,22 @@ func StringComponent(s string) Component {
     }
 }
 
+func ErrorComponent(err error) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        log.Println("Error Component Started.")
+        for val := range in {
+            log.Println("Got value.")
+            val.Result = err
+            out <- val
+        }
+        close(out)
+    }    
+}
+
 func FileComponent(dir, prefix string) Component {
     return func (in <-chan Value, out chan<- Value) {
         for val := range in {
+            // TODO: check if this is safe
             f, err := os.Open(
                 dir + strings.TrimPrefix(val.Request.URL.Path, prefix))
             if (err != nil) {
