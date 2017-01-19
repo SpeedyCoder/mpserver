@@ -23,6 +23,7 @@ func ErrorPassingComponent(component Component) Component {
     }    
 }
 
+// This can still panic if provided component closes one of its channels
 func PannicHandlingComponent(component Component) Component {
     var phComp Component
     phComp = func (in <-chan Value, out chan<- Value) {
