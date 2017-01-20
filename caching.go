@@ -22,7 +22,7 @@ func stringInSlice(a string, list []string) bool {
 
 var CachableMethods = []string{"GET", "HEAD", "POST", "PATCH"}
 
-func requestToString(r *http.Request) string {
+func requestToString(r http.Request) string {
 	// TODO: make more specific
     res := r.Method + r.URL.String()
     log.Println(res)

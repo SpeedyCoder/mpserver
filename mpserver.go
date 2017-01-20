@@ -11,7 +11,7 @@ type Any interface{}
 
 type Value struct {
     Writer http.ResponseWriter
-    Request *http.Request
+    Request http.Request
     Result Any
     Done chan bool
     ResponseCode int
@@ -22,9 +22,11 @@ type ValueChan chan Value
 //-------------------- Helper Functions ----------------------------
 func Listen(s *http.ServeMux, url string, out chan Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
+        log.Println("Got request.")
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ w, r , nil, done, 0}
+        out <- Value{ w, *r , nil, done, 0}
+        log.Println("Written request.")
         <- done
     })
 }
@@ -54,7 +56,9 @@ func LinkComponents(components ...Component) Component {
 
 func StringComponent(s string) Component {
     return func (in <-chan Value, out chan<- Value) {
+        log.Println("Waiting for values.")
         for val := range in {
+            log.Println("Writing result.")
             val.Result = s
             out <- val
         }
@@ -94,7 +98,7 @@ func FileComponent(dir, prefix string) Component {
     }
 }
 
-type Condition func (r *http.Request) bool
+type Condition func (r http.Request) bool
 
 func Splitter(cond Condition, in <-chan Value, out1, out2 chan<- Value) {
     for val := range in {

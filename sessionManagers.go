@@ -38,7 +38,7 @@ func GenerateRandomString(s int) (string, error) {
 }
 
 type State interface {
-    Next(r *http.Request) (State, error)
+    Next(r http.Request) (State, error)
     Terminal() bool
     Result() Any
 }

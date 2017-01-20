@@ -13,7 +13,7 @@ type Session struct {
     limit int
 }
 
-func (s Session) Next(*http.Request) (mpserver.State, error) {
+func (s Session) Next(http.Request) (mpserver.State, error) {
     return Session{s.step+1, s.limit}, nil
 }
 
@@ -38,7 +38,7 @@ func main() {
     go mpserver.ErrorSplitter(toSplitter, out, errChan)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
-    mpserver.Listen(mux, "/session", in)
+    mpserver.Listen(mux, "/", in)
     log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)
 }
