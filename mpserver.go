@@ -11,22 +11,20 @@ type Any interface{}
 
 type Value struct {
     Writer http.ResponseWriter
-    Request http.Request
+    Request *http.Request
     Result Any
-    Done chan bool
+    Done chan<- bool
     ResponseCode int
 }
 
 type ValueChan chan Value
 
 //-------------------- Helper Functions ----------------------------
-func Listen(s *http.ServeMux, url string, out chan Value) {
+func Listen(s *http.ServeMux, url string, out chan<- Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
-        log.Println("Got request.")
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ w, *r , nil, done, 0}
-        log.Println("Written request.")
+        out <- Value{ w, r , nil, done, 0}
         <- done
     })
 }
@@ -54,11 +52,20 @@ func LinkComponents(components ...Component) Component {
     }
 }
 
+func ConstantComponent(c Any) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        for val := range in {
+            val.Result = c
+            out <- val
+        }
+        close(out)
+    }
+}
+
 func StringComponent(s string) Component {
     return func (in <-chan Value, out chan<- Value) {
-        log.Println("Waiting for values.")
         for val := range in {
-            log.Println("Writing result.")
+            log.Println(val.Request.URL.Path)
             val.Result = s
             out <- val
         }
@@ -68,9 +75,7 @@ func StringComponent(s string) Component {
 
 func ErrorComponent(err error) Component {
     return func (in <-chan Value, out chan<- Value) {
-        log.Println("Error Component Started.")
         for val := range in {
-            log.Println("Got value.")
             val.Result = err
             out <- val
         }
@@ -98,7 +103,7 @@ func FileComponent(dir, prefix string) Component {
     }
 }
 
-type Condition func (r http.Request) bool
+type Condition func (r *http.Request) bool
 
 func Splitter(cond Condition, in <-chan Value, out1, out2 chan<- Value) {
     for val := range in {
