@@ -12,7 +12,7 @@ func main() {
     in := make(mpserver.ValueChan)
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
-    sComp := mpserver.StringComponent("Hello world!")
+    sComp := mpserver.ConstantComponent("Hello world!")
     // lbComp := mpserver.LoadBalancingComponent(time.Second, time.Second*5, sComp)
     cComp := mpserver.CacheComponent(sComp, time.Second*5)
     go cComp(in, out)

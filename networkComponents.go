@@ -1,12 +1,12 @@
 package mpserver
 
 import (
-	"log"
 	"net/http"
 	"io/ioutil"
 	"errors"
 )
 
+// Helper function to make and process the request
 func doRequest(client *http.Client, req *http.Request) ([]byte, error) {
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
@@ -30,12 +30,11 @@ func NetworkComponent(client *http.Client) Component {
 				continue
 			}
 
-			body, err := client.Do(req)
+			body, err := doRequest(client, req)
 			if err != nil {
 				val.Result = err
 			} else {
 				val.Result = body
-				log.Println(body)
 			}
 			out <- val
 		}

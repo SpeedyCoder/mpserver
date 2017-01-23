@@ -9,9 +9,7 @@ import(
 func stringer(in <-chan mpserver.Value, out chan<- mpserver.Value) {
 	for val := range in {
 		res, _ := val.Result.([]byte)
-		log.Println(val.Result)
 		val.Result = string(res)
-		log.Println(val.Result)
 		out <- val
 	}
 	close(out)
