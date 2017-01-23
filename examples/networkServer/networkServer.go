@@ -21,7 +21,7 @@ func main() {
     in := make(mpserver.ValueChan)
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
-    sComp := mpserver.StringComponent("Hello world!")
+    sComp := mpserver.ConstantComponent("Hello world!")
     go sComp(in, out)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
@@ -31,18 +31,18 @@ func main() {
 
     // External server
     in = make(mpserver.ValueChan)
-    toNetComp := make(mpserver.ValueChan)
-    toStringer := make(mpserver.ValueChan)
     toSplitter := make(mpserver.ValueChan)
     out = make(mpserver.ValueChan)
     errChan = make(mpserver.ValueChan)
 
     req, _ := http.NewRequest("GET", "http://localhost:3000/hello", nil)
-    go mpserver.ConstantComponent(req)(in, toNetComp)
-    netComp := mpserver.NetworkComponent(&http.Client{})
-    go netComp(toNetComp, toStringer)
-    str := mpserver.ErrorPassingComponent(stringer)
-    go str(toStringer, toSplitter)
+    combComp := mpserver.LinkComponents(
+    	mpserver.ConstantComponent(req),
+    	mpserver.NetworkComponent(&http.Client{}),
+    	mpserver.BodyExtractor,
+    	mpserver.ErrorPasser(stringer))
+
+    go combComp(in, toSplitter)
     go mpserver.ErrorSplitter(toSplitter, out, errChan)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)

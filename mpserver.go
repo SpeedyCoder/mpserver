@@ -61,27 +61,6 @@ func ConstantComponent(c Any) Component {
     }
 }
 
-// func StringComponent(s string) Component {
-//     return func (in <-chan Value, out chan<- Value) {
-//         for val := range in {
-//             log.Println(val.Request.URL.Path)
-//             val.Result = s
-//             out <- val
-//         }
-//         close(out)
-//     }
-// }
-
-// func ErrorComponent(err error) Component {
-//     return func (in <-chan Value, out chan<- Value) {
-//         for val := range in {
-//             val.Result = err
-//             out <- val
-//         }
-//         close(out)
-//     }    
-// }
-
 func FileComponent(dir, prefix string) Component {
     return func (in <-chan Value, out chan<- Value) {
         for val := range in {

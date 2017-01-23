@@ -7,6 +7,7 @@ import (
     "encoding/json"
     "io"
 	"compress/gzip"
+    "strings"
 )
 
 //-------------------- Helper Functions ----------------------------
@@ -129,5 +130,25 @@ func Writer(in <-chan Value, errChan chan<- Value) {
 			val.Done <- true
 		} ()
 	}
+}
+
+func ResponseWriter(in <-chan Value, errChan chan<- Value) {
+    for val := range in {
+        resp, ok := val.Result.(Response)
+        if (!ok) {
+            ReportError(errChan, val, 
+                errors.New("Passed in wrong type to ResponseWriter."))
+            continue
+        }
+        // Write Headers
+        val.Writer.WriteHeader(val.ResponseCode)
+        header := val.Writer.Header()
+        for key, value := range resp.Header {
+            header.Set(key, strings.Join(value, ""))
+        }
+
+        val.Writer.Write(resp.Body)
+        val.Done <- true
+    }
 }
 

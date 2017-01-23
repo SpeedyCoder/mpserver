@@ -6,7 +6,7 @@ import (
     "errors"
 )
 
-func ErrorPassingComponent(component Component) Component {
+func ErrorPasser(component Component) Component {
     return func (in <-chan Value, out chan<- Value) {
         toComponent := make(ValueChan)
         go component(toComponent, out)
