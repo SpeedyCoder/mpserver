@@ -4,21 +4,19 @@ import (
 	"log"
 	"net/http"
 	"mpserver"
+	"time"
 )
 
 func main() {
-	comp := mpserver.LinkComponents(
-		mpserver.ErrorPasser(mpserver.RequestCopier("http", "www.google.co.uk")),
-		mpserver.ErrorPasser(mpserver.NetworkComponent(&http.Client{})),
-		mpserver.ErrorPasser(mpserver.ResponseProcessor))
+	proxy := mpserver.ProxyComponent("http", "www.google.co.uk",&http.Client{})
+	cachedComp := mpserver.CacheComponent(proxy, time.Second*60)
 
 	in := make(mpserver.ValueChan)
-	toSplitter := make(mpserver.ValueChan)
 	out := make(mpserver.ValueChan)
 	errChan := make(mpserver.ValueChan)
-	go comp(in, toSplitter)
-	go mpserver.ErrorSplitter(toSplitter, out, errChan)
-	go mpserver.ResponseWriter(out, errChan)
+
+	go cachedComp(in, out)
+	go mpserver.AddErrorSplitter(mpserver.ResponseWriter)(out, errChan)
 	go mpserver.ErrorWriter(errChan)
 
 	mux := http.NewServeMux()

@@ -19,16 +19,17 @@ func panickingComponent(in <-chan mpserver.Value, out chan<- mpserver.Value) {
 }
 
 func main() {
-    mux := http.NewServeMux()
     in := make(mpserver.ValueChan)
-    toSplitter := make(mpserver.ValueChan)
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
+
     phComp := mpserver.PannicHandlingComponent(panickingComponent)
-    go phComp(in, toSplitter)
-    go mpserver.ErrorSplitter(toSplitter, out, errChan)
+    go phComp(in, out)
+    go mpserver.AddErrorSplitter(mpserver.StringWriter)(out, errChan)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
+
+    mux := http.NewServeMux()
     mpserver.Listen(mux, "/", in)
     log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)

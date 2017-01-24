@@ -8,30 +8,31 @@ import(
 
 func stringer(in <-chan mpserver.Value, out chan<- mpserver.Value) {
 	for val := range in {
-		res, _ := val.Result.([]byte)
-		val.Result = string(res)
+		res, _ := val.Result.(mpserver.Response)
+		val.Result = string(res.Body)
 		out <- val
 	}
 	close(out)
 }
 
 func main() {
-	// Internal server
+	//--------------------- Internal server ---------------------------
     mux := http.NewServeMux()
     in := make(mpserver.ValueChan)
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
     sComp := mpserver.ConstantComponent("Hello world!")
+
     go sComp(in, out)
     go mpserver.StringWriter(out, errChan)
     go mpserver.ErrorWriter(errChan)
+
     mpserver.Listen(mux, "/hello", in)
     log.Println("Listening on port 3000 for internal requests...")
     go http.ListenAndServe(":3000", mux)
 
-    // External server
+    //--------------------- External server ---------------------------
     in = make(mpserver.ValueChan)
-    toSplitter := make(mpserver.ValueChan)
     out = make(mpserver.ValueChan)
     errChan = make(mpserver.ValueChan)
 
@@ -39,16 +40,15 @@ func main() {
     combComp := mpserver.LinkComponents(
     	mpserver.ConstantComponent(req),
     	mpserver.NetworkComponent(&http.Client{}),
-    	mpserver.BodyExtractor,
+    	mpserver.ResponseProcessor,
     	mpserver.ErrorPasser(stringer))
 
-    go combComp(in, toSplitter)
-    go mpserver.ErrorSplitter(toSplitter, out, errChan)
-    go mpserver.StringWriter(out, errChan)
+    go combComp(in, out)
+    go mpserver.AddErrorSplitter(mpserver.StringWriter)(out, errChan)
     go mpserver.ErrorWriter(errChan)
+
     mux = http.NewServeMux()
     mpserver.Listen(mux, "/", in)
     log.Println("Listening on port 5000...")
     http.ListenAndServe(":5000", mux)
-
 }

@@ -20,12 +20,12 @@ func main() {
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
 
-    fComp := mpserver.FileComponent("examples/fileServer", "")
-    go fComp(in, toSplitter)
-    go mpserver.Splitter(condition, toSplitter, compressed, uncompressed)
-    go mpserver.ErrorSplitter(compressed, out, errChan)
-    go mpserver.GzipWriter(out, errChan)
-    go mpserver.Writer(uncompressed, errChan)
+    go mpserver.FileComponent("examples/fileServer", "")(in, toSplitter)
+    go mpserver.ErrorSplitter(toSplitter, out, errChan)
+    
+    go mpserver.Splitter(condition, out, compressed, uncompressed)
+    go mpserver.GzipWriter(compressed, errChan)
+    go mpserver.GenericWriter(uncompressed, errChan)
     go mpserver.ErrorWriter(errChan)
 
     mpserver.Listen(mux, "/", in)

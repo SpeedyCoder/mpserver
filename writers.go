@@ -11,7 +11,6 @@ import (
 )
 
 //-------------------- Helper Functions ----------------------------
-
 func ReportError(errChan chan<- Value, val Value, err error) {
     val.Result = err
     errChan <- val
@@ -25,6 +24,17 @@ func GetResponseCode(val Value, defaultCode int) int {
 }
 
 //-------------------- Output Writers ------------------------------
+type Writer func (in <-chan Value, errChan chan<- Value)
+
+func AddErrorSplitter(writer Writer) Writer {
+    return func (in <-chan Value, errChan chan<- Value) {
+        toWriter := make(ValueChan)
+        go ErrorSplitter(in, toWriter, errChan)
+        writer(toWriter, errChan)
+    }
+    
+}
+
 func ErrorWriter(in <-chan Value) {
     for val := range in {
         err, ok := val.Result.(error)
@@ -86,7 +96,6 @@ func JsonWriter(in <-chan Value, errChan chan<- Value) {
 }
 
 // TODO: sort out Content-Type header
-
 func GzipWriter(in <-chan Value, errChan chan<- Value) {
 	for val := range in {
 		reader, ok := val.Result.(io.ReadCloser)
@@ -111,7 +120,7 @@ func GzipWriter(in <-chan Value, errChan chan<- Value) {
 	}
 }
 
-func Writer(in <-chan Value, errChan chan<- Value) {
+func GenericWriter(in <-chan Value, errChan chan<- Value) {
 	for val := range in {
 		reader, ok := val.Result.(io.ReadCloser)
 		if (!ok) {
@@ -151,4 +160,6 @@ func ResponseWriter(in <-chan Value, errChan chan<- Value) {
         val.Done <- true
     }
 }
+
+
 

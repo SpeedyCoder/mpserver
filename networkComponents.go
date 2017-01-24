@@ -41,26 +41,27 @@ func readResponse(resp *http.Response) ([]byte, error) {
 	return body, err
 }
 
-func BodyExtractor(in <-chan Value, out chan<- Value) {
-	for val := range in {
-		resp, ok := val.Result.(*http.Response)
-		if !ok {
-			val.Result = errors.New("No response provided to Body Extractor Component.")
-			out <- val
-			continue
-		}
+// Can be removed
+// func BodyExtractor(in <-chan Value, out chan<- Value) {
+// 	for val := range in {
+// 		resp, ok := val.Result.(*http.Response)
+// 		if !ok {
+// 			val.Result = errors.New("No response provided to Body Extractor Component.")
+// 			out <- val
+// 			continue
+// 		}
 
-		body, err := readResponse(resp)
-		if err != nil {
-			val.Result = err
-		} else {
-			val.Result = body
-		}
-		out <- val
+// 		body, err := readResponse(resp)
+// 		if err != nil {
+// 			val.Result = err
+// 		} else {
+// 			val.Result = body
+// 		}
+// 		out <- val
 
-	}
-	close(out)
-}
+// 	}
+// 	close(out)
+// }
 
 func RequestCopier(scheme, host string) Component {
 	return func (in <-chan Value, out chan<- Value) {
@@ -102,6 +103,13 @@ func ResponseProcessor(in <-chan Value, out chan<- Value) {
 
 	}
 	close(out)
+}
+
+func ProxyComponent(scheme, host string, client *http.Client) Component {
+	return LinkComponents(
+		ErrorPasser(RequestCopier(scheme, host)),
+		ErrorPasser(NetworkComponent(client)),
+		ErrorPasser(ResponseProcessor))
 }
 
 
