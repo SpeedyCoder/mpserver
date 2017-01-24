@@ -9,8 +9,8 @@ import (
 type Any interface{}
 
 type Value struct {
-    Writer http.ResponseWriter
     Request *http.Request
+    Writer http.ResponseWriter
     Result Any
     Done chan<- bool
     ResponseCode int
