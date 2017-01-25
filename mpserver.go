@@ -17,13 +17,15 @@ type Value struct {
 }
 
 type ValueChan chan Value
+type InChan <-chan Value
+type OutChan chan<- Value
 
 //-------------------- Helper Functions ----------------------------
 func Listen(s *http.ServeMux, url string, out chan<- Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ w, r , nil, done, 0}
+        out <- Value{ r, w, nil, done, 0}
         <- done
     })
 }
@@ -81,17 +83,39 @@ func FileComponent(dir, prefix string) Component {
     }
 }
 
-type Condition func (r *http.Request) bool
+type Condition func (val Value) bool
 
-func Splitter(cond Condition, in <-chan Value, out1, out2 chan<- Value) {
+func ToOutChans(chans []ValueChan) []chan<- Value {
+    res := make([]chan<- Value, len(chans))
+    for i, ch := range chans {
+        res[i] = ch
+    }
+    return res
+}
+
+func Splitter(in <-chan Value, outs []chan<- Value, conds []Condition) {
+    if len(outs) - 1 != len(conds) {
+        panic("Incorrect number of channels or conditions.")
+    }
+    last := outs[len(outs)-1]
+
     for val := range in {
-        if (cond(val.Request)) {
-            out1 <- val
-        } else {
-            out2 <- val
+        sent := false
+        for i, cond := range conds {
+            if cond(val) {
+                outs[i] <- val; sent = true
+                break
+            }
+        }
+
+        if !sent {
+            last <- val
         }
     }
-    close(out1); close(out2)
+
+    for _, ch := range outs {
+        close(ch)
+    }
 }
 
 

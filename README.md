@@ -30,7 +30,8 @@ after the response is written at the end of the pipeline.
 
 ## Components
 
-Component is defined as follows:
+Component is a generic part of the pipeline with an input and output channel.
+The type Component is defined as follows:
 
 ```go
 type Component func (in <-chan Value, out chan<- Value)
@@ -46,7 +47,8 @@ after its input channel have been closed.
 
 ## Writers
 
-Writer is defined as follows:
+Writer is the end of the pipeline which writes results to the client.
+The type Writer is defined as follows:
 
 ```go
 type Writer func (in <-chan Value, errChan chan<- Value)

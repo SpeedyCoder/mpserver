@@ -7,8 +7,8 @@ import(
     "strings"
 )
 
-func condition(r *http.Request) bool {
-    return strings.HasSuffix(r.URL.Path, ".go")
+func condition(val mpserver.Value) bool {
+    return strings.HasSuffix(val.Request.URL.Path, ".go")
 }
 
 func main() {
@@ -23,7 +23,8 @@ func main() {
     go mpserver.FileComponent("examples/fileServer", "")(in, toSplitter)
     go mpserver.ErrorSplitter(toSplitter, out, errChan)
     
-    go mpserver.Splitter(condition, out, compressed, uncompressed)
+    outs := mpserver.ToOutChans([]mpserver.ValueChan{compressed, uncompressed})
+    go mpserver.Splitter(out, outs, []mpserver.Condition{condition})
     go mpserver.GzipWriter(compressed, errChan)
     go mpserver.GenericWriter(uncompressed, errChan)
     go mpserver.ErrorWriter(errChan)
