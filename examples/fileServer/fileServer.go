@@ -23,8 +23,8 @@ func main() {
     go mpserver.FileComponent("examples/fileServer", "")(in, toSplitter)
     go mpserver.ErrorSplitter(toSplitter, out, errChan)
     
-    outs := mpserver.ToOutChans([]mpserver.ValueChan{compressed, uncompressed})
-    go mpserver.Splitter(out, outs, []mpserver.Condition{condition})
+    outs := mpserver.ToOutChans([]mpserver.ValueChan{compressed})
+    go mpserver.Splitter(out, uncompressed, outs, []mpserver.Condition{condition})
     go mpserver.GzipWriter(compressed, errChan)
     go mpserver.GenericWriter(uncompressed, errChan)
     go mpserver.ErrorWriter(errChan)

@@ -13,7 +13,7 @@ type Session struct {
     limit int
 }
 
-func (s Session) Next(r *http.Request) (mpserver.State, error) {
+func (s Session) Next(val mpserver.Value) (mpserver.State, error) {
     return Session{s.step+1, s.limit}, nil
 }
 

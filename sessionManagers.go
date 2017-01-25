@@ -6,7 +6,6 @@ import(
     "time"
     "crypto/rand"
     "encoding/base64"
-    "net/http"
     "github.com/orcaman/concurrent-map"
 )
 
@@ -38,7 +37,7 @@ func GenerateRandomString(s int) (string, error) {
 }
 
 type State interface {
-    Next(r *http.Request) (State, error)
+    Next(val Value) (State, error)
     Terminal() bool
     Result() Any
 }
@@ -54,7 +53,7 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store cmap
     }
     log.Println("Id generated: " + id)
 
-    state, err := initial.Next(val.Request)
+    state, err := initial.Next(val)
     if (err != nil) {
         val.Result = err
         out <- val
@@ -94,7 +93,7 @@ func SessionManagementComponent(initial State, seshExp time.Duration) Component 
             now := time.Now()
             if (mapValue.Time.After(now)) {
                 state, _ := mapValue.Value.(State)
-                next, err := state.Next(val.Request)
+                next, err := state.Next(val)
                 if (err != nil) {
                     log.Println("Error while generating next state")
                     val.Result = err

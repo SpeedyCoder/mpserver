@@ -93,11 +93,10 @@ func ToOutChans(chans []ValueChan) []chan<- Value {
     return res
 }
 
-func Splitter(in <-chan Value, outs []chan<- Value, conds []Condition) {
-    if len(outs) - 1 != len(conds) {
-        panic("Incorrect number of channels or conditions.")
+func Splitter(in <-chan Value, defOut chan<- Value, outs []chan<- Value, conds []Condition) {
+    if len(outs) != len(conds) {
+        panic("Number of channels and conditions is not equal.")
     }
-    last := outs[len(outs)-1]
 
     for val := range in {
         sent := false
@@ -109,7 +108,7 @@ func Splitter(in <-chan Value, outs []chan<- Value, conds []Condition) {
         }
 
         if !sent {
-            last <- val
+            defOut <- val
         }
     }
 
