@@ -7,7 +7,7 @@ The web-server consists of a multiple Components which are plugged
 together using channels to form a pipeline that transforms requests 
 to responses.
 
-### Values
+## Values
 
 Channels between Components transfer values of the following type:
 
@@ -28,7 +28,7 @@ Where:
 after the response is written at the end of the pipeline.
 * `ResponseCode` is the response code that should be returned to the client.
 
-### Components
+## Components
 
 Component is defined as follows:
 
@@ -43,3 +43,28 @@ channel is open.
 * Before terminating, every Component closes its output channel.
 * Component can only close its output channel and it can only do so
 after its input channel have been closed.
+
+## Writers
+
+Writer is defined as follows:
+
+```go
+type Writer func (in <-chan Value, errChan chan<- Value)
+```
+It is a function with input channel and channel for reporting errors.
+* When a Writer writes the result to the client, it should send a signal
+on done channel, so that the connection to client can be closed.
+* The writer terminates when its input channel is closed. It shouldn't
+close the error channel, as other processes might be using it.
+
+#### Error Writer
+
+Error Writer is a function with the following signature:
+```go
+func ErrorWriter(in <-chan Value)
+```
+It has only one input channel. The writer terminates when the channel
+is closed. The channel should be closed only after all Writers that 
+are using it terminated.
+
+

@@ -60,7 +60,6 @@ func ErrorSplitter(in <-chan Value, out chan<- Value, errChan chan<- Value) {
             out <- val
         }
     }
-    close(errChan)
     close(out)
 }
 
