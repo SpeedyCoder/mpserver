@@ -24,7 +24,7 @@ func ErrorPasser(component Component) Component {
 }
 
 // This can still panic if provided component closes one of its channels
-func PannicHandlingComponent(component Component) Component {
+func PannicHandlingComponent(worker Component) Component {
     var phComp Component
     phComp = func (in <-chan Value, out chan<- Value) {
         toComponent := make(ValueChan)
@@ -73,7 +73,7 @@ func PannicHandlingComponent(component Component) Component {
             close(toComponent)
         }()
 
-        component(toComponent, fromComponent)
+        worker(toComponent, fromComponent)
         close(out)
         log.Println("Closed out")
     }

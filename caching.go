@@ -8,7 +8,11 @@ import (
 )
 
 /** TODO:
-  * 	remove oldest elements when the cache is full
+  * 	- remove oldest elements when the cache is full
+  *     - use different strategy to generate keys for caching
+  * 	- use map as input so that the caching component can be used 
+  *		  with the load balancing component (do the same for session manager)
+  				- then there would be multiple map cleaners
 */
 
 func stringInSlice(a string, list []string) bool {
@@ -56,11 +60,11 @@ func mapCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time.D
 	}
 }
 
-func CacheComponent(c Component, expiration time.Duration) Component {
+func CacheComponent(worker Component, expiration time.Duration) Component {
 	return func (in <-chan Value, out chan<- Value) {
 		toWorker := make(ValueChan)
 		fromWorker := make(ValueChan)
-		go c(toWorker, fromWorker)
+		go worker(toWorker, fromWorker)
 
 		cleanerShutDown := make(chan bool, 1)
 		cache := cmap.New()

@@ -44,6 +44,9 @@ channel is open.
 * Before terminating, every Component closes its output channel.
 * Component can only close its output channel and it can only do so
 after its input channel have been closed.
+* For every value that a Component reads from the input channel, 
+it should write a value to the output channel. So, that every request 
+gets a response.
 
 ## Writers
 
@@ -86,8 +89,9 @@ func Splitter(in <-chan Value, defOut chan<- Value, outs []chan<- Value, conds [
 It takes an input channel, default output channel, array of output channels and array of conditions.
 The number of output channels and the number of conditions should be the same.
 For every input value the Splitter evaluates the conditions from first to last.
-When a condition returns true the value is written to a corresponding output channel.
-If all conditions return false then the value is written to the default output channel.
+When a condition returns true the value is written to a corresponding output channel 
+and the processing of the current value terminates. If all conditions return false
+then the value is written to the default output channel.
 
 ## States and Session Management Component
 
@@ -116,8 +120,9 @@ The component behaves as follows:
 The component stores a mapping from session ids to current state of the session.
 
 Every new request gets assigned a unique session id and a mapping from the generated 
-id to the initial state is stored. The result of the call to the `Result` function
-on the initial state with the provided value is then sent down the pipeline.
+id to the next state, which is generated from the initial state using the provided value,
+is stored. The result of the call to the `Result` function on the next state with the provided 
+value is then sent down the pipeline.
 
 When a request with set `Session-Id` header comes in, the component gets the current 
 state for the session and gets the next state for it based on the provided value.
@@ -135,15 +140,67 @@ logic for the session, independently of the session management part.
 
 ## Caching
 
-TODO
+Cache Component is a Component generator with the following signature:
+```go
+func CacheComponent(worker Component, expiration time.Duration) Component
+```
+The returned component behaves as follows:
+* When a value is inputted that the component hasn't seen before, then
+the value is passed to the provided worker and the result is stored in
+a map.
+* When the component gets a previously seen value, it returns the value
+stored in the map, if it hasn't expired yet. If it expired, then the component
+treats it as a new value.
+* Expired values are regularly deleted from the map.
+
+For the generated component to function properly, the worker must output
+a value for every value that is sent to it.
 
 ## Load Balancing
 
-TODO
+Load balancing component a Component generator with the following signature:
+```go
+func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, worker Component) Component
+```
+The returned component has an array of workers which can be easily shut down.
+The initial number of workers is 1. 
+
+For every inputted value, the component behaves as follows:
+* It tries to send the value to the workers, if this is not successful, 
+before the addTimeout, then the component creates a new worker and then
+tries to send the value to the workers again. This will be successful as
+there is at least one worker that is not busy. 
+* The workers send their results further down the pipeline.
+* If there are no incoming values for removeTimout time, then the component
+shuts down one of the workers, if there is more than one worker.
+* When the input channel of the component is closed, then it shuts down all
+the workers, then it closes its output channel and terminates.
 
 ## Error handling
 
-TODO
+Error Passer is a component generator with the following signature:
+```go
+func ErrorPasser(worker Component) Component
+```
+The generated component behaves as follows:
+* For every inputted value it checks whether the result is an error
+and if that is the cases it just outputs the value.
+* If the result of the inputted value is not an error, then the component
+passes the value to the worker, which after processing it passes 
+it further down the pipeline.
+
+Panic handling component is a component generator with the following signature:
+```go
+func PannicHandlingComponent(worker Component) Component
+```
+It takes a component that can cause panic and returns a component the behaves as follows:
+* It passes every inputted value to the worker and gets the result from it and then passes
+the result further down the pipeline.
+* In case the worker crashes, that is causes panic, the component writes error as a result 
+for the value that caused the crash and the restarts the worker.
+* The component can itself cause a panic if the worker closes its input channel, or if 
+it closes its output channel before its input channel is closed. That is if the worker
+violates some of the basic requirements for Components.
 
 ## Network Components
 
