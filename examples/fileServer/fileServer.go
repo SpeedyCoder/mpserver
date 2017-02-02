@@ -14,13 +14,15 @@ func condition(val mpserver.Value) bool {
 func main() {
     mux := http.NewServeMux()
     in := make(mpserver.ValueChan)
+    toFileComp := make(mpserver.ValueChan)
     toSplitter := make(mpserver.ValueChan)
     compressed := make(mpserver.ValueChan)
     uncompressed := make(mpserver.ValueChan)
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
 
-    go mpserver.FileComponent("examples/fileServer", "")(in, toSplitter)
+    go mpserver.PathMaker("examples/fileServer", "")(in, toFileComp)
+    go mpserver.FileComponent(toFileComp, toSplitter)
     go mpserver.ErrorSplitter(toSplitter, out, errChan)
     
     outs := mpserver.ToOutChans([]mpserver.ValueChan{compressed})

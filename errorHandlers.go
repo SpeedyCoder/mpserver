@@ -42,6 +42,10 @@ func PannicHandlingComponent(worker Component) Component {
             }
         }()
         
+        // Routine that incoming values to worker
+        // then collects the result and sends it on the output channel
+        // If the component crashes while processing a value
+        // this routine sends an error on the output channel  
         go func () {
             done := false
             var val Value

@@ -4,6 +4,7 @@ import (
     "net/http"
     "os"
     "strings"
+    "errors"
 )
 
 type Any interface{}
@@ -63,24 +64,39 @@ func ConstantComponent(c Any) Component {
     }
 }
 
-func FileComponent(dir, prefix string) Component {
+func PathMaker(dir, prefix string) Component {
     return func (in <-chan Value, out chan<- Value) {
-        for val := range in {
-            // TODO: check if this is safe
-            f, err := os.Open(
-                dir + strings.TrimPrefix(val.Request.URL.Path, prefix))
-            if (err != nil) {
-                val.ResponseCode = http.StatusBadRequest
-                val.Result = err
-                out <- val
-                continue
-            }
-
-            val.Result = f
+        for val := range in { 
+            val.Result = dir + strings.TrimPrefix(
+                                    val.Request.URL.Path, prefix)
             out <- val
         }
         close(out)
     }
+}
+
+func FileComponent (in <-chan Value, out chan<- Value) {
+    for val := range in {
+        path, ok := val.Result.(string)
+        if (!ok) {
+            val.Result = errors.New("No path provided to FileComponent.")
+            out <- val
+            continue
+        }
+
+        // TODO: check if this is safe
+        f, err := os.Open(path)
+        if (err != nil) {
+            val.ResponseCode = http.StatusBadRequest
+            val.Result = err
+            out <- val
+            continue
+        }
+
+        val.Result = f
+        out <- val
+    }
+    close(out)
 }
 
 type Condition func (val Value) bool

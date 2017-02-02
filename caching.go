@@ -106,7 +106,7 @@ func CacheComponent(worker Component, expiration time.Duration) Component {
 	        
 	    }
 	    cleanerShutDown <- true
-	    close(toWorker) // To shut down the component c
+	    close(toWorker) // To shut down the worker
 	    close(out)	
 	}
 }
