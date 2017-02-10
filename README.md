@@ -105,7 +105,7 @@ type State interface {
 ```
 * The `Next` function returns the next state when provided with a value.
 * The `Terminal` function indicates whether the current state is a terminal state.
-* The `Result function` function returns the result that possibly after further 
+* The `Result` function returns the result that possibly after further 
 processing should be returned to the client.
 
 Session management component is a following component generator.

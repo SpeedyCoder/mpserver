@@ -1,0 +1,342 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{listings-golang} % import this package after listings
+\usepackage{color}
+
+\lstset{ % add your own preferences
+    frame=single,
+    basicstyle=\footnotesize,
+    keywordstyle=\color{blue},
+    numbers=none,
+    showstringspaces=false, 
+    stringstyle=\color{red},
+    tabsize=4,
+    language=Golang
+}
+
+\begin{document}
+\section{Introduction}
+The goal of this project is to construct a well-structured
+library of communicating components, in the Go language, to support
+the programming of a family of webservers that could range in scale from a full-scale commercial server to an embedded server used to provide a browser-based GUI to a specific application.
+
+\section{Implementation}
+
+mpserver is a go library that implements a framework for building 
+concurrent web-servers based on message passing.
+
+The web-server consists of a multiple Components which are plugged 
+together using channels to form a pipeline that transforms requests 
+to responses.
+
+\subsection{Values} 
+Channels between Components transfer values of the following type:
+
+\begin{lstlisting}
+type Value struct {
+    Request *http.Request
+    Writer http.ResponseWriter
+    Result Any
+    Done chan<- bool
+    ResponseCode int
+}
+\end{lstlisting}
+Where:
+\begin{itemize}
+  \item Request is the http request made by the client.
+  \item Writer is an object that writes the response back to the 	client.
+  \item Result is the result computed so far (initially nil).
+  \item Done is a signaling channel. Signal should be send on this channel,
+		after the response is written at the end of the pipeline.
+  \item ResponseCode is the response code that should be returned to the client.
+\end{itemize}
+
+\subsection{Components}
+Component is a generic part of the pipeline with an input and output channel.
+The type Component is defined as follows:
+
+\begin{lstlisting}
+type Component func (in <-chan Value, out chan<- Value)
+\end{lstlisting}
+
+Every Component should satisfy the following:
+\begin{itemize}
+  \item When run Component should read values from the input channel
+				and output processed values on the output channel while the input 
+				channel is open.
+	\item Component terminates normally only if its input channel is closed.
+	\item Before terminating, every Component closes its output channel.
+	\item Component can only close its output channel and it can only do so
+				after its input channel have been closed.
+	\item For every value that a Component reads from the input channel, 
+				it should write a value to the output channel. So, that every request 
+				gets a response.
+  
+\end{itemize}
+
+\subsection{Linking components}
+The library provides a component generator Link Components that takes 
+any number of components and returns a component that behaves as their 
+linear combination. That is as a pipeline constructed from these components 
+in the order in which they are provided. Its signature is below:
+\begin{lstlisting}
+func LinkComponents(components ...Component) Component
+\end{lstlisting}
+The subcomponents are linked and run when the returned component is run. 
+The last of the provided components is run in the goroutine where
+the combined component was run.
+
+\subsection{Writers}
+Writer is the end of the pipeline which writes results to the client.
+The type Writer is defined as follows:
+
+\begin{lstlisting}
+type Writer func (in <-chan Value, errChan chan<- Value)
+\end{lstlisting}
+
+It is a function with input channel and channel for reporting errors.
+\begin{itemize}
+	\item When a Writer writes the result to the client, it should send a signal
+				on done channel, so that the connection to client can be closed.
+	\item The writer terminates when its input channel is closed. It shouldn't
+			  close the error channel, as other processes might be using it.
+\end{itemize}
+
+\subsubsection{Error Writer}
+Error Writer is a function with the following signature:
+
+\begin{lstlisting}
+func ErrorWriter(in <-chan Value)
+\end{lstlisting}
+It has only one input channel. The writer terminates when the channel
+is closed. The channel should be closed only after all Writers that 
+are using it terminated.
+
+\subsection{Conditions and Splitter}
+\subsubsection{Conditions}
+Condition type is defined as follows:
+
+\begin{lstlisting}
+type Condition func (val Value) bool
+\end{lstlisting}
+It is a function that takes a value and returns a boolean.
+
+\subsubsection{Splitter}
+Conditions are used in Splitter, which is a component with the 
+following signature:
+
+\begin{lstlisting}
+func Splitter(in <-chan Value, defOut chan<- Value, 
+			  outs []chan<- Value, conds []Condition)
+\end{lstlisting}
+It takes an input channel, default output channel, array of output channels and array of conditions.
+The number of output channels and the number of conditions should be the same.
+For every input value the Splitter evaluates the conditions from first to last.
+When a condition returns true the value is written to a corresponding output channel 
+and the processing of the current value terminates. If all conditions return false
+then the value is written to the default output channel.
+
+\subsection{States and Session Management Component}
+\subsubsection{States}
+State is an interface defined as follows:
+
+\begin{lstlisting}
+type State interface {
+    Next(val Value) (State, error)
+    Terminal() bool
+    Result() Any
+}
+\end{lstlisting}
+\begin{itemize}
+	\item The Next function returns the next state when provided with a value.
+	\item The Terminal function indicates whether the current state is a terminal state.
+	\item The Result function returns the result that possibly after further 
+				processing should be returned to the client.
+\end{itemize}
+
+\subsubsection{Session management component}
+Session management component is a following component generator.
+\begin{lstlisting}
+func SessionManagementComponent(
+		initial State, seshExp time.Duration) Component
+\end{lstlisting}
+It takes an initial state for each session and a session expiration time and 
+returns a Component that behaves as a session manager. 
+\\
+\\
+The component behaves as follows:
+\\
+The component stores a mapping from session ids to current state of the session.
+
+Every new request gets assigned a unique session id and a mapping from the generated 
+id to the next state, which is generated from the initial state using the provided value,
+is stored. The result of the call to the `Result` function on the next state with the provided 
+value is then sent down the pipeline.
+
+When a request with set `Session-Id` header comes in, the component gets the current 
+state for the session and gets the next state for it based on the provided value.
+The mapping is then updated with the generated state and the result from the current state
+is passed down the pipeline.
+
+When a session reaches a Terminal state, the session id is removed from the map
+and the final result is outputted.
+
+The states in the mapping are timestamped and are removed from the map after
+the session expiration time, if they haven't finished before that.
+
+The abstraction using states allows the users of the package to implement the
+logic for the session, independently of the session management part.
+
+\subsection{Caching}
+Cache Component is a Component generator with the following signature:
+\begin{lstlisting}
+func CacheComponent(worker Component, 
+					expiration time.Duration) Component
+\end{lstlisting}
+The returned component behaves as follows:
+\begin{itemize}
+	\item When a value is inputted that the component hasn't seen before, then
+				the value is passed to the provided worker and the result is stored in
+				a map.
+	\item When the component gets a previously seen value, it returns the value
+			  stored in the map, if it hasn't expired yet. If it expired, then the component
+				treats it as a new value.
+	\item Expired values are regularly deleted from the map.
+\end{itemize}
+
+For the generated component to function properly, the worker must output
+a value for every value that is sent to it.
+
+\subsection{Load Balancing}
+Load balancing component a Component generator with the following signature:
+\begin{lstlisting}
+func LoadBalancingComponent(addTimeout, 
+		removeTimeout time.Duration, worker Component) Component
+\end{lstlisting}
+The returned component has an array of workers which can be easily shut down.
+The initial number of workers is 1. 
+\\
+\\
+For every inputted value, the component behaves as follows:
+\begin{itemize}
+	\item It tries to send the value to the workers, if this is not successful, 
+				before the addTimeout, then the component creates a new worker and then
+				tries to send the value to the workers again. This will be successful as
+				there is at least one worker that is not busy.
+	\item The workers send their results further down the pipeline.
+	\item If there are no incoming values for removeTimout time, then the component
+				shuts down one of the workers, if there is more than one worker.
+	\item When the input channel of the component is closed, then it shuts down all
+				the workers, then it closes its output channel and terminates.
+
+\end{itemize}
+
+\subsection{Error handling}
+\subsubsection{Error Passer}
+Error Passer is a component generator with the following signature:
+
+\begin{lstlisting}
+func ErrorPasser(worker Component) Component
+\end{lstlisting}
+The generated component behaves as follows:
+\begin{itemize}
+	\item For every inputted value it checks whether the result is an error
+				and if that is the cases it just outputs the value.
+	\item If the result of the inputted value is not an error, then the component
+				passes the value to the worker, which after processing it passes 
+				it further down the pipeline.
+\end{itemize}
+
+\subsubsection{Panic handling component}
+Panic handling component is a component generator with the following signature:
+
+\begin{lstlisting}
+func PannicHandlingComponent(worker Component) Component
+\end{lstlisting}
+It takes a component that can cause panic and returns a component the behaves as follows:
+\begin{itemize}
+	\item It passes every inputted value to the worker and gets the result from it and then passes
+				the result further down the pipeline.
+	\item In case the worker crashes, that is causes panic, the component writes error as a result 
+				for the value that caused the crash and the restarts the worker.
+	\item The component can itself cause a panic if the worker closes its input channel, or if 
+				it closes its output channel before its input channel is closed. That is if the worker
+				violates some of the basic requirements for Components.
+\end{itemize}
+
+\subsection{Network Components}
+\subsubsection{Request Copier}
+Request Copier is a component generator with the following signature:
+\begin{lstlisting}
+func RequestCopier(scheme, host string) Component
+\end{lstlisting}
+It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
+and returns a component that for each inputted value copies the Request made 
+by the client to the Result field and updates it with the given scheme and 
+path and then outputs this value.
+
+\subsubsection{Network Component}
+Network Component is a component generator with the following signature:
+\begin{lstlisting}
+func NetworkComponent(client *http.Client) Component
+\end{lstlisting}
+It takes a single parameter, which is an http client.
+The generated component for each inputted value makes an http request,
+taken from the Result field of the value, using the provided http client.
+If there is no request in the Result field or the request fails, then
+the component returns an appropriate error. 
+
+The result of the request is fetched in a new goroutine, so slow requests
+won't block the pipeline.
+
+\subsubsection{Response Processor}
+The response type of the mpserver package is defined as a following struct:
+\begin{lstlisting}
+type Response struct {
+		Header http.Header
+		Body []byte
+}
+\end{lstlisting}
+It holds the header and body of a http response. The difference between
+this definition and the definition in the default http package is that
+the body of my response is a slice of bytes. That is the body have already been
+read and the connection to server has been closed.
+\\
+\\
+The Response Processor is a component that for each inputted value
+looks if provided Result is the default http Response, and if it is
+it then reads it and transfers it to mpsever response type, which it
+then writes to the Result field and outputs the value. If no response
+is provided, then the component outputs an appropriate error.
+
+To use this component after the Network component, the Response Processor
+should be wrapped in an error passing component, so that when the 
+Network component fails, then the response processor won't have to do
+any work.
+
+\subsubsection{Proxy Component}
+Proxy component is a combination of Request Copier, Network component 
+and Response processor in a linear pipeline. It acts as a proxy server
+in the following sense. It forwards the provided request to the specified
+host and then reads and outputs the response. 
+
+All components are wrapped
+in an Error passer to avoid doing unnecessary work and to make the component
+more robust. Its implementation is below:
+\begin{lstlisting}
+func ProxyComponent(scheme, host string, 
+					client *http.Client) Component {
+	return LinkComponents(
+		ErrorPasser(RequestCopier(scheme, host)),
+		ErrorPasser(NetworkComponent(client)),
+		ErrorPasser(ResponseProcessor))
+}
+\end{lstlisting}
+
+
+\end{document}
+
+
+
+

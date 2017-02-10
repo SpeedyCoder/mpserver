@@ -20,14 +20,15 @@ func NetworkComponent(client *http.Client) Component {
 				out <- val
 				continue
 			}
-
-			resp, err := client.Do(req)
-			if err != nil {
-				val.Result = err
-			} else {
-				val.Result = resp
-			}
-			out <- val
+			go func () {
+				resp, err := client.Do(req)
+				if err != nil {
+					val.Result = err
+				} else {
+					val.Result = resp
+				}
+				out <- val
+			}()	
 		}
 		close(out)
 	}
