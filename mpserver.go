@@ -21,6 +21,10 @@ type ValueChan chan Value
 type InChan <-chan Value
 type OutChan chan<- Value
 
+func GetChan() ValueChan {
+    return make(ValueChan)
+}
+
 //-------------------- Helper Functions ----------------------------
 func Listen(s *http.ServeMux, url string, out chan<- Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
@@ -33,6 +37,8 @@ func Listen(s *http.ServeMux, url string, out chan<- Value) {
 
 //-------------------- Components ----------------------------------
 type Component func (in <-chan Value, out chan<- Value)
+
+type ComponetFunc func (val Value) Value
 
 // TODO: test this
 func LinkComponents(components ...Component) Component {
@@ -54,14 +60,20 @@ func LinkComponents(components ...Component) Component {
     }
 }
 
-func ConstantComponent(c Any) Component {
+func MakeComponent(f ComponetFunc) Component {
     return func (in <-chan Value, out chan<- Value) {
         for val := range in {
-            val.Result = c
-            out <- val
+            out <- f(val)
         }
         close(out)
     }
+}
+
+func ConstantComponent(c Any) Component {
+    f := func (val Value) Value {
+        val.Result = c; return val
+    }
+    return MakeComponent(f)
 }
 
 func PathMaker(dir, prefix string) Component {

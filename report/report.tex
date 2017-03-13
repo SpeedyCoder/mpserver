@@ -75,6 +75,13 @@ Every Component should satisfy the following:
   
 \end{itemize}
 
+\subsubsection{Constant Component}
+Constant Component is a simple component generator that takes a value c
+of any type and returns a component that writes c to the Result field of all inputted values and then outputs them. It's signature is below.
+\begin{lstlisting}
+func ConstantComponent(c Any) Component
+\end{lstlisting}
+
 \subsection{Linking components}
 The library provides a component generator Link Components that takes 
 any number of components and returns a component that behaves as their 
@@ -331,6 +338,38 @@ func ProxyComponent(scheme, host string,
 		ErrorPasser(RequestCopier(scheme, host)),
 		ErrorPasser(NetworkComponent(client)),
 		ErrorPasser(ResponseProcessor))
+}
+\end{lstlisting}
+
+\section{Examples}
+\subsection{Hello world! server}
+Below is an example of a simple server that responds with a
+simple string "Hello world!". It's main parts are ConstantComponent,
+which writes the string "Hello world!" to the Result field of each request and 
+StringWriter, that writes a string response back to the client. 
+
+\begin{lstlisting}
+package main
+
+import(
+    "log"
+    "net/http"
+    "mpserver"
+)
+
+func main() {
+    in := make(mpserver.ValueChan)
+    out := make(mpserver.ValueChan)
+    errChan := make(mpserver.ValueChan)
+
+    go mpserver.ConstantComponent("Hello world!")(in, out)
+    go mpserver.StringWriter(out, errChan)
+    go mpserver.ErrorWriter(errChan)
+
+    mux := http.NewServeMux()
+    mpserver.Listen(mux, "/hello", in)
+    log.Println("Listening on port 3000...")
+    http.ListenAndServe(":3000", mux)
 }
 \end{lstlisting}
 
