@@ -21,6 +21,28 @@ The goal of this project is to construct a well-structured
 library of communicating components, in the Go language, to support
 the programming of a family of webservers that could range in scale from a full-scale commercial server to an embedded server used to provide a browser-based GUI to a specific application.
 
+\subsection{Motivation}
+The vast majority of web server frameworks have a single function that
+computes a response to the client requests and a pool of workers that can
+be used to execute this function. When a request comes in a worker is 
+allocated from the pool and it executes the function.
+\\
+\\
+This project examines an alternative approach, where the server is a network 
+of communicating components. Each component is highly specialized and communicates
+with other components using message passing.
+
+The components are plugged together into a pipeline using channels.
+The incoming request are fed into the input end of the pipeline and 
+after passing through the whole network the response is written to the
+client on the other end of the network. That is we can view the server
+as a pipeline that transfers requests into responses.
+
+\subsection{Introduction to Message passing Concurrency}
+
+\subsection{Introduction to go}
+
+\newpage
 \section{Implementation}
 
 mpserver is a go library that implements a framework for building 
@@ -74,6 +96,27 @@ Every Component should satisfy the following:
 				gets a response.
   
 \end{itemize}
+
+\subsubsection{Making Components}
+The package contains a helper function that constructs the components,
+so that they follow the specification above. It's signature is below:
+\begin{lstlisting}
+func MakeComponent(f ComponetFunc) Component
+\end{lstlisting}
+
+The Component Function is a helper type with the following definition:
+\begin{lstlisting}
+type ComponetFunc func (val Value) Value
+\end{lstlisting}
+It is a function that takes a value and returns another value.
+
+The Component constructed by MakeComponent function reads value from the
+input channel, runs provided function f on this value and then outputs the
+result of f.
+
+Therefore anyone using the package just needs to define the function that
+transforms the input value to the output value and then the MakeComponent
+function will construct the actual component for them.
 
 \subsubsection{Constant Component}
 Constant Component is a simple component generator that takes a value c
@@ -341,6 +384,7 @@ func ProxyComponent(scheme, host string,
 }
 \end{lstlisting}
 
+\newpage
 \section{Examples}
 \subsection{Hello world! server}
 Below is an example of a simple server that responds with a
@@ -372,6 +416,9 @@ func main() {
     http.ListenAndServe(":3000", mux)
 }
 \end{lstlisting}
+
+\section{Experiments}
+\section{Conclusion}
 
 
 \end{document}

@@ -2,6 +2,7 @@ package mpserver
 
 import (
     "net/http"
+    "golang.org/x/net/websocket"
     "os"
     "strings"
     "errors"
@@ -12,6 +13,8 @@ type Any interface{}
 type Value struct {
     Request *http.Request
     Writer http.ResponseWriter
+    WebSocket *websocket.Conn
+
     Result Any
     Done chan<- bool
     ResponseCode int
@@ -30,9 +33,17 @@ func Listen(s *http.ServeMux, url string, out chan<- Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ r, w, nil, done, 0}
+        out <- Value{ r, w, nil, nil, done, 0}
         <- done
     })
+}
+
+func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
+    s.Handle(url, websocket.Handler(func (ws *websocket.Conn) {
+        done := make(chan bool)
+        out <- Value{ nil, nil, ws, nil, done, 0}
+        <- done
+    }))
 }
 
 //-------------------- Components ----------------------------------
