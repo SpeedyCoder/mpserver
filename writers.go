@@ -160,5 +160,27 @@ func ResponseWriter(in <-chan Value, errChan chan<- Value) {
     }
 }
 
+func HttpResponseWriter(in <-chan Value, errChan chan<- Value) {
+    for val := range in {
+        resp, ok := val.Result.(*http.Response)
+        if (!ok) {
+            ReportError(errChan, val, 
+                errors.New("Passed in wrong type to HttpResponseWriter."))
+            continue
+        }
+        // Write Headers
+        val.Writer.WriteHeader(val.ResponseCode)
+        header := val.Writer.Header()
+        for key, value := range resp.Header {
+            header.Set(key, strings.Join(value, ""))
+        }
+
+        go func() {
+            defer resp.Body.Close()
+            io.Copy(val.Writer, resp.Body)
+            val.Done <- true
+        } ()
+    }
+}
 
 

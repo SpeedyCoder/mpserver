@@ -15,6 +15,40 @@ import (
   				- then there would be multiple map cleaners
 */
 
+type Store interface {
+	Get(key string) (interface{}, bool)
+	Set(key string, value interface{})
+	Remove(key string)
+	Keys() []string
+}
+
+type cMapStore struct {
+	cMap *cmap.ConcurrentMap
+}
+
+func (store *cMapStore) Get(key string) (interface{}, bool) {
+	return store.cMap.Get(key)
+}
+
+func (store *cMapStore) Set(key string, value interface{}) {
+	store.cMap.Set(key, value)
+}
+
+func (store *cMapStore) Remove(key string) {
+	store.cMap.Remove(key)
+}
+
+func (store *cMapStore) Keys() []string {
+	return store.cMap.Keys()
+}
+
+func NewMemStore() Store {
+	cMap := cmap.New()
+	cms := cMapStore{&cMap}
+	return &cms
+}
+
+
 func stringInSlice(a string, list []string) bool {
     for _, b := range list {
         if b == a {
@@ -39,7 +73,7 @@ type MapValue struct {
 }
 
 // Method that removes expired items from the cache
-func mapCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time.Duration) {
+func mapCleaner(cache Store, shutDown <-chan bool, sleepTime time.Duration) {
 	done := false
 	for !done {
 		time.Sleep(sleepTime)
@@ -60,14 +94,13 @@ func mapCleaner(cache cmap.ConcurrentMap, shutDown <-chan bool, sleepTime time.D
 	}
 }
 
-func CacheComponent(worker Component, expiration time.Duration) Component {
+func CacheComponent(cache Store, worker Component, expiration time.Duration) Component {
 	return func (in <-chan Value, out chan<- Value) {
 		toWorker := make(ValueChan)
 		fromWorker := make(ValueChan)
 		go worker(toWorker, fromWorker)
 
 		cleanerShutDown := make(chan bool, 1)
-		cache := cmap.New()
 		go mapCleaner(cache, cleanerShutDown, expiration)
 
 		var computeAndAdd = func (key string, val Value, now time.Time) {

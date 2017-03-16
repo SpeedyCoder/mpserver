@@ -6,7 +6,6 @@ import(
     "time"
     "crypto/rand"
     "encoding/base64"
-    "github.com/orcaman/concurrent-map"
 )
 
 // Code for id generation by Matt Silverlock
@@ -42,7 +41,7 @@ type State interface {
     Result() Any
 }
 
-func startNewSession(val Value, initial State, seshExp time.Duration, store cmap.ConcurrentMap, out chan<- Value) {
+func startNewSession(val Value, initial State, seshExp time.Duration, store Store, out chan<- Value) {
     id, err := GenerateRandomString(32)
     if (err != nil) {
         // if the random generator fails
@@ -66,9 +65,8 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store cmap
     out <- val
 }
 
-func SessionManagementComponent(initial State, seshExp time.Duration) Component {
+func SessionManagementComponent(store Store, initial State, seshExp time.Duration) Component {
     return func (in <-chan Value, out chan<- Value) {
-        store := cmap.New()
         cleanerShutDown := make(chan bool, 1)
         go mapCleaner(store, cleanerShutDown, seshExp)
 

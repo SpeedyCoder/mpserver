@@ -51,7 +51,6 @@ type Component func (in <-chan Value, out chan<- Value)
 
 type ComponetFunc func (val Value) Value
 
-// TODO: test this
 func LinkComponents(components ...Component) Component {
     return func (in <-chan Value, out chan<- Value) {
         iters := len(components) - 1
@@ -88,14 +87,11 @@ func ConstantComponent(c Any) Component {
 }
 
 func PathMaker(dir, prefix string) Component {
-    return func (in <-chan Value, out chan<- Value) {
-        for val := range in { 
-            val.Result = dir + strings.TrimPrefix(
-                                    val.Request.URL.Path, prefix)
-            out <- val
-        }
-        close(out)
-    }
+    return MakeComponent(func (val Value) Value {
+        val.Result = dir + strings.TrimPrefix(
+            val.Request.URL.Path, prefix)
+        return val
+    })
 }
 
 func FileComponent (in <-chan Value, out chan<- Value) {
