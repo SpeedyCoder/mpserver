@@ -132,7 +132,8 @@ func main() {
     go mpserver.MakeComponent(removeActionMaker)(toRemoveActionMaker, in)
     go mpserver.MakeComponent(buyActionMaker)(toBuyActionMaker, in)
 
-    sComp := mpserver.SessionManagementComponent(initial, time.Second*60*5)
+    store := mpserver.NewMemStore()
+    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*60*5)
     sComp = mpserver.ErrorPasser(sComp)
     go sComp(in, out)
     go mpserver.AddErrorSplitter(mpserver.JsonWriter)(out, errChan)

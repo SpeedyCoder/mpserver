@@ -13,6 +13,8 @@ import (
   * 	- use map as input so that the caching component can be used 
   *		  with the load balancing component (do the same for session manager)
   				- then there would be multiple map cleaners
+  *	    - make use cleaner optional
+  *	    - fix examples using caching and session managers
 */
 
 type Store interface {
