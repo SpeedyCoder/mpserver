@@ -6,7 +6,9 @@
 \usepackage{graphicx}
 \graphicspath{ {images/} }
 \usepackage{tikz}
-\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{shapes, arrows, arrows.meta}
+
+\setlength{\abovecaptionskip}{5px}
 
 \lstset{ % add your own preferences
     frame=single,
@@ -16,7 +18,8 @@
     showstringspaces=false, 
     stringstyle=\color{red},
     tabsize=4,
-    language=Golang
+    language=Golang,
+    belowskip=0px
 }
 
 % Define block styles
@@ -64,6 +67,7 @@ representing the conversion of a request into a response, then this can be direc
 translated into a program.
 
 \subsection{Hello World!}
+\label{sec:helloWorld}
 The simplest Hello world! web server, that is server that replies with a 
 Hello world! message to all requests, can be represented by the diagram
 in Figure \ref{fig:helloWorld}.
@@ -149,8 +153,28 @@ in the cache. See Figure \ref{fig:caching}.
 
 \begin{figure}[h]
 \centering
-\includegraphics{caching}
-\caption[scale=1.0]{Caching output of a worker component.}
+\begin{tikzpicture}[
+    workerWidth/.style={minimum width=3cm},
+    workerHeight/.style={minimum height=2cm},
+    UWidth/.style={minimum width=1cm},
+    every node/.style={
+        text centered,
+        }
+        ]
+    \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
+
+    \node[anchor=north, workerWidth, yshift=-0.5cm] (cache) at (worker.south) {Cache};
+
+    \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left) at (worker.west) {};
+    \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right) at (worker.east) {};
+
+    \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- cache.south) -- (right.north east) -- (right.north west) -- (right.west |- cache.north) -- (left.east |- cache.north) -- (left.north east) -- cycle;
+
+    \draw[<-, >={Latex}] (left.west) -- ++(-1, 0);
+    \draw[->, >={Latex}] (left.east) -- (worker.west);
+    \draw[->, >={Latex}] (worker.east) -- (right.west);
+    \draw[->, >={Latex}] (right.east) -- ++(1, 0);
+\end{tikzpicture}\caption[scale=1.0]{Caching output of a worker component.}
 \label{fig:caching}
 \end{figure}
 
@@ -172,6 +196,8 @@ to responses.
 \subsection{Values} 
 Channels between Components transfer values of the following type:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type Value struct {
     Request *http.Request
@@ -181,6 +207,10 @@ type Value struct {
     ResponseCode int
 }
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type Value.}
+\label{fig:Value}
+\end{figure}
+
 Where:
 \begin{itemize}
   \item Request is the http request made by the client.
@@ -195,9 +225,16 @@ Where:
 Component is a generic part of the pipeline with an input and output channel.
 The type Component is defined as follows:
 
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type Component func (in <-chan Value, out chan<- Value)
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type Component.}
+\label{fig:Component}
+\end{figure}
+
 
 Every Component should satisfy the following:
 \begin{itemize}
@@ -217,14 +254,28 @@ Every Component should satisfy the following:
 \subsubsection{Making Components}
 The package contains a helper function that constructs the components,
 so that they follow the specification above. It's signature is below:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func MakeComponent(f ComponetFunc) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of MakeComponent function.}
+\label{fig:MakeComponent}
+\end{figure}
+
 
 The Component Function is a helper type with the following definition:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type ComponetFunc func (val Value) Value
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type ComponentFunc.}
+\label{fig:ComponentFunc}
+\end{figure}
+
 It is a function that takes a value and returns another value.
 
 The Component constructed by MakeComponent function reads value from the
@@ -238,18 +289,33 @@ function will construct the actual component for them.
 \subsubsection{Constant Component}
 Constant Component is a simple component generator that takes a value c
 of any type and returns a component that writes c to the Result field of all inputted values and then outputs them. It's signature is below.
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func ConstantComponent(c Any) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Constant Component generator.}
+\label{fig:ConstantComponent}
+\end{figure}
+
 
 \subsection{Linking components}
 The library provides a component generator Link Components that takes 
 any number of components and returns a component that behaves as their 
 linear combination. That is as a pipeline constructed from these components 
 in the order in which they are provided. Its signature is below:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func LinkComponents(components ...Component) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of LinkComponents function.}
+\label{fig:LinkComponents}
+\end{figure}
+
+
 The subcomponents are linked and run when the returned component is run. 
 The last of the provided components is run in the goroutine where
 the combined component was run.
@@ -258,9 +324,14 @@ the combined component was run.
 Writer is the end of the pipeline which writes results to the client.
 The type Writer is defined as follows:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type Writer func (in <-chan Value, errChan chan<- Value)
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type Writer.}
+\label{fig:Writer}
+\end{figure}
 
 It is a function with input channel and channel for reporting errors.
 \begin{itemize}
@@ -273,9 +344,15 @@ It is a function with input channel and channel for reporting errors.
 \subsubsection{Error Writer}
 Error Writer is a function with the following signature:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func ErrorWriter(in <-chan Value)
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of ErrorWriter function.}
+\label{fig:ErrorWriter}
+\end{figure}
+
 It has only one input channel. The writer terminates when the channel
 is closed. The channel should be closed only after all Writers that 
 are using it terminated.
@@ -284,19 +361,31 @@ are using it terminated.
 \subsubsection{Conditions}
 Condition type is defined as follows:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type Condition func (val Value) bool
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type Condition.}
+\label{fig:Condition}
+\end{figure}
+
 It is a function that takes a value and returns a boolean.
 
 \subsubsection{Splitter}
 Conditions are used in Splitter, which is a component with the 
 following signature:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func Splitter(in <-chan Value, defOut chan<- Value, 
 			  outs []chan<- Value, conds []Condition)
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type Splitter.}
+\label{fig:Splitter}
+\end{figure}
+
 It takes an input channel, default output channel, array of output channels and array of conditions.
 The number of output channels and the number of conditions should be the same.
 For every input value the Splitter evaluates the conditions from first to last.
@@ -308,6 +397,8 @@ then the value is written to the default output channel.
 \subsubsection{States}
 State is an interface defined as follows:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type State interface {
     Next(val Value) (State, error)
@@ -315,6 +406,10 @@ type State interface {
     Result() Any
 }
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of interface State.}
+\label{fig:State}
+\end{figure}
+
 \begin{itemize}
 	\item The Next function returns the next state when provided with a value.
 	\item The Terminal function indicates whether the current state is a terminal state.
@@ -324,10 +419,17 @@ type State interface {
 
 \subsubsection{Session management component}
 Session management component is a following component generator.
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func SessionManagementComponent(
 		initial State, seshExp time.Duration) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Session Management Component generator.}
+\label{fig:seshComp}
+\end{figure}
+
 It takes an initial state for each session and a session expiration time and 
 returns a Component that behaves as a session manager. 
 \\
@@ -357,10 +459,17 @@ logic for the session, independently of the session management part.
 
 \subsection{Caching}
 Cache Component is a Component generator with the following signature:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func CacheComponent(worker Component, 
 					expiration time.Duration) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Cache Component generator.}
+\label{fig:cacheComp}
+\end{figure}
+
 The returned component behaves as follows:
 \begin{itemize}
 	\item When a value is inputted that the component hasn't seen before, then
@@ -377,10 +486,17 @@ a value for every value that is sent to it.
 
 \subsection{Load Balancing}
 Load balancing component a Component generator with the following signature:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func LoadBalancingComponent(addTimeout, 
 		removeTimeout time.Duration, worker Component) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Load Balancing Component generator.}
+\label{fig:loadComp}
+\end{figure}
+
 The returned component has an array of workers which can be easily shut down.
 The initial number of workers is 1. 
 \\
@@ -403,9 +519,15 @@ For every inputted value, the component behaves as follows:
 \subsubsection{Error Passer}
 Error Passer is a component generator with the following signature:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func ErrorPasser(worker Component) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Error Passer Component generator.}
+\label{fig:ErrorPasser}
+\end{figure}
+
 The generated component behaves as follows:
 \begin{itemize}
 	\item For every inputted value it checks whether the result is an error
@@ -418,9 +540,15 @@ The generated component behaves as follows:
 \subsubsection{Panic handling component}
 Panic handling component is a component generator with the following signature:
 
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
-func PannicHandlingComponent(worker Component) Component
+func PanicHandlingComponent(worker Component) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Panic Handling Component generator.}
+\label{fig:panicHandler}
+\end{figure}
+
 It takes a component that can cause panic and returns a component the behaves as follows:
 \begin{itemize}
 	\item It passes every inputted value to the worker and gets the result from it and then passes
@@ -435,9 +563,16 @@ It takes a component that can cause panic and returns a component the behaves as
 \subsection{Network Components}
 \subsubsection{Request Copier}
 Request Copier is a component generator with the following signature:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func RequestCopier(scheme, host string) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Request Copier Component generator.}
+\label{fig:RequestCopier}
+\end{figure}
+
 It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
 and returns a component that for each inputted value copies the Request made 
 by the client to the Result field and updates it with the given scheme and 
@@ -445,9 +580,16 @@ path and then outputs this value.
 
 \subsubsection{Network Component}
 Network Component is a component generator with the following signature:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func NetworkComponent(client *http.Client) Component
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Network Component generator.}
+\label{fig:NetworkComponent}
+\end{figure}
+
 It takes a single parameter, which is an http client.
 The generated component for each inputted value makes an http request,
 taken from the Result field of the value, using the provided http client.
@@ -459,12 +601,19 @@ won't block the pipeline.
 
 \subsubsection{Response Processor}
 The response type of the mpserver package is defined as a following struct:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type Response struct {
 		Header http.Header
 		Body []byte
 }
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of type Response.}
+\label{fig:Response}
+\end{figure}
+
 It holds the header and body of a http response. The difference between
 this definition and the definition in the default http package is that
 the body of my response is a slice of bytes. That is the body have already been
@@ -491,6 +640,9 @@ host and then reads and outputs the response.
 All components are wrapped
 in an Error passer to avoid doing unnecessary work and to make the component
 more robust. Its implementation is below:
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func ProxyComponent(scheme, host string, 
 					client *http.Client) Component {
@@ -500,15 +652,25 @@ func ProxyComponent(scheme, host string,
 		ErrorPasser(ResponseProcessor))
 }
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of Proxy Component generator.}
+\label{fig:ProxyComp}
+\end{figure}
 
 \newpage
 \section{Examples}
 \subsection{Hello world! server}
-Below is an example of a simple server that responds with a
-simple string "Hello world!". It's main parts are ConstantComponent,
-which writes the string "Hello world!" to the Result field of each request and 
-StringWriter, that writes a string response back to the client. 
+Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
+server described in section \ref{sec:helloWorld}.
+It's a direct translation of the diagram shown in Figure \ref{fig:helloWorld}.
 
+The Listener corresponds to the call of mpserver.Listen function.
+Hello world Component translates into an instance of ConstantComponent
+and String Writer is the writer in the package with the same name.
+We plug these together using two channels, start the components 
+and then start the server itself.
+
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 package main
 
@@ -519,21 +681,24 @@ import(
 )
 
 func main() {
-    in := make(mpserver.ValueChan)
-    out := make(mpserver.ValueChan)
-    errChan := make(mpserver.ValueChan)
-
-    go mpserver.ConstantComponent("Hello world!")(in, out)
-    go mpserver.StringWriter(out, errChan)
-    go mpserver.ErrorWriter(errChan)
+    in := mpserver.GetChan()
+    out := mpserver.GetChan()
 
     mux := http.NewServeMux()
     mpserver.Listen(mux, "/hello", in)
+
+    go mpserver.ConstantComponent("Hello world!")(in, out)
+    go mpserver.StringWriter(out, nil)
+    
     log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)
 }
 \end{lstlisting}
+\caption[scale=1.0]{Implementation of the Hello World! server.}
+\label{fig:HelloWorldImpl}
+\end{figure}
 
+\newpage
 \section{Experiments}
 \section{Conclusion}
 
