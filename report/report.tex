@@ -1,14 +1,33 @@
 \documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
+
+% Bibliography management
+\usepackage[
+backend=biber,
+% style=alphabetic,
+% sorting=ynt
+]{biblatex}
+\addbibresource{bibliography.bib}
+% \usepackage[nottoc]{tocbibind}
+
+% Code Listings
 \usepackage{listings}
 \usepackage{listings-golang} % import this package after listings
 \usepackage{color}
-\usepackage{graphicx}
-\graphicspath{ {images/} }
+
+% Images
+% \usepackage{graphicx}
+% \graphicspath{ {images/} }
+
+% Diagrams
 \usepackage{tikz}
 \usetikzlibrary{shapes, arrows, arrows.meta}
 
 \setlength{\abovecaptionskip}{5px}
+
+\title{A compositional toolkit for the construction of concurrent Web servers}
+\author{Michal Bock}
+\date{}
 
 \lstset{ % add your own preferences
     frame=single,
@@ -33,6 +52,12 @@
 
 \begin{document}
 
+\maketitle
+
+\newpage
+\tableofcontents
+
+\newpage
 \section{Introduction}
 The goal of this project is to construct a well-structured
 library of communicating components, in the Go language, to support
@@ -56,8 +81,25 @@ client on the other end of the network. That is we can view the server
 as a pipeline that transfers requests into responses.
 
 \subsection{Introduction to Message passing Concurrency}
+\subsubsection{Channels}
+Channel is a FIFO queue of pending messages. They can be accessed by two
+primitive operations, which are send and receive. To start communication
+a process sends a value to the channel. Another process acquires the message
+by receiving from the channel. Sending a message can be asynchronous (nonblocking)
+or synchronous (blocking). Note that receiving message is invariably blocking.
+\cite[293]{book:foundations}
+\subsubsection{Message passing Concurrency}
+Message passing Concurrency is a style of Concurrent programming, where
+processes communicate using channels and communication is the only way
+any two processes can synchronize. 
 
 \subsection{Introduction to go}
+Go is a programming language.
+
+\subsection{Related work}
+Similar work has been by James Whitehead II \cite{whitehead}.
+However, his approach is rather different, as he uses writers and readers
+rather than explicit channels to pass the request through the network.
 
 \newpage
 \section{Architecture}
@@ -95,8 +137,8 @@ for the request and the String Writer writes the response to the client.
 \\
 This is a good example of the basic components of the suggested framework.
 We can call the three main parts the Listener, Processor and Writer, where
-the Listener catches the incoming requests, the processor processes them
-and the writer writes the result to the client.
+the Listener catches the incoming requests and feeds them into the network,
+the processor processes them and the writer writes the result to the client.
 
 \subsection{File Server}
 Architecture of a file server follows the architecture of the Hello world!
@@ -147,9 +189,10 @@ Figure \ref{fig:fileServer2}.
 
 \subsection{Caching}
 Suppose we have a worker component, whose output we want to cache.
-In my architecture we can just wrap the worker in a caching layer.
+In this architecture we can just wrap the worker in a caching layer.
 That is we only run the worker component if we don't have the result
-in the cache. See Figure \ref{fig:caching}.
+in the cache, otherwise we just return the stored result. 
+See Figure \ref{fig:caching}.
 
 \begin{figure}[h]
 \centering
@@ -179,6 +222,51 @@ in the cache. See Figure \ref{fig:caching}.
 \end{figure}
 
 \subsection{Load Balancing}
+If there is a lot of traffic in a certain part of the network we can
+make the channel wider there by adding multiple instances of the same
+pipeline there. The request will be passed to the Component that is 
+ready first.
+    The benefit of this architecture is that, we can do this in runtime.
+That is, based on current number of requests going through a certain part of the network we can decide to add or remove parts of the pipeline. This does not
+have to be just adding processes, if we use channels over network then
+we connect to another computer and have some workload be done there.
+Hence we can start or shut down other servers based on current traffic.
+    Figure \ref{fig:loadBalancing}.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    workerWidth/.style={minimum width=3cm},
+    workerHeight/.style={minimum height=1.9cm},
+    UWidth/.style={minimum width=1cm},
+    every node/.style={
+        text centered,
+        }
+        ]
+    \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
+    \node[workerWidth, workerHeight, yshift=-1.2cm, draw] (worker2) at (worker.south) {Worker};
+
+    \node[anchor=north, workerWidth, yshift=-0.25cm] (cache) at (worker2.south) {Load Balancer};
+
+    \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left) at (worker.west) {};
+    \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right) at (worker.east) {};
+    \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left2) at (worker2.west) {};
+    \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right2) at (worker2.east) {};
+
+    \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- cache.south) -- (right.north east) -- (right.north west) -- (right.west |- cache.north) -- (left.east |- cache.north) -- (left.north east) -- cycle;
+
+    \draw[<-, >={Latex}] (left.west) -- ++(-1, 0);
+    \draw[->, >={Latex}] (left.east) -- (worker.west);
+    \draw[->, >={Latex}] (worker.east) -- (right.west);
+    \draw[->, >={Latex}] (left2.east) -- (worker2.west);
+    \draw[->, >={Latex}] (worker2.east) -- (right2.west);
+    \draw[->, >={Latex}] (right.east) -- ++(1, 0);
+\end{tikzpicture}\caption[scale=1.0]{
+    Managing load in a given part of the network.
+    One of the workers can be shut down or more workers can be added.
+}
+\label{fig:loadBalancing}
+\end{figure}
 
 \subsection{Comparison to Apache server configuration}
 
@@ -702,6 +790,10 @@ func main() {
 \section{Experiments}
 \section{Conclusion}
 
+\printbibliography[
+    heading=bibintoc,
+    title={References}
+]
 
 \end{document}
 
