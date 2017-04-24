@@ -4,8 +4,9 @@
 % Bibliography management
 \usepackage[
 backend=biber,
-% style=alphabetic,
-% sorting=ynt
+citestyle=authoryear,
+style=alphabetic,
+sorting=ynt
 ]{biblatex}
 \addbibresource{bibliography.bib}
 % \usepackage[nottoc]{tocbibind}
@@ -50,68 +51,172 @@ backend=biber,
     text width=5em, text centered, minimum height=4em]
 \tikzstyle{line} = [draw, -latex']
 
+\usepackage[parfill]{parskip}
+\usepackage[labelfont=bf]{caption}
+
 \begin{document}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Title page %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
+\thispagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Abstract %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
-\tableofcontents
-
-\newpage
-\section{Introduction}
+\section*{Abstract}
+\begin{quote}
 The goal of this project is to construct a well-structured
 library of communicating components, in the Go language, to support
-the programming of a family of webservers that could range in scale from a full-scale commercial server to an embedded server used to provide a browser-based GUI to a specific application.
+the programming of a family of webservers that could range in scale 
+from a full-scale commercial server to an embedded server used to provide 
+a browser-based GUI to a specific application.
+\end{quote}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Contents %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\pagenumbering{arabic}
+\tableofcontents
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Introduction %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Introduction}
+In this section I first introduce the motivation behind this project
+and an overview of the used design. Then I follow
+by explaining the basics of message passing concurrency and the basics
+of the go programming language, which was used to implement the proposed 
+toolkit. I finish by reviewing related work done on similar problems.
 
 \subsection{Motivation}
-The vast majority of web server frameworks have a single function that
-computes a response to the client requests and a pool of workers that can
-be used to execute this function. When a request comes in a worker is 
-allocated from the pool and it executes the function.
-\\
-\\
-This project examines an alternative approach, where the server is a network 
-of communicating components. Each component is highly specialized and communicates
-with other components using message passing.
+The vast majority of web server frameworks such as Apache
+use a single handler function that
+computes responses to all types of client requests. When a request comes in a 
+worker is allocated from a pool of workers and it then executes the handler function
+and returns the result to the client.
 
-The components are plugged together into a pipeline using channels.
+This project examines an alternative approach for building web-servers. 
+I propose to construct a web-server as a network of highly specialized 
+communicating components. The communication should be done using
+message passing. This builds on the premise that we can deal
+with different types of requests using different single purpose components.
+
+The main advantages of the proposed architecture are that it is easy to understand
+and configure. A conceptual design of response generation from a request translates 
+directly into a server architecture. That is a flow chart representing a transition
+of a request into a response can be directly translated into program code.
+Due to the compositional nature of this design its also very easy to reuse code
+and use wrappers to introduce new behaviors such as caching of responses.
+
+\subsection{Proposed Architecture}
+The overall server architecture can be explained as follows.
+The components each representing a single action are plugged together into 
+a pipeline using channels to implement complex behaviors. The incoming
+request together with the result computed so far and other 
+information needed for computation and writing the result back to the client
+are passed through the channels.
+
 The incoming request are fed into the input end of the pipeline and 
 after passing through the whole network the response is written to the
-client on the other end of the network. That is we can view the server
+client on the other end. Hence, we can view this server
 as a pipeline that transfers requests into responses.
 
+To implement this architecture I have constructed a toolkit called 
+\texttt{mpserver}, that allows the construction of such web-servers.
+It uses default \texttt{http} package to handle the details of
+the HTTP protocol. The toolkit itself concentrates on structuring the 
+web-server.
+
+
 \subsection{Introduction to Message passing Concurrency}
+This section first introduces channels and then presents the Message
+Passing Concurrency Paradigm.
+
 \subsubsection{Channels}
-Channel is a FIFO queue of pending messages. They can be accessed by two
+Channel is a FIFO queue of pending messages. It can be accessed by two
 primitive operations, which are send and receive. To start communication
 a process sends a value to the channel. Another process acquires the message
 by receiving from the channel. Sending a message can be asynchronous (nonblocking)
 or synchronous (blocking). Note that receiving message is invariably blocking.
 \cite[293]{book:foundations}
-\subsubsection{Message passing Concurrency}
-Message passing Concurrency is a style of Concurrent programming, where
+
+\subsubsection{Message Passing Concurrency}
+Message Passing Concurrency is a style of Concurrent Programming, in which
 processes communicate using channels and communication is the only way
-any two processes can synchronize. 
+any two processes can synchronize. Hence, this style does not 
+suffer any problems that arise from using shared memory for communication 
+and synchronization by multiple concurrent processes.
+
 
 \subsection{Introduction to go}
-Go is a programming language.
+Go is a C like programming language. Its main advantage is 
+that it has a lot of concurrent constructs built natively into it.
+This is also the reason why it was chosen as implementation language 
+for this project.
+In this section I introduce the main concurrency constructs that are
+present in the language and its type system. Other features
+of the language are explained, when they are used.
+
+\subsubsection{Goroutines}
+A goroutine is a lightweight thread managed by the Go runtime \cite{Tour}.
+
+\subsubsection{Channels}
+\subsubsection{Objects methods and Interfaces}
+
 
 \subsection{Related work}
-Similar work has been by James Whitehead II \cite{whitehead}.
-However, his approach is rather different, as he uses writers and readers
-rather than explicit channels to pass the request through the network.
+% TODO: maybe move to a later section
+Similar work has been examined by James Whitehead II in \cite{whitehead}.
+However, his approach is rather different than the approach used 
+in this project. He uses reader-writer pairs for communication between
+two different components in the network. This requires to construct the
+reader and writer objects for each pair of communicating components
+for all requests.
+In order to construct these readers and writers a connection object is 
+passed through the network.
+I believe this indirect approach introduces unnecessary overhead and 
+makes it more difficult to understand how the toolkit works.
+
+However, the readers-writers model has one significant advantage over
+my proposed model. This advantage is the ability to
+perform computation in different components at the same time. This is
+is not possible using my message passing approach, as firstly a 
+component needs to finish its work and afterwards send the result to the next
+component, which can only then start working.
+However, the readers-writers behavior can be mimicked by my implementation 
+if required.
+
+\subsection{Report overview}
+In Chapter \ref{sec:arch} I analyze design of a few simple server examples 
+in the suggested framework. Chapter \ref{sec:impl} describes my implementation
+of the proposed toolkit. Then in Chapter \ref{sec:examples} I present
+implementations in my framework of servers described in chapter \ref{sec:arch}.
+
+In chapter \ref{sec:test} I present results of performance tests of equivalent 
+servers implemented in my framework, in pure go, in toolkit described
+in \cite{whitehead} and using Apache framework. Finally in chapter 
+\ref{sec:conclusion} I summarize the results and achievements of this 
+project and present ideas for future work.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Architecture %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
 \section{Architecture}
-The appealing thing about the proposed compositional architecture is that
-it makes implementing the server very easy. If you have a flow chart 
-representing the conversion of a request into a response, then this can be directly
-translated into a program.
+\label{sec:arch}
+The most appealing thing about the proposed compositional architecture is that
+it makes implementing the server very easy. If you can construct a flow chart 
+representing the conversion of a request into a response, then this flow chart
+can be directly translated into a program.
+
+In this section I introduce a few example web-servers and their conceptual
+design using the proposed architecture. I also introduce a wrapper 
+solution used for caching and load balancing.
+Finally I compare these designs to the set up of equivalent Apache servers.
 
 \subsection{Hello World!}
 \label{sec:helloWorld}
-The simplest Hello world! web server, that is server that replies with a 
-Hello world! message to all requests, can be represented by the diagram
+The simplest example is a Hello world! server. This server replies with a 
+Hello world! message to all requests and can be represented by the diagram
 in Figure \ref{fig:helloWorld}.
 
 \begin{figure}[h]
@@ -129,23 +234,24 @@ in Figure \ref{fig:helloWorld}.
 \label{fig:helloWorld}
 \end{figure}
 
-The dark gray rectangle on the left side of the diagram represents the 
+The \texttt{Listener} represents the 
 part of the program that gets requests and feeds them to the network.
-The hello world component returns the Hello World! string as a result 
-for the request and the String Writer writes the response to the client.
-\\
-\\
+The \texttt{Hello World Component} returns the Hello World! string as a result 
+for the request and the \texttt{String Writer} writes the text response 
+back to the client.
+
 This is a good example of the basic components of the suggested framework.
 We can call the three main parts the Listener, Processor and Writer, where
 the Listener catches the incoming requests and feeds them into the network,
-the processor processes them and the writer writes the result to the client.
+the Processor processes them and the writer writes the generated result 
+back to the client.
 
 \subsection{File Server}
-Architecture of a file server follows the architecture of the Hello world!
-server above. There is a Listener, which catches the requests,
-File Getter, what is a function that gets the requested file (that is it loads it or 
-constructs its absolute path) and finally there is a file writer, which
-writes the file to the client. The architecture is in Figure \ref{fig:fileServer}.
+Architecture of a simple file server follows the architecture of the Hello world!
+server introduced above. It consists of a \texttt{Listener}, which catches the requests,
+\texttt{File Getter}, what is a function that gets the requested file (that is it loads it or 
+constructs its absolute path) and finally there is a \texttt{File Writer}, which
+writes the file to the client. The architecture is shown in Figure \ref{fig:fileServer}.
 \\
 \begin{figure}[h]
 \centering
@@ -162,10 +268,10 @@ writes the file to the client. The architecture is in Figure \ref{fig:fileServer
 \label{fig:fileServer}
 \end{figure}
 
-If we wanted to compress some subset of files, we can just add a Splitter
-that sends file that are supposed to be compressed to a Gzip Writer, who
-does the compression and writes the result to the client. The rest of the files
-will be passed to the standard File Writer. This architecture is shown in
+If we want to compress some subset of files, we can just add a \texttt{Splitter}
+that sends files that are supposed to be compressed to a \texttt{Gzip Writer}, which
+compresses the file and writes the result to the client. The rest of the files
+will be passed to the standard \texttt{File Writer}. This architecture is shown in
 Figure \ref{fig:fileServer2}.
 
 \begin{figure}[h]
@@ -188,11 +294,12 @@ Figure \ref{fig:fileServer2}.
 \end{figure}
 
 \subsection{Caching}
-Suppose we have a worker component, whose output we want to cache.
-In this architecture we can just wrap the worker in a caching layer.
+Suppose we have a worker component, which performs some expensive computation
+and hence we want to cache its output.
+Using the proposed architecture we can just wrap the worker in a caching layer.
 That is we only run the worker component if we don't have the result
 in the cache, otherwise we just return the stored result. 
-See Figure \ref{fig:caching}.
+This design is show in Figure \ref{fig:caching}.
 
 \begin{figure}[h]
 \centering
@@ -206,7 +313,7 @@ See Figure \ref{fig:caching}.
         ]
     \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
 
-    \node[anchor=north, workerWidth, yshift=-0.5cm] (cache) at (worker.south) {Cache};
+    \node[anchor=north, workerWidth, yshift=-0.25cm] (cache) at (worker.south) {Cache};
 
     \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left) at (worker.west) {};
     \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right) at (worker.east) {};
@@ -223,14 +330,20 @@ See Figure \ref{fig:caching}.
 
 \subsection{Load Balancing}
 If there is a lot of traffic in a certain part of the network we can
-make the channel wider there by adding multiple instances of the same
-pipeline there. The request will be passed to the Component that is 
-ready first.
-    The benefit of this architecture is that, we can do this in runtime.
-That is, based on current number of requests going through a certain part of the network we can decide to add or remove parts of the pipeline. This does not
-have to be just adding processes, if we use channels over network then
-we connect to another computer and have some workload be done there.
-Hence we can start or shut down other servers based on current traffic.
+increase the throughput there
+by creating multiple instances of the components in this part of 
+the pipeline. The incoming request will then be passed to the component that is 
+ready first. When the load in a given part of the pipeline decreases,
+we can shut down the created components.
+
+The benefit of the proposed architecture is that, we can do these adjustments
+in runtime.
+That is, based on current number of requests going through a certain part of 
+the network we can decide to add or remove parts of the pipeline. This does not
+have to be only adding components locally.
+If we use channels over network then
+we can connect to other servers and distribute the workload among them.
+Hence we can start or shut down other servers based on the current traffic.
     Figure \ref{fig:loadBalancing}.
 
 \begin{figure}[h]
@@ -270,19 +383,25 @@ Hence we can start or shut down other servers based on current traffic.
 
 \subsection{Comparison to Apache server configuration}
 
+\subsection{Summary}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%% Implementation %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
 \section{Implementation}
-
-mpserver is a go library that implements a framework for building 
-concurrent web-servers based on message passing.
+\label{sec:impl}
+In this chapter I present the implementation of my \texttt{mpserver} toolkit.
+It is implemented as a go package. I start by
 
 The web-server consists of a multiple Components which are plugged 
 together using channels to form a pipeline that transforms requests 
 to responses.
 
-\subsection{Values} 
-Channels between Components transfer values of the following type:
+\subsection{Values}
+\texttt{Value} is a struct type that represents the type of messages that are
+passed between the components of the network. It is defined as follows:
 
 \begin{figure}[h]
 \centering
@@ -299,19 +418,37 @@ type Value struct {
 \label{fig:Value}
 \end{figure}
 
-Where:
+Here:
 \begin{itemize}
-  \item Request is the http request made by the client.
-  \item Writer is an object that writes the response back to the 	client.
-  \item Result is the result computed so far (initially nil).
-  \item Done is a signaling channel. Signal should be send on this channel,
-		after the response is written at the end of the pipeline.
-  \item ResponseCode is the response code that should be returned to the client.
+  \item \texttt{Request} is the HTTP request made by the client implemented
+        in the default HTTP library.
+
+  \item \texttt{Writer} is an object that writes the response back to the client.
+        Its type is \texttt{ResponseWriter}, which is implemented in the default HTTP
+        package. This together with the \texttt{Request} field is set just before
+        the value is fed into the network.
+        This should only be used by \texttt{Writer} objects that are introduced later.
+
+
+  \item \texttt{Result} is the result computed so far (initially nil). This is
+        of type \texttt{Any} which is defined to be the empty interface.
+        This allows values of any type to be stored there.
+
+  \item \texttt{Done} is a signaling channel. Signal should be send on this channel,
+		after the response is written at the end of the pipeline. This
+        allows the connection to the client to be closed after the result
+        is written.
+
+  \item \texttt{ResponseCode} is the HTTP response code that should be 
+        returned to the client. The default value of this field is 200,
+        which represents a successful request.
 \end{itemize}
+
 
 \subsection{Components}
 Component is a generic part of the pipeline with an input and output channel.
-The type Component is defined as follows:
+It processes the values provided on input channel and outputs the results
+on the output channel. The type \texttt{Component} is defined as follows:
 
 
 \begin{figure}[h]
@@ -323,25 +460,32 @@ type Component func (in <-chan Value, out chan<- Value)
 \label{fig:Component}
 \end{figure}
 
-
 Every Component should satisfy the following:
 \begin{itemize}
-  \item When run Component should read values from the input channel
-				and output processed values on the output channel while the input 
-				channel is open.
-	\item Component terminates normally only if its input channel is closed.
-	\item Before terminating, every Component closes its output channel.
-	\item Component can only close its output channel and it can only do so
-				after its input channel have been closed.
-	\item For every value that a Component reads from the input channel, 
-				it should write a value to the output channel. So, that every request 
-				gets a response.
+    \item When run Component should read values from the input channel
+		  and output processed values on the output channel while the input 
+		  channel is open.
+
+    \item Component terminates normally only if its input channel is closed.
+
+    \item Before terminating, every Component closes its output channel.
+
+    \item Component can only close its output channel and it can only do so
+    	  after its input channel have been closed.
+
+    \item For every value that a Component reads from the input channel, 
+		  it should write a value to the output channel. So, that every request 
+		  gets a response.
   
 \end{itemize}
 
 \subsubsection{Making Components}
-The package contains a helper function that constructs the components,
-so that they follow the specification above. It's signature is below:
+To simplify the construction of components, so that they adhere to 
+the above specification the package provides a helper function that 
+constructs a component using a function that maps a \texttt{Value} object 
+into another \texttt{Value} object. This represents the mapping of the
+input values to the output values.
+The signature of this component generator is below:
 
 \begin{figure}[h]
 \centering
@@ -352,8 +496,7 @@ func MakeComponent(f ComponetFunc) Component
 \label{fig:MakeComponent}
 \end{figure}
 
-
-The Component Function is a helper type with the following definition:
+Here the Component Function is a helper type with the following definition:
 
 \begin{figure}[h]
 \centering
@@ -364,19 +507,14 @@ type ComponetFunc func (val Value) Value
 \label{fig:ComponentFunc}
 \end{figure}
 
-It is a function that takes a value and returns another value.
-
 The Component constructed by MakeComponent function reads value from the
 input channel, runs provided function f on this value and then outputs the
 result of f.
 
-Therefore anyone using the package just needs to define the function that
-transforms the input value to the output value and then the MakeComponent
-function will construct the actual component for them.
-
 \subsubsection{Constant Component}
 Constant Component is a simple component generator that takes a value c
-of any type and returns a component that writes c to the Result field of all inputted values and then outputs them. It's signature is below.
+of any type and returns a component that writes c to the Result field of 
+all inputted values and then outputs them. It's signature is below.
 
 \begin{figure}[h]
 \centering
@@ -403,14 +541,13 @@ func LinkComponents(components ...Component) Component
 \label{fig:LinkComponents}
 \end{figure}
 
-
-The subcomponents are linked and run when the returned component is run. 
-The last of the provided components is run in the goroutine where
+The subcomponents are linked and run when the combined component is run. 
+The last of the provided components is run in the goroutine in which
 the combined component was run.
 
 \subsection{Writers}
 Writer is the end of the pipeline which writes results to the client.
-The type Writer is defined as follows:
+The type \texttt{Writer} is defined as follows:
 
 \begin{figure}[h]
 \centering
@@ -421,16 +558,17 @@ type Writer func (in <-chan Value, errChan chan<- Value)
 \label{fig:Writer}
 \end{figure}
 
-It is a function with input channel and channel for reporting errors.
+It is a function with an input channel and a channel for reporting errors.
 \begin{itemize}
 	\item When a Writer writes the result to the client, it should send a signal
-				on done channel, so that the connection to client can be closed.
+		  on done channel, so that the connection to the client can be closed.
 	\item The writer terminates when its input channel is closed. It shouldn't
-			  close the error channel, as other processes might be using it.
+		  close the error channel, as other processes might be using it.
 \end{itemize}
 
 \subsubsection{Error Writer}
-Error Writer is a function with the following signature:
+Error Writer is a function that writes error responses to the client.
+It has the following signature:
 
 \begin{figure}[h]
 \centering
@@ -499,14 +637,14 @@ type State interface {
 \end{figure}
 
 \begin{itemize}
-	\item The Next function returns the next state when provided with a value.
-	\item The Terminal function indicates whether the current state is a terminal state.
-	\item The Result function returns the result that possibly after further 
-				processing should be returned to the client.
+	\item The \texttt{Next} function returns the next state when provided with a value.
+	\item The \texttt{Terminal} function indicates whether the current state is a terminal state.
+	\item The \texttt{Result} function returns the result that possibly after further 
+		  processing should be returned to the client.
 \end{itemize}
 
-\subsubsection{Session management component}
-Session management component is a following component generator.
+\subsubsection{Session Management Component}
+\texttt{Session Management Component} is a following component generator.
 
 \begin{figure}[h]
 \centering
@@ -520,15 +658,14 @@ func SessionManagementComponent(
 
 It takes an initial state for each session and a session expiration time and 
 returns a Component that behaves as a session manager. 
-\\
-\\
+
 The component behaves as follows:
-\\
+
 The component stores a mapping from session ids to current state of the session.
 
-Every new request gets assigned a unique session id and a mapping from the generated 
-id to the next state, which is generated from the initial state using the provided value,
-is stored. The result of the call to the `Result` function on the next state with the provided 
+Every new request gets assigned a unique session id. Then a mapping from the generated 
+id to the current state, which is generated from the initial state using the provided value,
+is stored. The result of the call to the \texttt{Result} function on the next state with the provided 
 value is then sent down the pipeline.
 
 When a request with set `Session-Id` header comes in, the component gets the current 
@@ -546,7 +683,7 @@ The abstraction using states allows the users of the package to implement the
 logic for the session, independently of the session management part.
 
 \subsection{Caching}
-Cache Component is a Component generator with the following signature:
+\texttt{Cache Component} is a Component generator with the following signature:
 
 \begin{figure}[h]
 \centering
@@ -641,7 +778,7 @@ It takes a component that can cause panic and returns a component the behaves as
 \begin{itemize}
 	\item It passes every inputted value to the worker and gets the result from it and then passes
 				the result further down the pipeline.
-	\item In case the worker crashes, that is causes panic, the component writes error as a result 
+	\item In case the worker crashes, that is causes panic, the component writes an error as a result 
 				for the value that caused the crash and the restarts the worker.
 	\item The component can itself cause a panic if the worker closes its input channel, or if 
 				it closes its output channel before its input channel is closed. That is if the worker
@@ -744,8 +881,15 @@ func ProxyComponent(scheme, host string,
 \label{fig:ProxyComp}
 \end{figure}
 
+\subsection{Summary}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Examples %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \newpage
 \section{Examples}
+\label{sec:examples}
 \subsection{Hello world! server}
 Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
 server described in section \ref{sec:helloWorld}.
@@ -786,10 +930,17 @@ func main() {
 \label{fig:HelloWorldImpl}
 \end{figure}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Experiments %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
 \section{Experiments}
+\label{sec:test}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Conclusion %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
 \section{Conclusion}
+\label{sec:conclusion}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% Bibliography %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
 \printbibliography[
     heading=bibintoc,
     title={References}
