@@ -33,7 +33,7 @@ func Listen(s *http.ServeMux, url string, out chan<- Value) {
     s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ r, w, nil, nil, done, 0}
+        out <- Value{ r, w, nil, nil, done, 200}
         <- done
     })
 }
@@ -41,7 +41,7 @@ func Listen(s *http.ServeMux, url string, out chan<- Value) {
 func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
     s.Handle(url, websocket.Handler(func (ws *websocket.Conn) {
         done := make(chan bool)
-        out <- Value{ nil, nil, ws, nil, done, 0}
+        out <- Value{ nil, nil, ws, nil, done, 200}
         <- done
     }))
 }
@@ -80,10 +80,9 @@ func MakeComponent(f ComponetFunc) Component {
 }
 
 func ConstantComponent(c Any) Component {
-    f := func (val Value) Value {
+    return MakeComponent(func (val Value) Value {
         val.Result = c; return val
-    }
-    return MakeComponent(f)
+    })
 }
 
 func PathMaker(dir, prefix string) Component {

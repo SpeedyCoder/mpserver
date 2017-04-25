@@ -215,6 +215,7 @@ type Counter struct {
 func (c *Counter) update(k int) {c.count += k}
 func (c *Counter) getCount() int {return c.count}
 \end{lstlisting}
+
 Note that the operations are defined on a pointer to a \texttt{Counter}
 object. This is because all function parameters are passed by value, so
 if we defined the update method on Counter object, calling it wouldn't
@@ -233,7 +234,6 @@ type CounterInterface interface {
     getCount() int
 }
 \end{lstlisting}
-
 
 \subsection{Related work}
 Similar work has been done by James Whitehead II in \cite{whitehead}.
@@ -468,12 +468,11 @@ Hence we can start or shut down other servers based on the current traffic.
 \newpage
 \section{Implementation}
 \label{sec:impl}
-In this chapter I present the implementation of my \texttt{mpserver} toolkit.
-It is implemented as a go package. I start by
-
-The web-server consists of a multiple Components which are plugged 
-together using channels to form a pipeline that transforms requests 
-to responses.
+In this Chapter I present the implementation of my \texttt{mpserver} toolkit.
+It is implemented as a go package. I start by introducing the primitive 
+types such as Value, Component and Writer. Then I introduce more
+sophisticated Component generators for caching, load balancing and 
+network communication.
 
 \subsection{Values}
 \texttt{Value} is a struct type that represents the type of messages that are
@@ -500,11 +499,10 @@ Here:
         in the default HTTP library.
 
   \item \texttt{Writer} is an object that writes the response back to the client.
+        This field should only be used by \texttt{Writer} objects that are introduced later.
         Its type is \texttt{ResponseWriter}, which is implemented in the default HTTP
-        package. This together with the \texttt{Request} field is set just before
+        package. This field together with the \texttt{Request} field is set just before
         the value is fed into the network.
-        This should only be used by \texttt{Writer} objects that are introduced later.
-
 
   \item \texttt{Result} is the result computed so far (initially nil). This is
         of type \texttt{Any} which is defined to be the empty interface.
@@ -522,172 +520,165 @@ Here:
 
 
 \subsection{Components}
+This section introduces the component type, then shows how we can simply
+create components and finally presents a way how multiple components can
+be combined to form a liner pipeline.
+
+\subsubsection{The Component type}
 Component is a generic part of the pipeline with an input and output channel.
 It processes the values provided on input channel and outputs the results
 on the output channel. The type \texttt{Component} is defined as follows:
-
-
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 type Component func (in <-chan Value, out chan<- Value)
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of type Component.}
-\label{fig:Component}
-\end{figure}
-
-Every Component should satisfy the following:
+Every component should satisfy the following conditions:
 \begin{itemize}
-    \item When run Component should read values from the input channel
-		  and output processed values on the output channel while the input 
-		  channel is open.
+    \item When run a component should be always willing to read values
+          from the input channel, as long as the input channel is open.
 
-    \item Component terminates normally only if its input channel is closed.
+    \item For every value a component reads from the input channel, 
+          it should write a value to the output channel with the 
+          same \texttt{ResponseWriter}. This ensures that every request 
+          gets a response.
 
-    \item Before terminating, every Component closes its output channel.
+    \item Component can terminate only when its input channel is closed.
+          Before terminating, a component should close its output channel.
+          This ensures termination of any components further down in the network.
 
     \item Component can only close its output channel and it can only do so
-    	  after its input channel have been closed.
-
-    \item For every value that a Component reads from the input channel, 
-		  it should write a value to the output channel. So, that every request 
-		  gets a response.
-  
+    	  after its input channel have been closed. It shouldn't attempt
+          to close the input channel as this will likely result in an exception.
 \end{itemize}
 
 \subsubsection{Making Components}
 To simplify the construction of components, so that they adhere to 
 the above specification the package provides a helper function that 
-constructs a component using a function that maps a \texttt{Value} object 
-into another \texttt{Value} object. This represents the mapping of the
-input values to the output values.
-The signature of this component generator is below:
+constructs a component using a function that maps one \texttt{Value} object 
+into another \texttt{Value} object. 
+That is the function has the following signature:
+\begin{lstlisting}
+type ComponetFunc func (val Value) Value
+\end{lstlisting}
+This represents the mapping of the input values to the output values. 
 
+Now the code for the described component generator is below:
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-func MakeComponent(f ComponetFunc) Component
+func MakeComponent(f ComponetFunc) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        for val := range in {
+            out <- f(val)
+        }
+        close(out)
+    }
+}
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of MakeComponent function.}
 \label{fig:MakeComponent}
 \end{figure}
 
-Here the Component Function is a helper type with the following definition:
-
-\begin{figure}[h]
-\centering
-\begin{lstlisting}
-type ComponetFunc func (val Value) Value
-\end{lstlisting}
-\caption[scale=1.0]{Declaration of type ComponentFunc.}
-\label{fig:ComponentFunc}
-\end{figure}
-
-The Component constructed by MakeComponent function reads value from the
-input channel, runs provided function f on this value and then outputs the
-result of f.
+Here the for loop reads values from the input channel and assigns them
+to the variable \texttt{val} while the input channel is open. Then the 
+the function \texttt{f} is applied to this value and the result is outputted.
+Afterwards, the component waits for another value. When the input channel
+is closed the loop terminates. Afterwards, the component closes its output channel
+and terminates.
 
 \subsubsection{Constant Component}
 Constant Component is a simple component generator that takes a value c
 of any type and returns a component that writes c to the Result field of 
-all inputted values and then outputs them. It's signature is below.
-
-\begin{figure}[h]
-\centering
+all inputted values and then outputs them. It's definition using the 
+\texttt{MakeComponent} generator is show below.
 \begin{lstlisting}
-func ConstantComponent(c Any) Component
+func ConstantComponent(c Any) Component {
+    return MakeComponent(func (val Value) Value {
+        val.Result = c; return val
+    })
+}
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Constant Component generator.}
-\label{fig:ConstantComponent}
-\end{figure}
 
-
-\subsection{Linking components}
-The library provides a component generator Link Components that takes 
+\subsubsection{Linking components}
+The library also provides a component generator \texttt{LinkComponents} that takes 
 any number of components and returns a component that behaves as their 
 linear combination. That is as a pipeline constructed from these components 
-in the order in which they are provided. Its signature is below:
-
-\begin{figure}[h]
-\centering
+in the order in which they are provided. Its signature is shown below.
 \begin{lstlisting}
 func LinkComponents(components ...Component) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of LinkComponents function.}
-\label{fig:LinkComponents}
-\end{figure}
-
 The subcomponents are linked and run when the combined component is run. 
 The last of the provided components is run in the goroutine in which
 the combined component was run.
 
 \subsection{Writers}
+Here, I introduce the \texttt{Writer} type, which acts as the end of the 
+pipeline. Then I present a special writer for writing errors and a way
+of separating error values from the stream of all values.
+\subsection{Writer type}
 Writer is the end of the pipeline which writes results to the client.
 The type \texttt{Writer} is defined as follows:
-
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 type Writer func (in <-chan Value, errChan chan<- Value)
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of type Writer.}
-\label{fig:Writer}
-\end{figure}
-
 It is a function with an input channel and a channel for reporting errors.
+Every writer should satisfy the following:
 \begin{itemize}
-	\item When a Writer writes the result to the client, it should send a signal
-		  on done channel, so that the connection to the client can be closed.
+	\item Once a writer writes the result to the client, it should send a signal
+		  on the Done channel, so that the connection to the client can be closed.
 	\item The writer terminates when its input channel is closed. It shouldn't
 		  close the error channel, as other processes might be using it.
 \end{itemize}
+The package provides writers to write string, json and file responses
+using multiple input types.
 
 \subsubsection{Error Writer}
 Error Writer is a function that writes error responses to the client.
 It has the following signature:
-
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 func ErrorWriter(in <-chan Value)
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of ErrorWriter function.}
-\label{fig:ErrorWriter}
-\end{figure}
-
 It has only one input channel. The writer terminates when the channel
 is closed. The channel should be closed only after all Writers that 
 are using it terminated.
 
+Note that this is a special writer as it doesn't match the \texttt{Writer} type. 
+It collects the error responses from all other writers and all other parts
+of the network. It also logs all the responses on the standard input for
+purposes of debugging.
+
+\subsubsection{Error Splitter}
+If we allow error messages to reach any other writer than the error writer,
+all errors will only show that a particular writer got a wrong input.
+To avoid this the package provides \texttt{ErrorSplitter} function, which
+has the signature shown below.
+\begin{lstlisting}
+func ErrorSplitter(in <-chan Value, out chan<- Value, 
+                                    errChan chan<- Value)
+\end{lstlisting}
+This function sends all values with an error in the Result field to the 
+error channel, which should lead to the error writer. All other result 
+are send to the output channel. Hence, this acts as error separator.
+It is usually used just before a normal response writer.
+
 \subsection{Conditions and Splitter}
+In this section I introduce a way to split a stream of incoming values into
+multiple streams of values that go into different parts of the network
+using very flexible rules for splitting.
+
 \subsubsection{Conditions}
 Condition type is defined as follows:
-
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 type Condition func (val Value) bool
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of type Condition.}
-\label{fig:Condition}
-\end{figure}
-
-It is a function that takes a value and returns a boolean.
+It is a just function that takes a value and returns a boolean.
 
 \subsubsection{Splitter}
 Conditions are used in Splitter, which is a component with the 
 following signature:
-
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 func Splitter(in <-chan Value, defOut chan<- Value, 
 			  outs []chan<- Value, conds []Condition)
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of type Splitter.}
-\label{fig:Splitter}
-\end{figure}
-
 It takes an input channel, default output channel, array of output channels and array of conditions.
 The number of output channels and the number of conditions should be the same.
 For every input value the Splitter evaluates the conditions from first to last.
@@ -708,10 +699,11 @@ type State interface {
     Result() Any
 }
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of interface State.}
+\caption[scale=1.0]{Declaration of the State interface.}
 \label{fig:State}
 \end{figure}
 
+Here the expected behavior of the member functions is as follows:
 \begin{itemize}
 	\item The \texttt{Next} function returns the next state when provided with a value.
 	\item The \texttt{Terminal} function indicates whether the current state is a terminal state.
@@ -720,17 +712,11 @@ type State interface {
 \end{itemize}
 
 \subsubsection{Session Management Component}
-\texttt{Session Management Component} is a following component generator.
-
-\begin{figure}[h]
-\centering
+\texttt{SessionManagementComponent} is a following component generator.
 \begin{lstlisting}
-func SessionManagementComponent(
-		initial State, seshExp time.Duration) Component
+func SessionManagementComponent(store Store, initial State, 
+                                seshExp time.Duration) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Session Management Component generator.}
-\label{fig:seshComp}
-\end{figure}
 
 It takes an initial state for each session and a session expiration time and 
 returns a Component that behaves as a session manager. 
