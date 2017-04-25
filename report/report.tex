@@ -3,10 +3,10 @@
 
 % Bibliography management
 \usepackage[
-backend=biber,
-citestyle=authoryear,
-style=alphabetic,
-sorting=ynt
+backend=biber
+% citestyle=authoryear,
+% style=alphabetic,
+% sorting=ynt
 ]{biblatex}
 \addbibresource{bibliography.bib}
 % \usepackage[nottoc]{tocbibind}
@@ -147,24 +147,96 @@ and synchronization by multiple concurrent processes.
 
 
 \subsection{Introduction to go}
-Go is a C like programming language. Its main advantage is 
+``Go is a statically-typed, C like programming language. Programs are compiled 
+to native code and are linked with a small runtime environment that performs 
+automatic memory management and scheduling for lightweight processes called 
+goroutines.'' \cite[2]{whitehead} Its main advantage is 
 that it has a lot of concurrent constructs built natively into it.
 This is also the reason why it was chosen as implementation language 
 for this project.
 In this section I introduce the main concurrency constructs that are
 present in the language and its type system. Other features
-of the language are explained, when they are used.
+of the language are explained as they are used.
 
 \subsubsection{Goroutines}
-A goroutine is a lightweight thread managed by the Go runtime \cite{Tour}.
+A goroutine is a cross between a lightweight thread and a coroutine
+managed by the Go runtime \cite{whitehead}. Goroutines are multiplexed
+on a set of threads, when a goroutine blocks another goroutine is scheduled
+on the same thread. 
+
+What makes goroutines powerful is that they are very cheap to create and 
+it is also cheap to switch between them. This is the case, because they 
+have very small overhead beyond the memory for the stack (which is only 
+a few kilobytes). ``To make the stacks small, the runtime uses resizable, 
+bounded stacks. The CPU overhead averages about three cheap 
+instructions per function call.'' \cite{FAQ} These costs are much smaller
+than using operating system threads, hence it is feasible to use thousands
+of goroutines.
+
+To create a new goroutine we only need to prefix a function call with
+the \texttt{go} keyword. The arguments will be evaluated in the current
+goroutine, but unlike with regular function call this goroutine won't
+wait for the function to return. The called 
+function will be evaluated in a new goroutine and this goroutine will 
+terminate when the function terminates \cite{GoDocumentation}.
 
 \subsubsection{Channels}
+Channels in go are many to many channels. That is multiple goroutines can
+read and write to a channel. Channels are statically typed and
+dynamically allocated using \texttt{make} function. This function takes 
+two arguments: the type of the channel and the size of its buffer.
+A channel with buffer size 0 implements a synchronous channel, whereas 
+channels with lager buffers implement asynchronous channels, as reads
+are only blocked when the buffer is empty and writes are only blocked
+when the buffer is full.
+
+By default the channel type exposes both reading and writing end of the
+channel. Hence, we can view it as a bidirectional channel. 
+However, we can access only one of its ends using the following:
+\begin{lstlisting}
+channel := make(chan Value, 10)
+in := <-chan Value(channel)
+out := chan<- Value(channel)
+\end{lstlisting}
+Here, we define 3 variables. \texttt{channel} variable refers to the 
+channel itself, \texttt{in} refers to the reading end of the channel
+and \texttt{out} to the writing end of the channel. We used casting
+from the channel to access only one of its end.
+
 \subsubsection{Objects methods and Interfaces}
+Go doesn't have classes and inheritance as Object Oriented Languages 
+such as Java do. It instead allows programmers to define named types
+and methods on these types. This is illustrated in the following example,
+which defines a simple counter object.
+\begin{lstlisting}
+type Counter struct {
+    count int
+}
+func (c *Counter) update(k int) {c.count += k}
+func (c *Counter) getCount() int {return c.count}
+\end{lstlisting}
+Note that the operations are defined on a pointer to a \texttt{Counter}
+object. This is because all function parameters are passed by value, so
+if we defined the update method on Counter object, calling it wouldn't
+change the value of the Counter.
+
+To specify behavior of types go provides interfaces. An interface
+specifies methods that a type must implement in order to satisfy an 
+interface. ``Interfaces are satisfied implicitly. A type implements 
+an interface by implementing its methods.'' \cite{tour}
+\texttt{CounterInterface} defined below defines methods that any counter
+object should provide. This interface is implemented by a pointer to
+a \texttt{Counter} object defined above.
+\begin{lstlisting}
+type CounterInterface interface {
+    update(int)
+    getCount() int
+}
+\end{lstlisting}
 
 
 \subsection{Related work}
-% TODO: maybe move to a later section
-Similar work has been examined by James Whitehead II in \cite{whitehead}.
+Similar work has been done by James Whitehead II in \cite{whitehead}.
 However, his approach is rather different than the approach used 
 in this project. He uses reader-writer pairs for communication between
 two different components in the network. This requires to construct the
@@ -185,14 +257,18 @@ However, the readers-writers behavior can be mimicked by my implementation
 if required.
 
 \subsection{Report overview}
+In this Chapter I introduced the motivation of the project, its main
+aim the necessary background. I also reviewed work done on related 
+problems
+
 In Chapter \ref{sec:arch} I analyze design of a few simple server examples 
 in the suggested framework. Chapter \ref{sec:impl} describes my implementation
 of the proposed toolkit. Then in Chapter \ref{sec:examples} I present
-implementations in my framework of servers described in chapter \ref{sec:arch}.
+implementations of servers described in Chapter \ref{sec:arch} in my framework .
 
 In chapter \ref{sec:test} I present results of performance tests of equivalent 
-servers implemented in my framework, in pure go, in toolkit described
-in \cite{whitehead} and using Apache framework. Finally in chapter 
+servers implemented in my framework, in pure go, in toolkit by James Whitehead II
+\cite{whitehead} and using Apache framework. Finally in chapter 
 \ref{sec:conclusion} I summarize the results and achievements of this 
 project and present ideas for future work.
 
