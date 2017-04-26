@@ -33,20 +33,22 @@ backend=biber
 \lstset{ % add your own preferences
     frame=single,
     basicstyle=\footnotesize,
-    keywordstyle=\color{blue},
+    keywordstyle=\color{blue}\bfseries,
     numbers=none,
     showstringspaces=false, 
     stringstyle=\color{red},
     tabsize=4,
     language=Golang,
-    belowskip=0px
+    belowskip=0px,
+    emph={go},
+    emphstyle={\color{blue}\bfseries}
 }
 
 % Define block styles
 \tikzstyle{listener} = [rectangle, draw, fill=gray!60, 
     text width=5em, text centered, minimum height=4em]
 \tikzstyle{component} = [rectangle, draw, fill=white, 
-    text width=7em, text centered, minimum height=4em]
+    text width=5em, text centered, minimum height=4em]
 \tikzstyle{writer} = [rectangle, draw, fill=gray!30, 
     text width=5em, text centered, minimum height=4em]
 \tikzstyle{line} = [draw, -latex']
@@ -236,6 +238,8 @@ type CounterInterface interface {
 }
 \end{lstlisting}
 
+% TODO: explain panic
+
 \subsection{Related work}
 Similar work has been done by James Whitehead II in \cite{whitehead}.
 However, his approach is rather different than the approach used 
@@ -301,7 +305,7 @@ in Figure \ref{fig:helloWorld}.
 \begin{tikzpicture}[node distance = 2cm, auto]
     % Nodes
     \node [listener] (listener) {Listener};
-    \node [component, right of=listener, node distance=4cm] (hello) {Hello World Component};
+    \node [component, right of=listener, text width=6em,, node distance=4cm] (hello) {Hello World Component};
     \node [writer, right of=hello, node distance=4cm] (writer) {String Writer};
     % Edges
     \path [line] (listener) -- (hello);
@@ -324,12 +328,12 @@ the Processor processes them and the writer writes the generated result
 back to the client.
 
 \subsection{File Server}
+\label{sec:fileServer}
 Architecture of a simple file server follows the architecture of the Hello world!
 server introduced above. It consists of a \texttt{Listener}, which catches the requests,
 \texttt{File Getter}, what is a function that gets the requested file (that is it loads it or 
 constructs its absolute path) and finally there is a \texttt{File Writer}, which
 writes the file to the client. The architecture is shown in Figure \ref{fig:fileServer}.
-\\
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
@@ -356,9 +360,9 @@ Figure \ref{fig:fileServer2}.
 \begin{tikzpicture}[node distance = 2cm, auto]
     % Nodes
     \node [listener] (listener) {Listener};
-    \node [component, right of=listener, node distance=4cm] (getter) {File Getter};
-    \node [component, right of=getter, node distance=4cm] (splitter) {Splitter};
-    \node [writer, right of=splitter, node distance=4cm] (fwriter) {File Writer};
+    \node [component, right of=listener, node distance=3cm] (getter) {File Getter};
+    \node [component, right of=getter, node distance=3cm] (splitter) {Splitter};
+    \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
     \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
     % Edges
     \path [line] (listener) -- (getter);
@@ -780,35 +784,35 @@ The abstraction using states allows the users of the package to implement the
 logic for the session, independently of the session management part.
 
 \subsection{Caching}
-\texttt{Cache Component} is a Component generator with the following signature:
-
+\texttt{CacheComponent} is a Component generator with the following signature:
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
 func CacheComponent(cache Storage, worker Component, 
             expiration time.Duration, useCleaner bool) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Cache Component generator.}
+\caption[scale=1.0]{Type signature of the \texttt{Cache Component} generator.}
 \label{fig:cacheComp}
 \end{figure}
 
 The returned component behaves as follows:
 \begin{itemize}
 	\item When a value is inputted that the component hasn't seen before, then
-				the value is passed to the provided worker and the result is stored in
-				a map.
+		  the value is passed to the provided worker and the result is stored in
+		  a map.
 	\item When the component gets a previously seen value, it returns the value
-			  stored in the map, if it hasn't expired yet. If it expired, then the component
-				treats it as a new value.
-	\item Expired values are regularly deleted from the map.
+		  stored in the map, if it hasn't expired yet. If it expired, then the component
+		  treats it as a new value.
+	\item Expired values are regularly deleted from the map if the useCleaner
+          option is set to \texttt{true}.
 \end{itemize}
 
 For the generated component to function properly, the worker must output
-a value for every value that is sent to it.
+a value for every value that is sent to it. This is one of the conditions
+that a component must meet, so this shouldn't be an issue.
 
 \subsection{Load Balancing}
-Load balancing component a Component generator with the following signature:
-
+\texttt{LoadBalancingComponent} is a Component generator with the following signature:
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -818,29 +822,35 @@ func LoadBalancingComponent(addTimeout,
 \caption[scale=1.0]{Declaration of Load Balancing Component generator.}
 \label{fig:loadComp}
 \end{figure}
-
 The returned component has an array of workers which can be easily shut down.
 The initial number of workers is 1. 
-\\
-\\
+
 For every inputted value, the component behaves as follows:
 \begin{itemize}
 	\item It tries to send the value to the workers, if this is not successful, 
-				before the addTimeout, then the component creates a new worker and then
-				tries to send the value to the workers again. This will be successful as
-				there is at least one worker that is not busy.
+		  before the \texttt{addTimeout}, then the component creates a new worker and then
+		  tries to send the value to the workers again. This will be successful because
+		  there is at least one worker that is not busy.
 	\item The workers send their results further down the pipeline.
-	\item If there are no incoming values for removeTimout time, then the component
-				shuts down one of the workers, if there is more than one worker.
-	\item When the input channel of the component is closed, then it shuts down all
-				the workers, then it closes its output channel and terminates.
-
+	\item If there are no incoming values for duration equal to the \texttt{removeTimeout},
+          then the component shuts down one of the workers, if there is more than one worker.
+	\item When the input channel of the component is closed, then the load balancer shuts down all
+		  the workers, then it closes its output channel and terminates.
 \end{itemize}
+There are a lot of other possible load balancing strategies. 
+Implementing them should be a simple modification of the existing code.
+Note that this is very powerful concept as it can also be used to share
+the load between multiple servers (here using a different strategy might be 
+preferred).
 
 \subsection{Error handling}
+% TODO: maybe add a diagram
 \subsubsection{Error Passer}
-Error Passer is a component generator with the following signature:
-
+As a lot of components expect an input of a certain type, their execution
+might end with an error if they are provided with an error result from
+a previous component. This would make debugging very hard. Hence, the 
+package provides the following component wrapper, that won't pass errors
+to the provided component. This signature of this wrapper is shown below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -853,15 +863,17 @@ func ErrorPasser(worker Component) Component
 The generated component behaves as follows:
 \begin{itemize}
 	\item For every inputted value it checks whether the result is an error
-				and if that is the cases it just outputs the value.
+		  and if that is the cases it just outputs the value.
 	\item If the result of the inputted value is not an error, then the component
-				passes the value to the worker, which after processing it passes 
-				it further down the pipeline.
+		  passes the value to the worker, which after processing it passes 
+		  it further down the pipeline.
 \end{itemize}
 
 \subsubsection{Panic handling component}
-Panic handling component is a component generator with the following signature:
-
+If we use a component which might cause panic, this will crash the whole
+server when the panic occurs. Hence, the package provides the 
+\texttt{PanicHandlingComponent}. The signature of this wrapper is shown 
+below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -871,38 +883,29 @@ func PanicHandlingComponent(worker Component) Component
 \label{fig:panicHandler}
 \end{figure}
 
-It takes a component that can cause panic and returns a component the behaves as follows:
+It takes a component that can cause panic and returns a component the 
+behaves as follows:
 \begin{itemize}
-	\item It passes every inputted value to the worker and gets the result from it and then passes
-				the result further down the pipeline.
-	\item In case the worker crashes, that is causes panic, the component writes an error as a result 
-				for the value that caused the crash and the restarts the worker.
-	\item The component can itself cause a panic if the worker closes its input channel, or if 
-				it closes its output channel before its input channel is closed. That is if the worker
-				violates some of the basic requirements for Components.
+	\item It passes every inputted value to the worker, gets the result 
+          from it and then passes the result further down the pipeline.
+	\item In case the worker crashes, that is causes panic, the component 
+          writes an error as a result for the value that caused the crash 
+          and the restarts the worker.
+	\item The component can itself cause a panic if the worker closes its 
+          input channel, or if it closes its output channel before its input 
+          channel is closed. That is if the worker violates some of the basic 
+          requirements for Components.
 \end{itemize}
 
 \subsection{Network Components}
-\subsubsection{Request Copier}
-Request Copier is a component generator with the following signature:
-
-\begin{figure}[h]
-\centering
-\begin{lstlisting}
-func RequestCopier(scheme, host string) Component
-\end{lstlisting}
-\caption[scale=1.0]{Declaration of Request Copier Component generator.}
-\label{fig:RequestCopier}
-\end{figure}
-
-It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
-and returns a component that for each inputted value copies the Request made 
-by the client to the Result field and updates it with the given scheme and 
-path and then outputs this value.
+In this section I present a component generator that can make network
+requests. Then I introduce a helper component that alters incoming 
+requests, so that they can be performed again using a different host
+and a component that processes HTTP responses. Finally, I show how
+can these components be plugged together to act as a proxy server. 
 
 \subsubsection{Network Component}
 Network Component is a component generator with the following signature:
-
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -921,8 +924,23 @@ the component returns an appropriate error.
 The result of the request is fetched in a new goroutine, so slow requests
 won't block the pipeline.
 
+\subsubsection{Request Copier}
+Request Copier is a component generator with the following signature:
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+func RequestCopier(scheme, host string) Component
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of Request Copier Component generator.}
+\label{fig:RequestCopier}
+\end{figure}
+It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
+and returns a component that for each inputted value copies the Request made 
+by the client to the Result field and updates it with the given scheme and 
+path and then outputs this value.
+
 \subsubsection{Response Processor}
-The response type of the mpserver package is defined as a following struct:
+The \texttt{Response} type of the mpserver package is defined as a following struct:
 
 \begin{figure}[h]
 \centering
@@ -940,11 +958,10 @@ It holds the header and body of a http response. The difference between
 this definition and the definition in the default http package is that
 the body of my response is a slice of bytes. That is the body have already been
 read and the connection to server has been closed.
-\\
-\\
+
 The Response Processor is a component that for each inputted value
 looks if provided Result is the default http Response, and if it is
-it then reads it and transfers it to mpsever response type, which it
+it then reads it and transfers it to mpsever Response type, which it
 then writes to the Result field and outputs the value. If no response
 is provided, then the component outputs an appropriate error.
 
@@ -961,7 +978,7 @@ host and then reads and outputs the response.
 
 All components are wrapped
 in an Error passer to avoid doing unnecessary work and to make the component
-more robust. Its implementation is below:
+more robust. Its implementation is shown below:
 
 \begin{figure}[h]
 \centering
@@ -979,6 +996,9 @@ func ProxyComponent(scheme, host string,
 \end{figure}
 
 \subsection{Summary}
+In this section I introduced more advanced component wrappers and generators
+and described a way to use them. The next section shows a few example
+servers implemented using my toolkit.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Examples %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1025,6 +1045,101 @@ func main() {
 \end{lstlisting}
 \caption[scale=1.0]{Implementation of the Hello World! server.}
 \label{fig:HelloWorldImpl}
+\end{figure}
+
+\newpage
+\subsection{File server}
+Figure \ref{fig:FileServerImpl} shows the implementation of a simple 
+file server that compresses all '.go' files. It is almost a direct translation
+of the diagram shown in figure \ref{fig:fileServer2} in section \ref{sec:fileServer}.
+However, here the File Getter is composed of two parts, which are \texttt{PathMaker}
+and \texttt{FileComponent}. The \texttt{PathMaker} firstly strips a given
+prefix from the request path and then prepends a provided directory name to 
+the result. The \texttt{FileComponent} tries to open a file at a path 
+provided in the result field of the incoming value. Other modifications
+are the addition of the \texttt{ErrorWriter} and the channel going to it from
+the \texttt{Splitter}.
+This path is used when a non existent file is requested be the client.
+Otherwise '.go' files goes to the \texttt{GzipWriter} and all other files to 
+the standard \texttt{FileWriter}.
+The diagram that represents this server is shown in 
+Figure \ref{fig:fileServer3}.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [component, right of=listener, node distance=3cm] (maker) {Path Maker};
+    \node [component, right of=maker, node distance=3cm] (comp) {File Component};
+    \node [component, right of=comp, node distance=3cm] (splitter) {Splitter};
+    \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
+    \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
+     \node [writer, below of=gwriter] (ewriter) {Error Writer};
+    % Edges
+    \path [line] (listener) -- (maker);
+    \path [line] (maker) -- (comp);
+    \path [line] (comp) -- (splitter);
+    \path [line] (splitter) -- (fwriter);
+    \path [line] (splitter) |- (gwriter);
+    \path [line] (splitter) |- (ewriter);
+\end{tikzpicture}
+\caption[scale=1.0]{File server with compression and error handling.}
+\label{fig:fileServer3}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}
+package main
+import(
+    "log"
+    "net/http"
+    "mpserver"
+    "strings"
+)
+// Test if the provided value contains an error in the Result
+func isError(val mpserver.Value) bool {
+    _, isErr := val.Result.(error)
+    return isErr
+}
+// Test if the path of the requested file ends with .go
+func isGoFile(val mpserver.Value) bool {
+    return strings.HasSuffix(val.Request.URL.Path, ".go")
+}
+
+func main() {
+    // Construct the channels
+    in := mpserver.GetChan()
+    toFileComp := mpserver.GetChan()
+    toSplitter := mpserver.GetChan()
+    compressed := mpserver.GetChan()
+    errChan := mpserver.GetChan()
+    splitterOut := mpserver.ToOutChans(
+        []mpserver.ValueChan{errChan, compressed})
+    uncompressed := mpserver.GetChan()
+
+    // Start the file components
+    go mpserver.PathMaker("files", "")(in, toFileComp)
+    go mpserver.FileComponent(toFileComp, toSplitter)
+    
+    // Start the splitter
+    go mpserver.Splitter(toSplitter, uncompressed, splitterOut, 
+                         []mpserver.Condition{isError, isGoFile})
+
+    // Start the writers
+    go mpserver.GzipWriter(compressed, errChan)
+    go mpserver.GenericWriter(uncompressed, errChan)
+    go mpserver.ErrorWriter(errChan)
+
+    // Start the server
+    mux := http.NewServeMux()
+    mpserver.Listen(mux, "/", in)
+    log.Println("Listening on port 3000...")
+    http.ListenAndServe(":3000", mux)
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of a File Server that compresses go files.}
+\label{fig:FileServerImpl}
 \end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Experiments %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
