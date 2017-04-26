@@ -32,7 +32,8 @@ func main() {
     out := make(mpserver.ValueChan)
     errChan := make(mpserver.ValueChan)
 
-    sComp := mpserver.SessionManagementComponent(initial, time.Second*60)
+    store := mpserver.NewMemStore()
+    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*15, true)
     go sComp(in, out)
     go mpserver.AddErrorSplitter(mpserver.StringWriter)(out, errChan)
     go mpserver.ErrorWriter(errChan)

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"log"
 	"time"
-	"github.com/orcaman/concurrent-map"
 )
 
 /** TODO:
@@ -16,39 +15,6 @@ import (
   *	    - make use cleaner optional
   *	    - fix examples using caching and session managers
 */
-
-type Store interface {
-	Get(key string) (interface{}, bool)
-	Set(key string, value interface{})
-	Remove(key string)
-	Keys() []string
-}
-
-type cMapStore struct {
-	cMap *cmap.ConcurrentMap
-}
-
-func (store *cMapStore) Get(key string) (interface{}, bool) {
-	return store.cMap.Get(key)
-}
-
-func (store *cMapStore) Set(key string, value interface{}) {
-	store.cMap.Set(key, value)
-}
-
-func (store *cMapStore) Remove(key string) {
-	store.cMap.Remove(key)
-}
-
-func (store *cMapStore) Keys() []string {
-	return store.cMap.Keys()
-}
-
-func NewMemStore() Store {
-	cMap := cmap.New()
-	cms := cMapStore{&cMap}
-	return &cms
-}
 
 
 func stringInSlice(a string, list []string) bool {
@@ -69,46 +35,22 @@ func requestToString(r *http.Request) string {
     return res
 }
 
-type MapValue struct {
-	Value Any
-	Time time.Time
-}
-
-// Method that removes expired items from the cache
-func mapCleaner(cache Store, shutDown <-chan bool, sleepTime time.Duration) {
-	done := false
-	for !done {
-		time.Sleep(sleepTime)
-		select {
-			case <-shutDown: { done = true; continue }
-			default: {}
-		}
-		for _, key := range cache.Keys() {
-			elem, _ := cache.Get(key)
-			mapValue := elem.(MapValue)
-			if (mapValue.Time.Before(time.Now())) {
-				// Cache can be updated at this point, so the following
-				// Remove can remove an entry, which hasn't expired yet
-				cache.Remove(key)
-				log.Println("Item removed")
-			}
-		}
-	}
-}
-
-func CacheComponent(cache Store, worker Component, expiration time.Duration) Component {
+func CacheComponent(cache Storage, worker Component, expiration time.Duration, useCleaner bool) Component {
 	return func (in <-chan Value, out chan<- Value) {
 		toWorker := make(ValueChan)
 		fromWorker := make(ValueChan)
 		go worker(toWorker, fromWorker)
 
-		cleanerShutDown := make(chan bool, 1)
-		go mapCleaner(cache, cleanerShutDown, expiration)
+		var cleanerShutDown chan bool; 
+		if (useCleaner) {
+			cleanerShutDown = make(chan bool, 1)
+			go StoreCleaner(cache, cleanerShutDown, expiration)
+		}
 
 		var computeAndAdd = func (key string, val Value, now time.Time) {
 			toWorker <- val
             res := <- fromWorker
-            cache.Set(key, MapValue{res.Result, now.Add(expiration)})
+            cache.Set(key, StoreValue{res.Result, now.Add(expiration)})
             out <- res
 		}
 
@@ -119,10 +61,10 @@ func CacheComponent(cache Store, worker Component, expiration time.Duration) Com
 		        now := time.Now()
 
 		        if (in) {
-		        	mapValue := elem.(MapValue)
-		            if (mapValue.Time.After(now)) {
+		        	storeValue := elem.(StoreValue)
+		            if (storeValue.Time.After(now)) {
 		            	log.Println("In cache\n")
-		            	val.Result = mapValue.Value
+		            	val.Result = storeValue.Value
 		            	out <- val
 		            } else {
 		            	log.Println("Cache expired\n")
@@ -140,7 +82,9 @@ func CacheComponent(cache Store, worker Component, expiration time.Duration) Com
 	    	}
 	        
 	    }
-	    cleanerShutDown <- true
+	    if (useCleaner) {
+	    	cleanerShutDown <- true
+	    }
 	    close(toWorker) // To shut down the worker
 	    close(out)	
 	}

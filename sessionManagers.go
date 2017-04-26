@@ -41,7 +41,7 @@ type State interface {
     Result() Any
 }
 
-func startNewSession(val Value, initial State, seshExp time.Duration, store Store, out chan<- Value) {
+func startNewSession(val Value, initial State, seshExp time.Duration, store Storage, out chan<- Value) {
     id, err := GenerateRandomString(32)
     if (err != nil) {
         // if the random generator fails
@@ -59,16 +59,19 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store Stor
         return
     }
 
-    store.Set(id, MapValue{state, time.Now().Add(seshExp)})
+    store.Set(id, StoreValue{state, time.Now().Add(seshExp)})
     val.Result = state.Result()
     val.Writer.Header().Set("Session-Id", id)
     out <- val
 }
 
-func SessionManagementComponent(store Store, initial State, seshExp time.Duration) Component {
+func SessionManagementComponent(store Storage, initial State, seshExp time.Duration, useCleaner bool) Component {
     return func (in <-chan Value, out chan<- Value) {
-        cleanerShutDown := make(chan bool, 1)
-        go mapCleaner(store, cleanerShutDown, seshExp)
+        var cleanerShutDown chan bool; 
+        if (useCleaner) {
+            cleanerShutDown = make(chan bool, 1)
+            go StoreCleaner(store, cleanerShutDown, seshExp)  
+        }
 
         for val := range in {
             // log.Println(val.Request.Header)
@@ -87,10 +90,10 @@ func SessionManagementComponent(store Store, initial State, seshExp time.Duratio
                 continue
             }
 
-            mapValue, _ := elem.(MapValue)
+            storeValue, _ := elem.(StoreValue)
             now := time.Now()
-            if (mapValue.Time.After(now)) {
-                state, _ := mapValue.Value.(State)
+            if (storeValue.Time.After(now)) {
+                state, _ := storeValue.Value.(State)
                 next, err := state.Next(val)
                 if (err != nil) {
                     log.Println("Error while generating next state")
@@ -105,8 +108,8 @@ func SessionManagementComponent(store Store, initial State, seshExp time.Duratio
                     store.Remove(id)
                 } else {
                     log.Println("Updated state")
-                    mapValue.Value = next
-                    store.Set(id, mapValue)
+                    storeValue.Value = next
+                    store.Set(id, storeValue)
                     val.Writer.Header().Set("Session-Id", id)
                 }
 
@@ -119,7 +122,9 @@ func SessionManagementComponent(store Store, initial State, seshExp time.Duratio
                 startNewSession(val, initial, seshExp, store, out)
             }
         }
-        cleanerShutDown <- true
+        if (useCleaner) {
+            cleanerShutDown <- true
+        }
         close(out)
     }
 }

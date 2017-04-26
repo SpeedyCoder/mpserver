@@ -53,6 +53,7 @@ backend=biber
 
 \usepackage[parfill]{parskip}
 \usepackage[labelfont=bf]{caption}
+\usepackage{hyperref}
 
 \begin{document}
 
@@ -468,11 +469,9 @@ Hence we can start or shut down other servers based on the current traffic.
 \newpage
 \section{Implementation}
 \label{sec:impl}
-In this Chapter I present the implementation of my \texttt{mpserver} toolkit.
-It is implemented as a go package. I start by introducing the primitive 
-types such as Value, Component and Writer. Then I introduce more
-sophisticated Component generators for caching, load balancing and 
-network communication.
+In this Chapter I present basic elements of my \texttt{mpserver} toolkit
+and how to work with them. The most important are the primitive types:
+\texttt{Value}, \texttt{Component} and \texttt{Writer}.
 
 \subsection{Values}
 \texttt{Value} is a struct type that represents the type of messages that are
@@ -686,10 +685,44 @@ When a condition returns true the value is written to a corresponding output cha
 and the processing of the current value terminates. If all conditions return false
 then the value is written to the default output channel.
 
+\subsection{Summary}
+In this Chapter I introduced the basic elements of the library. This 
+is enough to implement some simple serves. The next section introduces
+more advanced components that allow more complex behaviors.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%% Implementation 2 %%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Advanced component generators}
+In this section I introduce more advanced component generators for caching,
+session management, load balancing, network communication and error handling.
+
+\subsection{Storage}
+Storage is an interface representing thread safe mapping from string keys
+to values of any type. Its definition is shown below.
+\begin{lstlisting}
+type Storage interface {
+    Get(string) (interface{}, bool)
+    Set(string, interface{})
+    Remove(string)
+    CompareAndRemove(string, interface{}) bool
+    Keys() []string
+}
+\end{lstlisting}
+The package provides a default implementation of this interface that
+stores the data in memory using (with minor modifications) sharded concurrent map implementation
+by Or Hiltch\footnote{Code available at \url{https://github.com/orcaman/concurrent-map}}.
+If a developer wants to store the values in the 
+database instead, they can provide their own implementation of the store interface
+and use any component that uses the storage the same way as before.
+This makes the components that use the storage highly configurable.
+
+
 \subsection{States and Session Management Component}
 \subsubsection{States}
 State is an interface defined as follows:
-
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -714,14 +747,15 @@ Here the expected behavior of the member functions is as follows:
 \subsubsection{Session Management Component}
 \texttt{SessionManagementComponent} is a following component generator.
 \begin{lstlisting}
-func SessionManagementComponent(store Store, initial State, 
-                                seshExp time.Duration) Component
+func SessionManagementComponent(store Storage, initial State, 
+                seshExp time.Duration, useCleaner bool) Component
 \end{lstlisting}
 
-It takes an initial state for each session and a session expiration time and 
-returns a Component that behaves as a session manager. 
-
-The component behaves as follows:
+It arguments are a storage object to be used, an initial state for each session,
+a session expiration time and a boolean indicating whether expired
+entries should be automatically removed from the map.
+The returned component behaves as a session manager. 
+It behaves as follows:
 
 The component stores a mapping from session ids to current state of the session.
 
@@ -741,6 +775,7 @@ and the final result is outputted.
 The states in the mapping are timestamped and are removed from the map after
 the session expiration time, if they haven't finished before that.
 
+% More hype
 The abstraction using states allows the users of the package to implement the
 logic for the session, independently of the session management part.
 
@@ -750,8 +785,8 @@ logic for the session, independently of the session management part.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-func CacheComponent(worker Component, 
-					expiration time.Duration) Component
+func CacheComponent(cache Storage, worker Component, 
+            expiration time.Duration, useCleaner bool) Component
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of Cache Component generator.}
 \label{fig:cacheComp}
