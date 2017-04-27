@@ -28,14 +28,22 @@ func GetChan() ValueChan {
     return make(ValueChan)
 }
 
-//-------------------- Helper Functions ----------------------------
-func Listen(s *http.ServeMux, url string, out chan<- Value) {
-    s.HandleFunc(url, func (w http.ResponseWriter, r *http.Request) {
+//-------------------- HTPP Handlers ----------------------------
+func HandlerFunction(out chan<- Value) (func (http.ResponseWriter, *http.Request)) {
+    return func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
         out <- Value{ r, w, nil, nil, done, 200}
         <- done
-    })
+    }  
+}
+
+func Handler(out chan<- Value) http.Handler {
+    return http.HandlerFunc(HandlerFunction(out))
+}
+
+func Listen(s *http.ServeMux, url string, out chan<- Value) {
+    s.HandleFunc(url, HandlerFunction(out))
 }
 
 func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
