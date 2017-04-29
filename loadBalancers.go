@@ -4,8 +4,17 @@ import (
 	"time"
 )
 
+func StaticLoadBalancer(worker Component, n int) Component {
+	return func (in <-chan Value, out chan<- Value) {
+		for i := 0; i < n-1; i++ {
+			go worker(in, out)
+		}
+		worker(in, out)
+	}
+}
+
 // Add a new component after addTimeout and remove a Component after removeTimeout
-func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, c Component) Component{
+func DynamicLoadBalancer(addTimeout, removeTimeout time.Duration, c Component, maxWorkers int) Component{
 	toWorkers := make(ValueChan)
 
 	var worker = func (c Component, out chan<- Value, end chan bool) {
@@ -38,6 +47,7 @@ func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, c Component
     	go worker(c, out, chans[0])
 
     	var val Value
+    	nWorkers := 1
     	written := true
     	ok := true
         for ok {
@@ -62,11 +72,11 @@ func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, c Component
 	        		}
 	        		case <- time.After(removeTimeout): {
 	        			// Remove a worker
-	        			l := len(chans)
-	        			if (l > 1) {
-	        				last := chans[l-1]
-	        				chans = chans[:l-1]
+	        			if (nWorkers > 1) {
+	        				last := chans[nWorkers-1]
+	        				chans = chans[:nWorkers-1]
 	        				close(last)
+	        				nWorkers--
 	        			}
 	        			continue
 	        		}
@@ -77,8 +87,11 @@ func LoadBalancingComponent(addTimeout, removeTimeout time.Duration, c Component
         		case toWorkers <- val: { written = true }
         		case <- time.After(addTimeout): {
         			// Add a worker
-        			chans = append(chans, make(chan bool, 1))
-        			go worker(c, out, chans[len(chans)-1])
+        			if (nWorkers < maxWorkers) {
+	        			chans = append(chans, make(chan bool, 1))
+	        			go worker(c, out, chans[len(chans)-1])
+	        			nWorkers++   				
+        			}
         		}
         	} 
         }

@@ -39,7 +39,9 @@ func main() {
     req, _ := http.NewRequest("GET", "http://localhost:3000/hello", nil)
     combComp := mpserver.LinkComponents(
     	mpserver.ConstantComponent(req),
-    	mpserver.NetworkComponent(&http.Client{}),
+    	mpserver.StaticLoadBalancer(
+                mpserver.NetworkComponent(&http.Client{}),
+                10),
     	mpserver.ResponseProcessor,
     	mpserver.ErrorPasser(stringer))
 

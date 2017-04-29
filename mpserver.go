@@ -57,7 +57,7 @@ func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
 //-------------------- Components ----------------------------------
 type Component func (in <-chan Value, out chan<- Value)
 
-type ComponetFunc func (val Value) Value
+type ComponentFunc func (val Value) Value
 
 func LinkComponents(components ...Component) Component {
     return func (in <-chan Value, out chan<- Value) {
@@ -78,7 +78,7 @@ func LinkComponents(components ...Component) Component {
     }
 }
 
-func MakeComponent(f ComponetFunc) Component {
+func MakeComponent(f ComponentFunc) Component {
     return func (in <-chan Value, out chan<- Value) {
         for val := range in {
             out <- f(val)
@@ -102,6 +102,12 @@ func PathMaker(dir, prefix string) Component {
 }
 
 func FileComponent (in <-chan Value, out chan<- Value) {
+    handleError := func (val Value, err error) {
+        val.ResponseCode = http.StatusBadRequest
+        val.Result = err
+        out <- val
+    }
+
     for val := range in {
         path, ok := val.Result.(string)
         if (!ok) {
@@ -110,17 +116,21 @@ func FileComponent (in <-chan Value, out chan<- Value) {
             continue
         }
 
-        // TODO: check if this is safe
-        f, err := os.Open(path)
-        if (err != nil) {
-            val.ResponseCode = http.StatusBadRequest
-            val.Result = err
-            out <- val
+        // Check if a file exists
+        if _, err := os.Stat(path); os.IsNotExist(err) {
+            handleError(val, err)
             continue
         }
 
-        val.Result = f
-        out <- val
+        // Try to open th file
+        file, err := os.Open(path)
+        if (err != nil) {
+            handleError(val, err)
+            continue
+        }
+
+        val.Result = file
+        out <- val        
     }
     close(out)
 }
