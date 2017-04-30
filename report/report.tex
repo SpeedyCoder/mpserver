@@ -22,7 +22,7 @@ backend=biber
 
 % Diagrams
 \usepackage{tikz}
-\usetikzlibrary{shapes, arrows, arrows.meta}
+\usetikzlibrary{shapes, arrows, arrows.meta, calc}
 
 \setlength{\abovecaptionskip}{5px}
 
@@ -634,6 +634,58 @@ func LinkComponents(components ...Component) Component
 The subcomponents are linked and run when the combined component is run. 
 The last of the provided components is run in the goroutine in which
 the combined component was run.
+
+\subsection{Simple Load Balancing}
+To support running the same component with the same input and output 
+channels multiple times the toolkit provides \texttt{SimpleLoadBalancer}.
+This is a component generator that takes a worker component and number
+$n$ and returns a component that when run starts $n$ instances of the worker
+component. The case with $n=3$ in a simple pipeline is shown in 
+Figure \ref{fig:slbEx} below.
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [component, right of=listener, node distance=4cm] (worker1) {Worker};
+    \node [component, above of=worker1] (worker2) {Worker};
+    \node [component, below of=worker1] (worker3) {Worker};
+    \node [writer, right of=worker1, node distance=4cm] (writer) {Writer};
+    % Edges
+    \path [line] (listener) -- (worker1);
+    \path [line] ($ (listener) !.5! (worker1) $) |- (worker2);
+    \path [line] ($ (listener) !.5! (worker1) $) |- (worker3);
+    \path [line] (worker1) -- (writer);
+    \path [draw] (worker2) -| ($ (worker1) !.5! (writer) $);
+    \path [draw] (worker3) -| ($ (worker1) !.5! (writer) $);
+\end{tikzpicture}
+\caption[scale=1.0]{Simple server example showing usage of \texttt{SimpleLoadBalancer}.}
+\label{fig:slbEx}
+\end{figure}
+
+This combined component allows multiple requests to be processed by the worker
+components at the same time and this in turn allows faster requests to 
+overtake slower requests in the pipeline. The worker component can represent
+a simple computation done locally or they can connect to other servers
+and perform expensive computation there. The implementation of the 
+component generator is shown below in Figure \ref{fig:slb}.
+More advanced version of load balancing component is introduced in the 
+next Chapter.
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+func StaticLoadBalancer(worker Component, n int) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        for i := 0; i < n-1; i++ {
+            go worker(in, out)
+        }
+        worker(in, out)
+    }
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of \texttt{SimpleLoadBalancer}.}
+\label{fig:slb}
+\end{figure}
 
 \subsection{Writers}
 Here, I introduce the \texttt{Writer} type, which acts as the end of the 
