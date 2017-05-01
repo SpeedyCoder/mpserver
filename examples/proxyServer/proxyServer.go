@@ -11,7 +11,7 @@ func main() {
 	proxy := mpserver.ProxyComponent("http", "www.google.co.uk",&http.Client{},
 				time.Second, time.Second*60, 10)
 	store := mpserver.NewMemStore()
-	cachedComp := mpserver.CacheComponent(store, proxy, time.Second*60, true)
+	cachedComp := mpserver.CacheComponent(store, proxy, time.Second*20, true)
 
 	in := make(mpserver.ValueChan)
 	out := make(mpserver.ValueChan)

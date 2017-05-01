@@ -61,7 +61,7 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store Stor
 
     store.Set(id, StoreValue{state, time.Now().Add(seshExp)})
     val.Result = state.Result()
-    val.Writer.Header().Set("Session-Id", id)
+    val.SetHeader("Session-Id", id)
     out <- val
 }
 
@@ -110,7 +110,7 @@ func SessionManagementComponent(store Storage, initial State, seshExp time.Durat
                     log.Println("Updated state")
                     storeValue.Value = next
                     store.Set(id, storeValue)
-                    val.Writer.Header().Set("Session-Id", id)
+                    val.SetHeader("Session-Id", id)
                 }
 
                 val.Result = next.Result()

@@ -93,6 +93,7 @@ func addActionMaker(val mpserver.Value) mpserver.Value {
     items, ok := q["item"]
     if (ok && len(items) > 0) {
         items = strings.Split(items[0], ",")
+        log.Println(items)
     }
     val.Result = AddAction{items}
     
@@ -133,7 +134,7 @@ func main() {
     go mpserver.MakeComponent(buyActionMaker)(toBuyActionMaker, in)
 
     store := mpserver.NewMemStore()
-    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*60*5)
+    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*60*5, true)
     sComp = mpserver.ErrorPasser(sComp)
     go sComp(in, out)
     go mpserver.AddErrorSplitter(mpserver.JsonWriter)(out, errChan)

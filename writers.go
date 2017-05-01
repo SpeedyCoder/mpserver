@@ -16,15 +16,29 @@ func ReportError(errChan chan<- Value, val Value, err error) {
     errChan <- val
 }
 
-func GetResponseCode(val Value, defaultCode int) int {
-	if (val.ResponseCode == 0) {
-		return defaultCode
-	}
-	return val.ResponseCode
-}
-
 //-------------------- Output Writers ------------------------------
 type Writer func (in <-chan Value, errChan chan<- Value)
+
+// This should set response code if it returns true
+type WriterFunc func (val *Value) ([]byte, bool)
+
+func MakeWriter(writer WriterFunc) Writer {
+    return func (in <-chan Value, errChan chan<- Value) {
+        for val := range in {
+            resp, doWrite := writer(&val)
+
+            if (doWrite) {
+                // Write the response
+                val.writeHeader()
+                val.write(resp)
+                val.close()
+            } else {
+                // Report Error
+                errChan <- val
+            }
+        }       
+    }
+}
 
 func AddErrorSplitter(writer Writer) Writer {
     return func (in <-chan Value, errChan chan<- Value) {
@@ -40,15 +54,15 @@ func ErrorWriter(in <-chan Value) {
         err, ok := val.Result.(error)
         if (!ok) {
             http.Error(
-                val.Writer, 
+                val.responseWriter, 
                 "ErrorWriter couldn't write the error", 
                 http.StatusInternalServerError)
         } else {
-        	responseCode := GetResponseCode(val, http.StatusInternalServerError)
+            val.SetResponseCodeIfUndef(http.StatusInternalServerError)
             log.Println(err.Error())
-            http.Error(val.Writer, err.Error(), responseCode)
+            http.Error(val.responseWriter, err.Error(), val.responseCode)
         }
-        val.Done <- true
+        val.close()
     }
 }
 
@@ -67,13 +81,14 @@ func StringWriter(in <-chan Value, errChan chan<- Value) {
     for val := range in {
         s, ok := val.Result.(string)
         if (!ok) {
+            log.Printf("%t", val.Result)
             ReportError(errChan, val, 
                 errors.New("Passed in wrong type to StringWriter."))
         } else {
-        	responseCode := GetResponseCode(val, http.StatusOK)
-        	val.Writer.WriteHeader(responseCode)
-            val.Writer.Write([]byte(s))
-            val.Done <- true
+            val.SetResponseCodeIfUndef(http.StatusOK)
+        	val.writeHeader()
+            val.write([]byte(s))
+            val.close()
         }   
     }
 }
@@ -83,14 +98,13 @@ func JsonWriter(in <-chan Value, errChan chan<- Value) {
         js, err := json.Marshal(val.Result)
         if err != nil {
             ReportError(errChan, val, err)
-            return
+        } else {
+            val.SetHeader("Content-Type", "application/json")
+            val.SetResponseCodeIfUndef(http.StatusOK)
+            val.writeHeader()
+            val.write(js)
+            val.close()
         }
-
-        responseCode := GetResponseCode(val, http.StatusOK)
-        val.Writer.WriteHeader(responseCode)
-        (val.Writer).Header().Set("Content-Type", "application/json")
-        (val.Writer).Write(js)
-        val.Done <- true
     }
 }
 
@@ -103,19 +117,19 @@ func GzipWriter(in <-chan Value, errChan chan<- Value) {
                 errors.New("Passed in wrong type to GzipWriter."))
 			continue
 		}
-		responseCode := GetResponseCode(val, http.StatusOK)
-        val.Writer.WriteHeader(responseCode)
 
-		val.Writer.Header().Set("Content-Encoding", "gzip")
-		gzipWriter := gzip.NewWriter(val.Writer)
-		// Do the compression in a separate goroutine, so that the
+        val.SetHeader("Content-Encoding", "gzip")
+        val.SetHeader("Content-Type", "application/x-gzip")
+        val.SetResponseCodeIfUndef(http.StatusOK)
+        val.writeHeader()
+		
+		gzipWriter := gzip.NewWriter(val.responseWriter)
+		// Maybe do the compression in a separate goroutine, so that the
 		// writer can process another value
-		go func() {
-			io.Copy(gzipWriter, reader)
-			gzipWriter.Close()
-			reader.Close()
-			val.Done <- true
-		} ()
+		io.Copy(gzipWriter, reader)
+		gzipWriter.Close()
+		reader.Close()
+		val.close()
 	}
 }
 
@@ -127,16 +141,14 @@ func GenericWriter(in <-chan Value, errChan chan<- Value) {
                 errors.New("Passed in wrong type to Writer."))
 			continue
 		}
-		responseCode := GetResponseCode(val, http.StatusOK)
-        val.Writer.WriteHeader(responseCode)
+		val.SetResponseCodeIfUndef(http.StatusOK)
+        val.writeHeader()
 
-		// Do the writing in a separate goroutine, so that the
+		// Maybe do the writing in a separate goroutine, so that the
 		// writer can process another value
-		go func() {
-			io.Copy(val.Writer, reader)
-			reader.Close()
-			val.Done <- true
-		} ()
+		io.Copy(val.responseWriter, reader)
+		reader.Close()
+		val.close()
 	}
 }
 
@@ -148,15 +160,17 @@ func ResponseWriter(in <-chan Value, errChan chan<- Value) {
                 errors.New("Passed in wrong type to ResponseWriter."))
             continue
         }
+
         // Write Headers
-        val.Writer.WriteHeader(val.ResponseCode)
-        header := val.Writer.Header()
+        header := val.responseWriter.Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
         }
 
-        val.Writer.Write(resp.Body)
-        val.Done <- true
+        val.SetResponseCodeIfUndef(resp.ResponseCode)
+        val.writeHeader()
+        val.write(resp.Body)
+        val.close()
     }
 }
 
@@ -169,16 +183,16 @@ func HttpResponseWriter(in <-chan Value, errChan chan<- Value) {
             continue
         }
         // Write Headers
-        val.Writer.WriteHeader(val.ResponseCode)
-        header := val.Writer.Header()
+        header := val.responseWriter.Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
         }
+        val.writeHeader()
 
-        go func() {
+        func() {
             defer resp.Body.Close()
-            io.Copy(val.Writer, resp.Body)
-            val.Done <- true
+            io.Copy(val.responseWriter, resp.Body)
+            val.close()
         } ()
     }
 }

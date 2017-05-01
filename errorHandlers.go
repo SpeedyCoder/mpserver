@@ -66,7 +66,7 @@ func PannicHandlingComponent(worker Component) Component {
                     out <- res
                 } else {
                     val.Result = errors.New("Component crashed.")
-                    val.ResponseCode = http.StatusInternalServerError
+                    val.SetResponseCode(http.StatusInternalServerError)
                     out <- val
                 }
                 

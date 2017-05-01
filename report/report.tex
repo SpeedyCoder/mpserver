@@ -22,7 +22,7 @@ backend=biber
 
 % Diagrams
 \usepackage{tikz}
-\usetikzlibrary{shapes, arrows, arrows.meta, calc}
+\usetikzlibrary{shapes, arrows, arrows.meta, calc, fit}
 
 \setlength{\abovecaptionskip}{5px}
 
@@ -644,12 +644,14 @@ component. The case with $n=3$ in a simple pipeline is shown in
 Figure \ref{fig:slbEx} below.
 \begin{figure}[h]
 \centering
+\vspace*{-0.5cm}
 \begin{tikzpicture}[node distance = 2cm, auto]
     % Nodes
     \node [listener] (listener) {Listener};
     \node [component, right of=listener, node distance=4cm] (worker1) {Worker};
     \node [component, above of=worker1] (worker2) {Worker};
     \node [component, below of=worker1] (worker3) {Worker};
+    \node [above of=worker2, node distance=1.3cm] {Simple Load Balancer};
     \node [writer, right of=worker1, node distance=4cm] (writer) {Writer};
     % Edges
     \path [line] (listener) -- (worker1);
@@ -658,9 +660,11 @@ Figure \ref{fig:slbEx} below.
     \path [line] (worker1) -- (writer);
     \path [draw] (worker2) -| ($ (worker1) !.5! (writer) $);
     \path [draw] (worker3) -| ($ (worker1) !.5! (writer) $);
+    \node[draw, densely dotted, minimum width=11.5em, inner sep=0.5em,fit=(worker2) (worker1) (worker3)] {};
 \end{tikzpicture}
 \caption[scale=1.0]{Simple server example showing usage of \texttt{SimpleLoadBalancer}.}
 \label{fig:slbEx}
+\vspace*{-0.5cm}
 \end{figure}
 
 This combined component allows multiple requests to be processed by the worker
@@ -994,7 +998,27 @@ It takes a single parameter, which is an http client.
 The generated component for each input value makes an http request,
 taken from the Result field of the value, using the provided http client.
 If there is no request in the Result field or the request fails, then
-the component returns an appropriate error. 
+the component returns an appropriate error. The behavior of the generated 
+component is diagrammatically described in Figure \ref{fig:networkComp}
+below.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [component, densely dotted, ellipse] (internet) {Network};
+    \node [component, text width=6em, below of=internet, node distance=3cm] (network) {Network Component};
+    \node [left of=network, node distance = 3cm] (in) {};
+    \node [right of=network, node distance = 3cm] (out) {};
+    % Edges
+    \path[line] (network) edge [bend right] (internet);
+    \path[line] (internet) edge [bend right] (network);
+    \path[line] (in) edge node {in} (network);
+    \path[line] (network) edge node {out} (out);
+\end{tikzpicture}
+\caption[scale=1.0]{Design of the network component.}
+\label{fig:networkComp}
+\end{figure}
 
 Note that the result of the request is fetched in the goroutine where the
 component runs. Hence, slow requests might block the pipeline. To avoid

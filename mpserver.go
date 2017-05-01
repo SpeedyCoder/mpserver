@@ -11,13 +11,43 @@ import (
 type Any interface{}
 
 type Value struct {
+    // Public values
     Request *http.Request
-    Writer http.ResponseWriter
-    WebSocket *websocket.Conn
-
     Result Any
-    Done chan<- bool
-    ResponseCode int
+
+    // Private values
+    responseCode int
+    responseWriter http.ResponseWriter
+    webSocket *websocket.Conn
+    done chan<- bool
+}
+
+const UndefinedRespCode int = -1;
+
+func (val *Value) SetResponseCode (responseCode int) {
+    val.responseCode = responseCode;
+}
+
+func (val *Value) SetResponseCodeIfUndef (responseCode int) {
+    if (val.responseCode == UndefinedRespCode) {
+        val.responseCode = responseCode;
+    }
+}
+
+func (val Value) SetHeader (key, value string) {
+    val.responseWriter.Header().Set(key, value)
+}
+
+func (val Value) writeHeader () {
+    val.responseWriter.WriteHeader(val.responseCode);
+}
+
+func (val Value) write (body []byte) {
+    val.responseWriter.Write(body)
+}
+
+func (val Value) close () {
+    val.done <- true;
 }
 
 type ValueChan chan Value
@@ -33,7 +63,7 @@ func HandlerFunction(out chan<- Value) (func (http.ResponseWriter, *http.Request
     return func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ r, w, nil, nil, done, 200}
+        out <- Value{ r, nil, UndefinedRespCode, w, nil, done}
         <- done
     }  
 }
@@ -49,7 +79,7 @@ func Listen(s *http.ServeMux, url string, out chan<- Value) {
 func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
     s.Handle(url, websocket.Handler(func (ws *websocket.Conn) {
         done := make(chan bool)
-        out <- Value{ nil, nil, ws, nil, done, 200}
+        out <- Value{ nil, nil, UndefinedRespCode, nil, ws, done}
         <- done
     }))
 }
@@ -103,7 +133,7 @@ func PathMaker(dir, prefix string) Component {
 
 func FileComponent (in <-chan Value, out chan<- Value) {
     handleError := func (val Value, err error) {
-        val.ResponseCode = http.StatusBadRequest
+        val.SetResponseCode(http.StatusBadRequest)
         val.Result = err
         out <- val
     }

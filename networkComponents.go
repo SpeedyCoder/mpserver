@@ -21,15 +21,13 @@ func NetworkComponent(client *http.Client) Component {
 				out <- val
 				continue
 			}
-			go func () {
-				resp, err := client.Do(req)
-				if err != nil {
-					val.Result = err
-				} else {
-					val.Result = resp
-				}
-				out <- val
-			}()	
+			resp, err := client.Do(req)
+			if err != nil {
+				val.Result = err
+			} else {
+				val.Result = resp
+			}
+			out <- val
 		}
 		close(out)
 	}
@@ -48,7 +46,7 @@ func RequestCopier(scheme, host string) Component {
 		for val := range in {
 			val.Request.URL.Scheme = scheme
 			val.Request.URL.Host = host
-			log.Println(val.Request.URL)
+			log.Println("Request Copier", val.Request.URL)
 			val.Request.RequestURI = ""
 			val.Request.Host = ""
 			val.Result = val.Request
@@ -60,6 +58,7 @@ func RequestCopier(scheme, host string) Component {
 
 type Response struct {
 	Header http.Header
+	ResponseCode int
 	Body []byte
 }
 
@@ -76,8 +75,8 @@ func ResponseProcessor(in <-chan Value, out chan<- Value) {
 		if err != nil {
 			val.Result = err
 		} else {
-			val.ResponseCode = resp.StatusCode
-			val.Result = Response{resp.Header, body}
+			val.SetResponseCode(resp.StatusCode)
+			val.Result = Response{resp.Header, resp.StatusCode, body}
 		}
 		out <- val
 
@@ -89,11 +88,11 @@ func ProxyComponent(scheme, host string, client *http.Client,
 		addTimeout, removeTimeout time.Duration, nReq int) Component {
 	return LinkComponents(
 		ErrorPasser(RequestCopier(scheme, host)),
-		ErrorPasser(
-			DynamicLoadBalancer(
+		DynamicLoadBalancer(
 				addTimeout, removeTimeout,
-				NetworkComponent(client),
-				nReq)),
-		ErrorPasser(ResponseProcessor))
+				LinkComponents(
+					ErrorPasser(NetworkComponent(client)),
+					ErrorPasser(ResponseProcessor)),
+				nReq))
 }
 
