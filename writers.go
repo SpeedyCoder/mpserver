@@ -12,7 +12,7 @@ import (
 
 //-------------------- Helper Functions ----------------------------
 func ReportError(errChan chan<- Value, val Value, err error) {
-    val.Result = err
+    val.SetResult(err)
     errChan <- val
 }
 
@@ -51,16 +51,16 @@ func AddErrorSplitter(writer Writer) Writer {
 
 func ErrorWriter(in <-chan Value) {
     for val := range in {
-        err, ok := val.Result.(error)
+        err, ok := val.GetResult().(error)
         if (!ok) {
             http.Error(
-                val.responseWriter, 
+                val.getResponseWriter(), 
                 "ErrorWriter couldn't write the error", 
                 http.StatusInternalServerError)
         } else {
             val.SetResponseCodeIfUndef(http.StatusInternalServerError)
             log.Println(err.Error())
-            http.Error(val.responseWriter, err.Error(), val.responseCode)
+            http.Error(val.getResponseWriter(), err.Error(), val.getResponseCode())
         }
         val.close()
     }
@@ -68,7 +68,7 @@ func ErrorWriter(in <-chan Value) {
 
 func ErrorSplitter(in <-chan Value, out chan<- Value, errChan chan<- Value) {
     for val := range in {
-        if _, ok := val.Result.(error); ok {
+        if _, ok := val.GetResult().(error); ok {
             errChan <- val
         } else {
             out <- val
@@ -79,9 +79,8 @@ func ErrorSplitter(in <-chan Value, out chan<- Value, errChan chan<- Value) {
 
 func StringWriter(in <-chan Value, errChan chan<- Value) {
     for val := range in {
-        s, ok := val.Result.(string)
+        s, ok := val.GetResult().(string)
         if (!ok) {
-            log.Printf("%t", val.Result)
             ReportError(errChan, val, 
                 errors.New("Passed in wrong type to StringWriter."))
         } else {
@@ -95,7 +94,7 @@ func StringWriter(in <-chan Value, errChan chan<- Value) {
 
 func JsonWriter(in <-chan Value, errChan chan<- Value) {
     for val := range in {
-        js, err := json.Marshal(val.Result)
+        js, err := json.Marshal(val.GetResult())
         if err != nil {
             ReportError(errChan, val, err)
         } else {
@@ -111,7 +110,7 @@ func JsonWriter(in <-chan Value, errChan chan<- Value) {
 // TODO: sort out Content-Type header
 func GzipWriter(in <-chan Value, errChan chan<- Value) {
 	for val := range in {
-		reader, ok := val.Result.(io.ReadCloser)
+		reader, ok := val.GetResult().(io.ReadCloser)
 		if (!ok) {
 			ReportError(errChan, val, 
                 errors.New("Passed in wrong type to GzipWriter."))
@@ -123,7 +122,7 @@ func GzipWriter(in <-chan Value, errChan chan<- Value) {
         val.SetResponseCodeIfUndef(http.StatusOK)
         val.writeHeader()
 		
-		gzipWriter := gzip.NewWriter(val.responseWriter)
+		gzipWriter := gzip.NewWriter(val.getResponseWriter())
 		// Maybe do the compression in a separate goroutine, so that the
 		// writer can process another value
 		io.Copy(gzipWriter, reader)
@@ -135,7 +134,7 @@ func GzipWriter(in <-chan Value, errChan chan<- Value) {
 
 func GenericWriter(in <-chan Value, errChan chan<- Value) {
 	for val := range in {
-		reader, ok := val.Result.(io.ReadCloser)
+		reader, ok := val.GetResult().(io.ReadCloser)
 		if (!ok) {
 			ReportError(errChan, val, 
                 errors.New("Passed in wrong type to Writer."))
@@ -146,7 +145,7 @@ func GenericWriter(in <-chan Value, errChan chan<- Value) {
 
 		// Maybe do the writing in a separate goroutine, so that the
 		// writer can process another value
-		io.Copy(val.responseWriter, reader)
+		io.Copy(val.getResponseWriter(), reader)
 		reader.Close()
 		val.close()
 	}
@@ -154,7 +153,7 @@ func GenericWriter(in <-chan Value, errChan chan<- Value) {
 
 func ResponseWriter(in <-chan Value, errChan chan<- Value) {
     for val := range in {
-        resp, ok := val.Result.(Response)
+        resp, ok := val.GetResult().(Response)
         if (!ok) {
             ReportError(errChan, val, 
                 errors.New("Passed in wrong type to ResponseWriter."))
@@ -162,7 +161,7 @@ func ResponseWriter(in <-chan Value, errChan chan<- Value) {
         }
 
         // Write Headers
-        header := val.responseWriter.Header()
+        header := val.getResponseWriter().Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
         }
@@ -176,14 +175,14 @@ func ResponseWriter(in <-chan Value, errChan chan<- Value) {
 
 func HttpResponseWriter(in <-chan Value, errChan chan<- Value) {
     for val := range in {
-        resp, ok := val.Result.(*http.Response)
+        resp, ok := val.GetResult().(*http.Response)
         if (!ok) {
             ReportError(errChan, val, 
                 errors.New("Passed in wrong type to HttpResponseWriter."))
             continue
         }
         // Write Headers
-        header := val.responseWriter.Header()
+        header := val.getResponseWriter().Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
         }
@@ -191,7 +190,7 @@ func HttpResponseWriter(in <-chan Value, errChan chan<- Value) {
 
         func() {
             defer resp.Body.Close()
-            io.Copy(val.responseWriter, resp.Body)
+            io.Copy(val.getResponseWriter(), resp.Body)
             val.close()
         } ()
     }

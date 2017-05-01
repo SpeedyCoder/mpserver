@@ -46,7 +46,7 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store Stor
     if (err != nil) {
         // if the random generator fails
         log.Println(err)
-        val.Result = errors.New("Session-Id generation failed")
+        val.SetResult(errors.New("Session-Id generation failed"))
         out <- val
         return
     }
@@ -54,13 +54,13 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store Stor
 
     state, err := initial.Next(val)
     if (err != nil) {
-        val.Result = err
+        val.SetResult(err)
         out <- val
         return
     }
 
     store.Set(id, StoreValue{state, time.Now().Add(seshExp)})
-    val.Result = state.Result()
+    val.SetResult(state.Result())
     val.SetHeader("Session-Id", id)
     out <- val
 }
@@ -75,7 +75,7 @@ func SessionManagementComponent(store Storage, initial State, seshExp time.Durat
 
         for val := range in {
             // log.Println(val.Request.Header)
-            id := val.Request.Header.Get("Session-Id")
+            id := val.GetRequest().Header.Get("Session-Id")
             log.Println(id)
             if (id == ""){
                 log.Println("No Session-Id")
@@ -97,7 +97,7 @@ func SessionManagementComponent(store Storage, initial State, seshExp time.Durat
                 next, err := state.Next(val)
                 if (err != nil) {
                     log.Println("Error while generating next state")
-                    val.Result = err
+                    val.SetResult(err)
                     out <- val
                     continue
                 }
@@ -113,7 +113,7 @@ func SessionManagementComponent(store Storage, initial State, seshExp time.Durat
                     val.SetHeader("Session-Id", id)
                 }
 
-                val.Result = next.Result()
+                val.SetResult(next.Result())
                 out <- val
             } else {
                 log.Println("Session expired")

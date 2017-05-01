@@ -8,45 +8,79 @@ import (
     "errors"
 )
 
+const UndefinedRespCode int = -1;
 type Any interface{}
 
-type Value struct {
-    // Public values
-    Request *http.Request
-    Result Any
+type Value interface {
+    //Public methods
+    GetRequest() *http.Request
+    GetResult() Any
+    SetResult(Any)
+    SetResponseCode(int)
+    SetResponseCodeIfUndef(int)
+    SetHeader(string, string)
 
-    // Private values
+    // Private methods
+    getResponseWriter() http.ResponseWriter
+    getResponseCode() int
+    writeHeader()
+    write([]byte)
+    close()
+}
+
+type valueStruct struct {
+    request *http.Request
+    result Any
+
     responseCode int
     responseWriter http.ResponseWriter
     webSocket *websocket.Conn
     done chan<- bool
 }
 
-const UndefinedRespCode int = -1;
+func (val valueStruct) GetRequest() *http.Request {
+    return val.request
+}
 
-func (val *Value) SetResponseCode (responseCode int) {
+func (val valueStruct) GetResult() Any {
+    return val.result
+}
+
+func (val *valueStruct) SetResult(newResult Any) {
+    val.result = newResult
+}
+
+func (val *valueStruct) SetResponseCode(responseCode int) {
     val.responseCode = responseCode;
 }
 
-func (val *Value) SetResponseCodeIfUndef (responseCode int) {
+func (val *valueStruct) SetResponseCodeIfUndef(responseCode int) {
     if (val.responseCode == UndefinedRespCode) {
         val.responseCode = responseCode;
     }
 }
 
-func (val Value) SetHeader (key, value string) {
+func (val valueStruct) SetHeader(key, value string) {
     val.responseWriter.Header().Set(key, value)
 }
 
-func (val Value) writeHeader () {
+func (val valueStruct) getResponseWriter() http.ResponseWriter {
+    return val.responseWriter
+}
+
+func (val valueStruct) getResponseCode() int {
+    return val.responseCode
+}
+
+func (val valueStruct) writeHeader() {
     val.responseWriter.WriteHeader(val.responseCode);
 }
 
-func (val Value) write (body []byte) {
+func (val valueStruct) write(body []byte) {
     val.responseWriter.Write(body)
 }
 
-func (val Value) close () {
+func (val valueStruct) close() {
     val.done <- true;
 }
 
@@ -63,7 +97,7 @@ func HandlerFunction(out chan<- Value) (func (http.ResponseWriter, *http.Request
     return func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
         w.Header().Set("Server", "mpserver")
-        out <- Value{ r, nil, UndefinedRespCode, w, nil, done}
+        out <- &valueStruct{ r, nil, UndefinedRespCode, w, nil, done}
         <- done
     }  
 }
@@ -79,7 +113,7 @@ func Listen(s *http.ServeMux, url string, out chan<- Value) {
 func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
     s.Handle(url, websocket.Handler(func (ws *websocket.Conn) {
         done := make(chan bool)
-        out <- Value{ nil, nil, UndefinedRespCode, nil, ws, done}
+        out <- &valueStruct{ nil, nil, UndefinedRespCode, nil, ws, done}
         <- done
     }))
 }
@@ -119,14 +153,14 @@ func MakeComponent(f ComponentFunc) Component {
 
 func ConstantComponent(c Any) Component {
     return MakeComponent(func (val Value) Value {
-        val.Result = c; return val
+        val.SetResult(c); return val
     })
 }
 
 func PathMaker(dir, prefix string) Component {
     return MakeComponent(func (val Value) Value {
-        val.Result = dir + strings.TrimPrefix(
-            val.Request.URL.Path, prefix)
+        val.SetResult(dir + strings.TrimPrefix(
+            val.GetRequest().URL.Path, prefix))
         return val
     })
 }
@@ -134,14 +168,14 @@ func PathMaker(dir, prefix string) Component {
 func FileComponent (in <-chan Value, out chan<- Value) {
     handleError := func (val Value, err error) {
         val.SetResponseCode(http.StatusBadRequest)
-        val.Result = err
+        val.SetResult(err)
         out <- val
     }
 
     for val := range in {
-        path, ok := val.Result.(string)
+        path, ok := val.GetResult().(string)
         if (!ok) {
-            val.Result = errors.New("No path provided to FileComponent.")
+            val.SetResult(errors.New("No path provided to FileComponent."))
             out <- val
             continue
         }
@@ -159,7 +193,7 @@ func FileComponent (in <-chan Value, out chan<- Value) {
             continue
         }
 
-        val.Result = file
+        val.SetResult(file)
         out <- val        
     }
     close(out)

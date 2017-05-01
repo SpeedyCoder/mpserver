@@ -12,7 +12,7 @@ func ErrorPasser(component Component) Component {
         go component(toComponent, out)
 
         for val := range in {
-            if _, isErr := val.Result.(error); isErr {
+            if _, isErr := val.GetResult().(error); isErr {
                 out <- val
             } else {
                 toComponent <- val
@@ -65,7 +65,7 @@ func PannicHandlingComponent(worker Component) Component {
                 if res, ok  := <- fromComponent; ok {
                     out <- res
                 } else {
-                    val.Result = errors.New("Component crashed.")
+                    val.SetResult(errors.New("Component crashed."))
                     val.SetResponseCode(http.StatusInternalServerError)
                     out <- val
                 }

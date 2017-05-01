@@ -15,17 +15,17 @@ func NetworkComponent(client *http.Client) Component {
 	  * responsible for closing the response body*/
 	return func (in <-chan Value, out chan<- Value) {
 		for val := range in {
-			req, ok := val.Result.(*http.Request)
+			req, ok := val.GetResult().(*http.Request)
 			if !ok {
-				val.Result = errors.New("No request provided to Network Component.")
+				val.SetResult(errors.New("No request provided to Network Component."))
 				out <- val
 				continue
 			}
 			resp, err := client.Do(req)
 			if err != nil {
-				val.Result = err
+				val.SetResult(err)
 			} else {
-				val.Result = resp
+				val.SetResult(resp)
 			}
 			out <- val
 		}
@@ -44,12 +44,13 @@ func readResponse(resp *http.Response) ([]byte, error) {
 func RequestCopier(scheme, host string) Component {
 	return func (in <-chan Value, out chan<- Value) {
 		for val := range in {
-			val.Request.URL.Scheme = scheme
-			val.Request.URL.Host = host
-			log.Println("Request Copier", val.Request.URL)
-			val.Request.RequestURI = ""
-			val.Request.Host = ""
-			val.Result = val.Request
+			request := val.GetRequest()
+			request.URL.Scheme = scheme
+			request.URL.Host = host
+			log.Println("Request Copier", request.URL)
+			request.RequestURI = ""
+			request.Host = ""
+			val.SetResult(request)
 			out <- val
 		}
 		close(out)
@@ -64,19 +65,19 @@ type Response struct {
 
 func ResponseProcessor(in <-chan Value, out chan<- Value) {
 	for val := range in {
-		resp, ok := val.Result.(*http.Response)
+		resp, ok := val.GetResult().(*http.Response)
 		if !ok {
-			val.Result = errors.New("No response provided to to Response Processor Component.")
+			val.SetResult(errors.New("No response provided to to Response Processor Component."))
 			out <- val
 			continue
 		}
 
 		body, err := readResponse(resp)
 		if err != nil {
-			val.Result = err
+			val.SetResult(err)
 		} else {
 			val.SetResponseCode(resp.StatusCode)
-			val.Result = Response{resp.Header, resp.StatusCode, body}
+			val.SetResult(Response{resp.Header, resp.StatusCode, body})
 		}
 		out <- val
 

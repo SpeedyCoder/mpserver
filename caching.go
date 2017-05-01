@@ -50,13 +50,13 @@ func CacheComponent(cache Storage, worker Component, expiration time.Duration, u
 		var computeAndAdd = func (key string, val Value, now time.Time) {
 			toWorker <- val
             res := <- fromWorker
-            cache.Set(key, StoreValue{res.Result, now.Add(expiration)})
+            cache.Set(key, StoreValue{res.GetResult(), now.Add(expiration)})
             out <- res
 		}
 
 	    for val := range in {
-	    	if (stringInSlice(val.Request.Method, CachableMethods)) {
-	    		key := requestToString(val.Request)
+	    	if (stringInSlice(val.GetRequest().Method, CachableMethods)) {
+	    		key := requestToString(val.GetRequest())
 		        elem, in := cache.Get(key)
 		        now := time.Now()
 
@@ -64,7 +64,7 @@ func CacheComponent(cache Storage, worker Component, expiration time.Duration, u
 		        	storeValue := elem.(StoreValue)
 		            if (storeValue.Time.After(now)) {
 		            	log.Println("In cache\n")
-		            	val.Result = storeValue.Value
+		            	val.SetResult(storeValue.Value)
 		            	out <- val
 		            } else {
 		            	log.Println("Cache expired\n")
