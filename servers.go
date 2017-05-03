@@ -18,7 +18,7 @@ func SimpleFileServer(dir, prefix string) http.Handler{
     
     // Start the splitter and all the writers
     go ErrorSplitter(out, toWriter, errChan)
-    go GenericWriter(toWriter, errChan)
+    go GenericWriter(toWriter)
     go ErrorWriter(errChan)
 
 	return Handler(in)

@@ -20,7 +20,7 @@ func NewMemStore() Storage {
 }
 
 type StoreValue struct {
-	Value Any
+	Value interface{}
 	Time time.Time
 }
 

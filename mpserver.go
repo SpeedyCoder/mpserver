@@ -9,13 +9,13 @@ import (
 )
 
 const UndefinedRespCode int = -1;
-type Any interface{}
 
+//------------------------ Value definition ---------------------------
 type Value interface {
     //Public methods
     GetRequest() *http.Request
-    GetResult() Any
-    SetResult(Any)
+    GetResult() interface{}
+    SetResult(interface{})
     SetResponseCode(int)
     SetResponseCodeIfUndef(int)
     SetHeader(string, string)
@@ -30,7 +30,7 @@ type Value interface {
 
 type valueStruct struct {
     request *http.Request
-    result Any
+    result interface{}
 
     responseCode int
     responseWriter http.ResponseWriter
@@ -42,11 +42,11 @@ func (val valueStruct) GetRequest() *http.Request {
     return val.request
 }
 
-func (val valueStruct) GetResult() Any {
+func (val valueStruct) GetResult() interface{} {
     return val.result
 }
 
-func (val *valueStruct) SetResult(newResult Any) {
+func (val *valueStruct) SetResult(newResult interface{}) {
     val.result = newResult
 }
 
@@ -92,7 +92,7 @@ func GetChan() ValueChan {
     return make(ValueChan)
 }
 
-//-------------------- HTPP Handlers ----------------------------
+//------------------------ HTPP Handlers ------------------------------
 func HandlerFunction(out chan<- Value) (func (http.ResponseWriter, *http.Request)) {
     return func (w http.ResponseWriter, r *http.Request) {
         done := make(chan bool)
@@ -118,7 +118,7 @@ func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
     }))
 }
 
-//-------------------- Components ----------------------------------
+//----------------------- Components ----------------------------------
 type Component func (in <-chan Value, out chan<- Value)
 
 type ComponentFunc func (val Value) Value
@@ -151,7 +151,7 @@ func MakeComponent(f ComponentFunc) Component {
     }
 }
 
-func ConstantComponent(c Any) Component {
+func ConstantComponent(c interface{}) Component {
     return MakeComponent(func (val Value) Value {
         val.SetResult(c); return val
     })

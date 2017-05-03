@@ -38,7 +38,7 @@ func GenerateRandomString(s int) (string, error) {
 type State interface {
     Next(val Value) (State, error)
     Terminal() bool
-    Result() Any
+    Result() interface{}
 }
 
 func startNewSession(val Value, initial State, seshExp time.Duration, store Storage, out chan<- Value) {

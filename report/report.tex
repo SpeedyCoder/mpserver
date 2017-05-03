@@ -83,11 +83,9 @@ a browser-based GUI to a specific application.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Introduction %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
 \section{Introduction}
-In this section I first introduce the motivation behind this project
-and an overview of the used design. Then I follow
-by explaining the basics of message passing concurrency and the basics
-of the go programming language, which was used to implement the proposed 
-toolkit.
+In this first chapter I introduce the motivation behind this project and 
+an overview of the used design. I also give a brief summary of the following
+chapters. 
 
 \subsection{Motivation}
 The vast majority of web server frameworks such as Apache
@@ -130,6 +128,33 @@ It uses default \texttt{http} package to handle the details of
 the HTTP protocol. The toolkit itself concentrates on structuring the 
 web-server.
 
+\subsection{Report overview}
+In this Chapter I introduced the motivation of the project, its main
+aim and the architecture of the proposed toolkit. In Chapter \ref{sec:background} 
+I present the necessary background for the project.
+
+In Chapter \ref{sec:arch} I analyze the design of a few simple servers
+in the suggested framework. Chapter \ref{sec:impl} describes the basic parts of 
+my implementation of the proposed toolkit. Chapter \ref{sec:impl2} then builds
+on this and introduces more advanced features of the implementation.
+
+Afterwards in Chapter \ref{sec:examples} I present
+implementations of servers described in Chapter \ref{sec:arch} in my framework.
+In Chapter \ref{sec:shopping} I perform a case study of building
+a part of a simple shopping server using my toolkit.
+
+In chapter \ref{sec:test} I present results of performance tests of equivalent 
+servers implemented in my framework, in pure go, using toolkit by James Whitehead II
+\cite{whitehead} and using Apache framework. Finally in chapter 
+\ref{sec:conclusion} I summarize the results and achievements of this 
+project, review the work done on similar problems and present ideas for future work.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Background %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Background}
+\label{sec:background}
+In this chapter I explain the basics of message passing concurrency and 
+the basics of the go programming language, which was used to implement 
+the proposed toolkit.
 
 \subsection{Introduction to Message passing Concurrency}
 This section first introduces channels and then presents the Message
@@ -151,7 +176,6 @@ Hence, this style does not
 suffer any problems that arise from using shared memory for communication 
 and synchronization by multiple concurrent processes.
 
-
 \subsection{Introduction to go}
 ``Go is a statically-typed programming language. Programs are compiled 
 to native code and are linked with a small runtime environment that performs 
@@ -165,15 +189,15 @@ present in the language and its type system. Other features
 of the language are explained as they are used.
 
 \subsubsection{Goroutines}
-A goroutine is a cross between a lightweight thread and a coroutine
-managed by the Go runtime \cite{whitehead}. Goroutines are multiplexed
+``A goroutine is a cross between a lightweight thread and a coroutine
+managed by the Go runtime.'' \cite[2]{whitehead} Goroutines are multiplexed
 on a set of threads, when a goroutine blocks another goroutine is scheduled
 on the same thread. 
 
 What makes goroutines powerful is that they are very cheap to create and 
-it is also cheap to switch between them. This is the case, because they 
+it is also cheap to switch between them. ``This is the case, because they 
 have very small overhead beyond the memory for the stack (which is only 
-a few kilobytes). ``To make the stacks small, the runtime uses resizable, 
+a few kilobytes). To make the stacks small, the runtime uses resizable, 
 bounded stacks. The CPU overhead averages about three cheap 
 instructions per function call.'' \cite{FAQ} These costs are much smaller
 than using operating system threads, hence it is feasible to use thousands
@@ -187,7 +211,7 @@ function will be evaluated in a new goroutine and this goroutine will
 terminate when the function terminates \cite{GoDocumentation}.
 
 \subsubsection{Channels}
-Channels in go are many to many channels. That is multiple goroutines can
+Channels in go are many-to-many channels. That is multiple goroutines can
 read and write to a channel. Channels are statically typed and
 dynamically allocated using \texttt{make} function. This function takes 
 two arguments: the type of the channel and the size of its buffer.
@@ -276,25 +300,8 @@ returned by the \texttt{recover} method is the same value that was passed
 to the call of panic \texttt{panic} or \texttt{nil} if the goroutine
 is not panicking. \cite{goSpec}
 
-\subsection{Report overview}
-In this Chapter I introduced the motivation of the project, its main
-aim and the necessary background.
+\subsection{Background Summary}
 
-In Chapter \ref{sec:arch} I analyze the design of a few simple servers
-in the suggested framework. Chapter \ref{sec:impl} describes the basic parts of 
-my implementation of the proposed toolkit. Chapter \ref{sec:impl2} then builds
-on this and introduces more advanced features of the implementation.
-
-Afterwards in Chapter \ref{sec:examples} I present
-implementations of servers described in Chapter \ref{sec:arch} in my framework.
-In Chapter \ref{sec:shopping} I perform a case study of building
-a part of a simple shopping server using my toolkit.
-
-In chapter \ref{sec:test} I present results of performance tests of equivalent 
-servers implemented in my framework, in pure go, using toolkit by James Whitehead II
-\cite{whitehead} and using Apache framework. Finally in chapter 
-\ref{sec:conclusion} I summarize the results and achievements of this 
-project, review the work done on similar problems and present ideas for future work.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Architecture %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -308,7 +315,7 @@ it makes implementing a server very easy. If you can construct a data-flow diagr
 representing the conversion of a request into a response, then this diagram
 can be directly translated into a program.
 
-In this section I introduce a few example web-servers and their conceptual
+In this Chapter I introduce a few example web-servers and their conceptual
 design using the proposed architecture. I also introduce a wrapper 
 solution used for caching and load balancing.
 Finally I compare these designs to the set up of equivalent Apache servers.
@@ -501,54 +508,104 @@ and how to work with them. The most important are the primitive types:
 \texttt{Value}, \texttt{Component} and \texttt{Writer}.
 
 \subsection{Values}
-\texttt{Value} is a struct type that represents the type of messages that are
-passed between the components of the network. It is defined as follows:
+\texttt{Value} is an interface that represents the type of messages that are
+passed between the components of the network. It definition is shown
+in Figure \ref{fig:Value} below.
 
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-type Value struct {
-    Request *http.Request
-    Writer http.ResponseWriter
-    Result Any
-    Done chan<- bool
-    ResponseCode int
+type Value interface {
+    //Public methods
+    GetRequest() *http.Request
+    GetResult() interface{}
+    SetResult(interface{})
+    SetResponseCode(int)
+    SetResponseCodeIfUndef(int)
+    SetHeader(string, string)
+
+    // Private methods
+    getResponseWriter() http.ResponseWriter
+    getResponseCode() int
+    writeHeader()
+    write([]byte)
+    close()
 }
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of type Value.}
+\caption[scale=1.0]{Declaration of the Value interface.}
 \label{fig:Value}
 \end{figure}
 
+Note that in Go only types, functions, constants and variables whose name
+starts with a capital letter are exported from a package. Hence, anyone
+using the package can only use the first 6 methods of the \texttt{Value}
+interface.
+
+The interface is implemented by the struct type shown in Figure \ref{fig:value}
+that is private to the package.
+\newpage
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+type value struct {
+    request *http.Request
+    result interface{}
+
+    responseCode int
+    responseWriter http.ResponseWriter
+    done chan<- bool
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of a private type that implements the Value 
+interface.}
+\label{fig:value}
+\end{figure}
 Here:
 \begin{itemize}
-  \item \texttt{Request} is the HTTP request made by the client implemented
-        in the default HTTP library.
+  \item \texttt{request} is a pointer to the HTTP request made by the 
+        client implemented in the default HTTP library. It can be accessed
+        using the \texttt{GetRequest} method. 
 
-  \item \texttt{Writer} is an object that writes the response back to the client.
-        This field should only be used by \texttt{Writer} objects that are introduced later.
-        Its type is \texttt{ResponseWriter}, which is implemented in the default HTTP
-        package. This field together with the \texttt{Request} field is set just before
-        the value is fed into the network.
+  \item \texttt{result} is the result computed so far (initially nil). This is
+        of type \texttt{interface{}} which is implemented by any type.
+        Hence, values of all types can be stored there. This field can be
+        accessed and changed using the \texttt{GetResult} and \texttt{SetResult}
+        methods respectively.
+  
+  \item \texttt{responseCode} is the HTTP response code that should be 
+        returned to the client. The default value of this field is -1,
+        which indicates that the responseCode has not been set yet. 
+        It can be set using the \texttt{SetResponseCode} or 
+        \texttt{SetResponseCodeIfUndef} methods, where the second method only
+        makes a change in case the response code is undefined. The value
+        of the response code can be retrieved using the \texttt{getResponseCode}
+        method inside the package. This is intended to be used only by the 
+        \texttt{Writer} type introduced later.
 
-  \item \texttt{Result} is the result computed so far (initially nil). This is
-        of type \texttt{Any} which is defined to be the empty interface.
-        This allows values of any type to be stored there.
+  \item \texttt{responseWriter} is an object that writes the response back 
+        to the client. Again only \texttt{Writer}s use this field. They
+        can retrieve it using \texttt{getResponseWriter} method. 
+        Alternatively, they can use the \texttt{writeHeader} and
+        \texttt{write} methods to access the field indirectly.
+        These methods write the headers and 
+        the body of the response to the client respectively.
 
-  \item \texttt{Done} is a signaling channel. Signal should be send on this channel,
-		after the response is written at the end of the pipeline. This
-        allows the connection to the client to be closed after the result
-        is written.
-
-  \item \texttt{ResponseCode} is the HTTP response code that should be 
-        returned to the client. The default value of this field is 200,
-        which represents a successful request.
+  \item \texttt{done} is a signaling channel. Signal is sent on this channel,
+		after the response is written at the end of the pipeline using the 
+        \texttt{close} method. This allows the connection to the client to 
+        be closed after the result is written.
 \end{itemize}
-
+Note that all methods related to writing the response back to the client
+are private to the package. This is to ensure correct behavior, as otherwise
+these methods could be accessed by users of the package in any part of the 
+network, what could lead to exceptions.
 
 \subsection{Components}
-This section introduces the component type, then shows how we can simply
-create components and finally presents a way how multiple components can
-be combined to form a liner pipeline.
+This section introduces the \texttt{Component} type and then shows how we can simply
+create components. Afterwards it presents a way how multiple components can
+be combined to form a linear pipeline. The sections ends with a description
+of a component generator that implements simple load balancing among
+multiple components.
 
 \subsubsection{The Component type}
 Component is a generic part of the pipeline with an input and output channel.
@@ -571,7 +628,7 @@ Every component should satisfy the following conditions:
           This ensures termination of any components further down in the network.
 
     \item Component can only close its output channel and it can only do so
-    	  after its input channel have been closed. It shouldn't attempt
+    	  after its input channel have been closed. It should never attempt
           to close the input channel as this will likely result in an exception.
 \end{itemize}
 
@@ -585,8 +642,8 @@ That is the function has the following signature:
 type ComponentFunc func (val Value) Value
 \end{lstlisting}
 This represents the mapping of the input values to the output values. 
-
-Now the code for the described component generator is below:
+The implementation of the described component generator is shown in 
+Figure \ref{fig:MakeComponent} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -616,9 +673,9 @@ of any type and returns a component that writes c to the Result field of
 all inputted values and then outputs them. It's definition using the 
 \texttt{MakeComponent} generator is show below.
 \begin{lstlisting}
-func ConstantComponent(c Any) Component {
+func ConstantComponent(c interface{}) Component {
     return MakeComponent(func (val Value) Value {
-        val.Result = c; return val
+        val.SetResult(c); return val
     })
 }
 \end{lstlisting}
@@ -638,10 +695,11 @@ the combined component was run.
 \subsection{Simple Load Balancing}
 To support running the same component with the same input and output 
 channels multiple times the toolkit provides \texttt{SimpleLoadBalancer}.
-This is a component generator that takes a worker component and number
-$n$ and returns a component that when run starts $n$ instances of the worker
-component. The case with $n=3$ in a simple pipeline is shown in 
-Figure \ref{fig:slbEx} below.
+Note that this is possible as channels in go are many-to-many.
+\texttt{SimpleLoadBalancer} is a component generator that takes a worker 
+component and number $n$ and returns a component that when run starts 
+$n$ instances of the worker component. The case with $n=3$ in a simple 
+pipeline is shown in Figure \ref{fig:slbEx} below.
 \begin{figure}[h]
 \centering
 \vspace*{-0.5cm}
@@ -693,39 +751,32 @@ func StaticLoadBalancer(worker Component, n int) Component {
 
 \subsection{Writers}
 Here, I introduce the \texttt{Writer} type, which acts as the end of the 
-pipeline. Then I present a special writer for writing errors and a way
-of separating error values from the stream of all values.
+pipeline. Then I present a way how custom writers can be implemented.
 \subsection{Writer type}
 Writer is the end of the pipeline which writes results to the client.
 The type \texttt{Writer} is defined as follows:
 \begin{lstlisting}
-type Writer func (in <-chan Value, errChan chan<- Value)
+type Writer func (in <-chan Value)
 \end{lstlisting}
-It is a function with an input channel and a channel for reporting errors.
-Every writer should satisfy the following:
+It is a function with only an input channel.
+Every writer satisfies the following specification.
 \begin{itemize}
-	\item Once a writer writes the result to the client, it should send a signal
-		  on the Done channel, so that the connection to the client can be closed.
-	\item The writer terminates when its input channel is closed. It shouldn't
-		  close the error channel, as other processes might be using it.
+    \item When run a writer eventually reads all values that are written 
+          to its input channel.
+
+	\item For every value that is input any writer behaves as follows. 
+          It firstly checks if the result field contains the expected type. 
+          If that is the case, it firstly writes the headers, then
+          writes the body and finally closes the connection for the value
+          using the \texttt{writeHeader}, \texttt{write} and \texttt{close}
+          methods of the value respectively. If the value in the result 
+          field has an incorrect type the writer writes an appropriate 
+          error message to the client and closes the connection for the value. 
+
+	\item The writer terminates when its input channel is closed.
 \end{itemize}
-The package provides writers to write string, json and file responses
-using multiple input types.
-
-\subsubsection{Error Writer}
-Error Writer is a function that writes error responses to the client.
-It has the following signature:
-\begin{lstlisting}
-func ErrorWriter(in <-chan Value)
-\end{lstlisting}
-It has only one input channel. The writer terminates when the channel
-is closed. The channel should be closed only after all Writers that 
-are using it terminated.
-
-Note that this is a special writer as it doesn't match the \texttt{Writer} type. 
-It collects the error responses from all other writers and all other parts
-of the network. It also logs all the responses on the standard input for
-purposes of debugging.
+The package provides writers for writing string, json, file, error and many
+other types of responses.
 
 \subsubsection{Error Splitter}
 If we allow error messages to reach any other writer than the error writer,
@@ -736,10 +787,55 @@ has the signature shown below.
 func ErrorSplitter(in <-chan Value, out chan<- Value, 
                                     errChan chan<- Value)
 \end{lstlisting}
-This function sends all values with an error in the Result field to the 
-error channel, which should lead to the error writer. All other result 
+This function sends all values with an error in the result field to the 
+error channel, which should lead to the error writer. All other values 
 are send to the output channel. Hence, this acts as error separator.
 It is usually used just before a normal response writer.
+
+\subsection{Making Writers}
+As noted before methods for writing responses from \texttt{Value}s 
+back to the client can not be used outside of the package. To allow
+for construction of custom writers the package provides writer generator
+component similar to the \texttt{MakeComponent} function. It uses 
+functions with the following signature to generate the writers.
+\begin{lstlisting}
+type WriterFunc func (val Value) ([]byte, error)
+\end{lstlisting}
+These functions should set headers and convert the provided value into 
+an array of bytes or return an error in case they are provided with a 
+wrong input. The implementation of the writer generator itself is shown
+in Figure \ref{fig:MakeWriter} below.
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+func MakeWriter(writerFunc WriterFunc) Writer {
+    return func (in <-chan Value) {
+        for val := range in {
+            resp, err := writerFunc(val)
+
+            if (err == nil) {
+                // Write the response
+                val.SetResponseCodeIfUndef(http.StatusOK)
+                val.writeHeader()
+                val.write(resp)
+                val.close()
+            } else {
+                WriteError(val, err)
+            }
+        }       
+    }
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of writer generator.}
+\label{fig:MakeWriter}
+\end{figure}
+
+The generated writer runs the provided \texttt{writerFunc} for every value 
+that is inputted. If the function returns an error it writes the error 
+back to the client using the \texttt{WriteError} function. Otherwise, it 
+writes the headers and the body of the response to the client and then 
+closes the connection. (The \texttt{WriteError} does this for the error
+results).
 
 \subsection{Conditions and Splitter}
 In this section I introduce a way to split a stream of incoming values into
@@ -999,7 +1095,22 @@ The generated component for each input value makes an http request,
 taken from the Result field of the value, using the provided http client.
 If there is no request in the Result field or the request fails, then
 the component returns an appropriate error. The behavior of the generated 
-component is diagrammatically described in Figure \ref{fig:networkComp}
+component is type Value interface {
+    //Public methods
+    GetRequest() *http.Request
+    GetResult() interface{}
+    SetResult(interface{})
+    SetResponseCode(int)
+    SetResponseCodeIfUndef(int)
+    SetHeader(string, string)
+
+    // Private methods
+    getResponseWriter() http.ResponseWriter
+    getResponseCode() int
+    writeHeader()
+    write([]byte)
+    close()
+} described in Figure \ref{fig:networkComp}
 below.
 
 \begin{figure}[h]

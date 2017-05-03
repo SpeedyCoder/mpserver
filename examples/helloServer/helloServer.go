@@ -12,9 +12,9 @@ func main() {
 
     mux := http.NewServeMux()
     mpserver.Listen(mux, "/hello", in)
-
+    
     go mpserver.ConstantComponent("Hello world!")(in, out)
-    go mpserver.StringWriter(out, nil)
+    go mpserver.StringWriter(out)
     
     log.Println("Listening on port 8080...")
     http.ListenAndServe(":8080", mux)
