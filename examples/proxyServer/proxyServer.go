@@ -13,12 +13,14 @@ func main() {
 	store := mpserver.NewMemStore()
 	cachedComp := mpserver.CacheComponent(store, proxy, time.Second*20, true)
 
-	in := make(mpserver.ValueChan)
-	out := make(mpserver.ValueChan)
-	errChan := make(mpserver.ValueChan)
+	in := mpserver.GetChan()
+	out := mpserver.GetChan()
+	toWriter := mpserver.GetChan()
+	errChan := mpserver.GetChan()
 
 	go cachedComp(in, out)
-	go mpserver.AddErrorSplitter(mpserver.ResponseWriter)(out, errChan)
+	go mpserver.ErrorSplitter(out, toWriter, errChan)
+	go mpserver.ResponseWriter(toWriter)
 	go mpserver.ErrorWriter(errChan)
 
 	mux := http.NewServeMux()

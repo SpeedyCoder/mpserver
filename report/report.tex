@@ -117,14 +117,14 @@ request together with the result computed so far and other
 information needed for computation and writing the result back to the client
 are passed through the channels.
 
-The incoming request are fed into the input end of the pipeline and 
+The incoming requests are fed into the input end of the pipeline and 
 after passing through the whole network the response is written to the
 client on the other end. Hence, we can view this server
 as a pipeline that transfers requests into responses.
 
-To implement this architecture I have constructed a toolkit called 
-\texttt{mpserver}, that allows the construction of such web-servers.
-It uses default \texttt{http} package to handle the details of
+To implement this architecture I have constructed a package in the go praogramming 
+language called \texttt{mpserver}, that allows the construction of such web-servers.
+It uses the default \texttt{http} package to handle the details of
 the HTTP protocol. The toolkit itself concentrates on structuring the 
 web-server.
 
@@ -150,9 +150,10 @@ servers implemented in my framework, in pure go, using toolkit by James Whitehea
 project, review the work done on similar problems and present ideas for future work.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Background %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
 \section{Background}
 \label{sec:background}
-In this chapter I explain the basics of message passing concurrency and 
+In this Chapter I explain the basics of message passing concurrency and 
 the basics of the go programming language, which was used to implement 
 the proposed toolkit.
 
@@ -202,17 +203,18 @@ bounded stacks. The CPU overhead averages about three cheap
 instructions per function call.'' \cite{FAQ} These costs are much smaller
 than using operating system threads, hence it is feasible to use thousands
 of goroutines.
+% TODO; simplify the above
 
 To create a new goroutine we only need to prefix a function call with
 the \texttt{go} keyword. The arguments will be evaluated in the current
 goroutine, but unlike with regular function call this goroutine won't
 wait for the function to return. The called 
-function will be evaluated in a new goroutine and this goroutine will 
+function will be evaluated in a new goroutine and that goroutine will 
 terminate when the function terminates \cite{GoDocumentation}.
 
 \subsubsection{Channels}
-Channels in go are many-to-many channels. That is multiple goroutines can
-read and write to a channel. Channels are statically typed and
+Channels in go are many-to-many. That is multiple goroutines can
+read and write to a single channel. Channels are statically typed and
 dynamically allocated using \texttt{make} function. This function takes 
 two arguments: the type of the channel and the size of its buffer.
 A channel with buffer size 0 implements a synchronous channel, whereas 
@@ -692,7 +694,7 @@ The subcomponents are linked and run when the combined component is run.
 The last of the provided components is run in the goroutine in which
 the combined component was run.
 
-\subsection{Simple Load Balancing}
+\subsubsection{Simple Load Balancing}
 To support running the same component with the same input and output 
 channels multiple times the toolkit provides \texttt{SimpleLoadBalancer}.
 Note that this is possible as channels in go are many-to-many.
@@ -986,37 +988,45 @@ For the generated component to function properly, the worker must output
 a value for every value that is sent to it. This is one of the conditions
 that a component must meet, so this shouldn't be an issue.
 
-\subsection{Load Balancing}
-\texttt{LoadBalancingComponent} is a Component generator with the following signature:
+\subsection{Dynamic Load Balancing}
+\texttt{DynamicLoadBalancer} is a Component generator with the following signature:
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-func LoadBalancingComponent(addTimeout, 
-		removeTimeout time.Duration, worker Component) Component
+func DynamicLoadBalancer(addTimeout, removeTimeout time.Duration, 
+        worker Component, maxWorkers int) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Load Balancing Component generator.}
+\caption[scale=1.0]{Declaration of \texttt{DynamicLoadBalancing} 
+component generator.}
 \label{fig:loadComp}
 \end{figure}
+
 The returned component has an array of workers which can be easily shut down.
 The initial number of workers is 1. 
-
 For every input value, the component behaves as follows:
 \begin{itemize}
 	\item It tries to send the value to the workers, if this is not successful, 
-		  before the \texttt{addTimeout}, then the component creates a new worker and then
-		  tries to send the value to the workers again. This will be successful because
-		  there is at least one worker that is not busy.
+		  before the \texttt{addTimeout}, then the component creates a new worker
+          if the current number of workers is smaller than \texttt{maxWorkers}.
+          Then the component tries to send the value to the workers again. This will 
+          be successful in case a worker was added because there is at least one 
+          worker that is not busy.
+
 	\item The workers send their results further down the pipeline.
-	\item If there are no incoming values for duration equal to the \texttt{removeTimeout},
-          then the component shuts down one of the workers, if there is more than one worker.
-	\item When the input channel of the component is closed, then the load balancer shuts down all
-		  the workers, then it closes its output channel and terminates.
+
+	\item If there are no incoming values for duration equal to the 
+          \texttt{removeTimeout}, then the component shuts down one 
+          of the workers, if there is more than one worker.
+
+	\item When the input channel of the component is closed, then the load balancer 
+          shuts down all the workers and afterwards closes its output channel and
+          terminates.
 \end{itemize}
 There are a lot of other possible load balancing strategies. 
 Implementing them should be a simple modification of the existing code.
 Note that this is very powerful concept as it can also be used to share
-the load between multiple servers (here using a different strategy might be 
-preferred).
+the load between multiple servers and turn them on or shut them down as
+required (here using a different strategy might be preferred).
 
 \subsection{Error handling}
 % TODO: maybe add a diagram
@@ -1095,22 +1105,7 @@ The generated component for each input value makes an http request,
 taken from the Result field of the value, using the provided http client.
 If there is no request in the Result field or the request fails, then
 the component returns an appropriate error. The behavior of the generated 
-component is type Value interface {
-    //Public methods
-    GetRequest() *http.Request
-    GetResult() interface{}
-    SetResult(interface{})
-    SetResponseCode(int)
-    SetResponseCodeIfUndef(int)
-    SetHeader(string, string)
-
-    // Private methods
-    getResponseWriter() http.ResponseWriter
-    getResponseCode() int
-    writeHeader()
-    write([]byte)
-    close()
-} described in Figure \ref{fig:networkComp}
+component is type described in Figure \ref{fig:networkComp}
 below.
 
 \begin{figure}[h]
@@ -1183,30 +1178,37 @@ Network component fails, then the response processor won't have to do
 any work.
 
 \subsubsection{Proxy Component}
-Proxy component is a combination of Request Copier, Network component 
-and Response processor in a linear pipeline. It acts as a proxy server
+Proxy component is a combination of \texttt{RequestCopier}, 
+\texttt{NetworkComponent} 
+and \texttt{ResponseProcessor} in a linear pipeline. It acts as a proxy server
 in the following sense. It forwards the provided request to the specified
 host and then reads and outputs the response. 
 
 All components are wrapped
-in an Error passer to avoid doing unnecessary work and to make the component
-more robust. Its implementation is shown below:
+in an \texttt{ErrorPasser} to avoid doing unnecessary work and to make the component
+more robust. Furthermore, \texttt{NetworkComponent} and \texttt{ResponseProcessor}
+are wrapped in \texttt{DynamicLoadBalancer} to make the component more 
+responsive. The implementation is shown below:
 
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-func ProxyComponent(scheme, host string, 
-					client *http.Client) Component {
-	return LinkComponents(
-		ErrorPasser(RequestCopier(scheme, host)),
-		ErrorPasser(NetworkComponent(client)),
-		ErrorPasser(ResponseProcessor))
+func ProxyComponent(scheme, host string, client *http.Client, 
+        addTime, removeTime time.Duration, nReq int) Component {
+    return LinkComponents(
+        ErrorPasser(RequestCopier(scheme, host)),
+        DynamicLoadBalancer(
+                addTimeout, removeTimeout,
+                LinkComponents(
+                    ErrorPasser(NetworkComponent(client)),
+                    ErrorPasser(ResponseProcessor)),
+                nReq))
 }
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of Proxy Component generator.}
 \label{fig:ProxyComp}
 \end{figure}
-
+\newpage
 \subsection{Summary}
 In this section I introduced more advanced component wrappers and generators
 and described a way to use them. The next section shows a few example
@@ -1215,7 +1217,6 @@ servers implemented using my toolkit.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Examples %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \newpage
 \section{Examples}
 \label{sec:examples}
@@ -1354,8 +1355,9 @@ func main() {
 \label{fig:FileServerImpl}
 \end{figure}
 
+\newpage
 \subsection{Proxy server}
-a
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Shopping %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
