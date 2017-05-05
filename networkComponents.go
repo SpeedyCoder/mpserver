@@ -87,13 +87,12 @@ func ResponseProcessor(in <-chan Value, out chan<- Value) {
 
 func ProxyComponent(scheme, host string, client *http.Client, 
 		addTimeout, removeTimeout time.Duration, nReq int) Component {
-	return LinkComponents(
-		ErrorPasser(RequestCopier(scheme, host)),
-		DynamicLoadBalancer(
-				addTimeout, removeTimeout,
-				LinkComponents(
-					ErrorPasser(NetworkComponent(client)),
-					ErrorPasser(ResponseProcessor)),
-				nReq))
+	return DynamicLoadBalancer(
+		addTimeout, removeTimeout,
+		LinkComponents(
+			ErrorPasser(RequestCopier(scheme, host)),
+			ErrorPasser(NetworkComponent(client)),
+			ErrorPasser(ResponseProcessor)),
+		nReq)
 }
 

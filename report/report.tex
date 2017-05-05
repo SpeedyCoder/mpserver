@@ -66,7 +66,9 @@ backend=biber
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Abstract %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
+\pagenumbering{arabic}
 \section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
 \begin{quote}
 The goal of this project is to construct a well-structured
 library of communicating components, in the Go language, to support
@@ -77,15 +79,14 @@ a browser-based GUI to a specific application.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Contents %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-\pagenumbering{arabic}
 \tableofcontents
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Introduction %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
 \section{Introduction}
 In this first chapter I introduce the motivation behind this project and 
-an overview of the used design. I also give a brief summary of the following
-chapters. 
+an overview of the used design. I also review the related work done on similar
+problems and give a brief summary of this report. 
 
 \subsection{Motivation}
 The vast majority of web server frameworks such as Apache
@@ -128,9 +129,22 @@ It uses the default \texttt{http} package to handle the details of
 the HTTP protocol. The toolkit itself concentrates on structuring the 
 web-server.
 
+\subsection{Related work}
+Similar work has been done by James Whitehead II in \cite{whitehead}.
+However, his approach is rather different than the approach used 
+in this project. He uses reader-writer pairs for communication between
+two different components in the network. This requires to construct the
+reader and writer objects for each pair of communicating components
+for all requests.
+In order to construct these readers and writers a connection object is 
+passed through the network.
+I believe this indirect approach introduces unnecessary overhead and 
+makes it more difficult to understand how the toolkit works.
+
 \subsection{Report overview}
 In this Chapter I introduced the motivation of the project, its main
-aim and the architecture of the proposed toolkit. In Chapter \ref{sec:background} 
+aim, the architecture of the proposed toolkit and I reviewed work done
+on similar problems. In Chapter \ref{sec:background} 
 I present the necessary background for the project.
 
 In Chapter \ref{sec:arch} I analyze the design of a few simple servers
@@ -419,17 +433,17 @@ This design is show in Figure \ref{fig:caching}.
 \begin{tikzpicture}[
     workerWidth/.style={minimum width=3cm},
     workerHeight/.style={minimum height=2cm},
-    UWidth/.style={minimum width=1cm},
+    UWidth/.style={minimum width=0.6cm},
     every node/.style={
         text centered,
         }
         ]
     \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
 
-    \node[anchor=north, workerWidth, yshift=-0.25cm] (cache) at (worker.south) {Cache};
+    \node[anchor=north, minimum height=0.6cm, workerWidth, yshift=-0.25cm] (cache) at (worker.south) {Cache};
 
-    \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left) at (worker.west) {};
-    \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right) at (worker.east) {};
+    \node[anchor=east, workerHeight, UWidth, xshift=-0.5cm] (left) at (worker.west) {};
+    \node[anchor=west, workerHeight, UWidth, xshift=0.5cm] (right) at (worker.east) {};
 
     \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- cache.south) -- (right.north east) -- (right.north west) -- (right.west |- cache.north) -- (left.east |- cache.north) -- (left.north east) -- cycle;
 
@@ -463,8 +477,8 @@ See Figure \ref{fig:loadBalancing}.
 \centering
 \begin{tikzpicture}[
     workerWidth/.style={minimum width=3cm},
-    workerHeight/.style={minimum height=1.9cm},
-    UWidth/.style={minimum width=1cm},
+    workerHeight/.style={minimum height=2cm},
+    UWidth/.style={minimum width=0.6cm},
     every node/.style={
         text centered,
         }
@@ -472,7 +486,7 @@ See Figure \ref{fig:loadBalancing}.
     \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
     \node[workerWidth, workerHeight, yshift=-1.2cm, draw] (worker2) at (worker.south) {Worker};
 
-    \node[anchor=north, workerWidth, yshift=-0.25cm] (cache) at (worker2.south) {Load Balancer};
+    \node[anchor=north, minimum height=0.6cm, workerWidth, yshift=-0.25cm] (cache) at (worker2.south) {Load Balancer};
 
     \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left) at (worker.west) {};
     \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right) at (worker.east) {};
@@ -495,8 +509,51 @@ See Figure \ref{fig:loadBalancing}.
 \end{figure}
 
 \subsection{Comparison to Apache server configuration}
+As noted before configuring an Apache serer can prove to be quite difficult.
+Below in Figure \ref{fig:apache} is shown a part of a simple file server
+configuration.
+\begin{figure}[h]
+\centering
+\begin{lstlisting}[numbers=left]
+Alias /project /path/to/project/
+
+<Directory "/path/to/project/">
+    Options Indexes
+    AllowOverride None
+    Order allow,deny
+    Allow from localhost
+    Require all granted
+    AddOutputFilter DEFLATE py
+</Directory>
+\end{lstlisting}
+\caption[scale=1.0]{Part of Apache configuration file for a file server.}
+\label{fig:apache}
+\end{figure}
+% TODO: explain the whole configuration
+The first line in the above configuration specifies that accessing URL 
+path "/project" should point to the "/path/to/project/" directory.
+Lines 3 to 10 specify who and how can access this directory.
+The option \texttt{Options Indexes} indicates that if a client tries
+to access a directory, then the server should list its contents.
+
+\texttt{AllowOverride None} disables access to other directives when 
+a file in the specified folder is accessed. Lines 6 to 8 specify that
+anyone can access the directory. Finally, option 
+\texttt{AddOutputFilter DEFLATE py} tells the server to compress
+all python files, that is all files whose name ends with '.py'.
+
+At first this does not look like a difficult configuration. However, 
+one might argue that it is not as clear as the architecture proposed above,
+as we are mixing different aspects of the server in one place.
+The main issue is that configuring more complex servers gets much more 
+difficult very quickly. Furthermore if we want to serve dynamic content
+we might need to use scripts written in other languages such as perl or python.
 
 \subsection{Summary}
+In this Chapter I described the conceptual architecture of the proposed
+toolkit on a few simple examples. Then I showed configuration of a simple
+Apache file server and contrasted this with my proposed architecture.
+The next Chapter introduces the basic elements of my implementation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%% Implementation %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1186,8 +1243,8 @@ host and then reads and outputs the response.
 
 All components are wrapped
 in an \texttt{ErrorPasser} to avoid doing unnecessary work and to make the component
-more robust. Furthermore, \texttt{NetworkComponent} and \texttt{ResponseProcessor}
-are wrapped in \texttt{DynamicLoadBalancer} to make the component more 
+more robust. Furthermore, the linear combination of all the components is wrapped in 
+\texttt{DynamicLoadBalancer} to make the whole component more 
 responsive. The implementation is shown below:
 
 \begin{figure}[h]
@@ -1195,14 +1252,13 @@ responsive. The implementation is shown below:
 \begin{lstlisting}
 func ProxyComponent(scheme, host string, client *http.Client, 
         addTime, removeTime time.Duration, nReq int) Component {
-    return LinkComponents(
-        ErrorPasser(RequestCopier(scheme, host)),
-        DynamicLoadBalancer(
-                addTimeout, removeTimeout,
-                LinkComponents(
-                    ErrorPasser(NetworkComponent(client)),
-                    ErrorPasser(ResponseProcessor)),
-                nReq))
+    return DynamicLoadBalancer(
+        addTimeout, removeTimeout,
+        LinkComponents(
+            ErrorPasser(RequestCopier(scheme, host)),
+            ErrorPasser(NetworkComponent(client)),
+            ErrorPasser(ResponseProcessor)),
+        nReq)
 }
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of Proxy Component generator.}
@@ -1363,6 +1419,228 @@ func main() {
 \newpage
 \section{Building a shopping server}
 \label{sec:shopping}
+In this Chapter I show how to build a web-server using my toolkit that
+maintains a shopping cart for a simple shopping web-site. The whole 
+code for this example is shown in Appendix A.
+
+\subsection{Shopping cart}
+Shopping cart is represented by the struct type showed in Figure 
+\ref{fig:shoppingCart} below.
+\begin{figure}[h]
+\begin{lstlisting}
+type ShoppingCart struct {
+    items map[string]int
+    bought bool
+}
+\end{lstlisting}
+\caption[scale=1.0]{Type representing a shopping cart.}
+\label{fig:shoppingCart}
+\end{figure}
+
+Here, \texttt{items} is 
+a mapping that represents the contents of the cart. It stores the names
+of the items and their count. \texttt{bought} indicates whether the items
+were purchased. In a realistic implementation one might choose to use 
+a list of ids rather than a map, but using a map keeps things simple
+for the purposes of this example.
+
+\subsection{Actions}
+To represent actions that a user can take I used the interface show in 
+Figure \ref{fig:action}.
+\begin{figure}[h]
+\begin{lstlisting}
+type Action interface {
+    performAction(s ShoppingCart) (mpserver.State, error)
+}
+\end{lstlisting}
+\caption[scale=1.0]{Type representing an action that can be taken on 
+a shopping cart.}
+\label{fig:action}
+\end{figure}
+That is any action implements a \texttt{performAction} method, which takes
+a \texttt{ShoppingCart} object and tries to perform its operation on it. If
+it succeed then it returns the updated object and \texttt{nil} pointer for the
+error. If it does not succeed then the method returns \texttt{nil} for the
+object and the corresponding error.
+
+The \texttt{Action} interface is implemented by the following 3 types
+that represent adding items to the shopping cart, removing an item from it
+and buying the contents of the shopping cart.
+\begin{figure}[h]
+\begin{lstlisting}
+type AddAction struct {
+    items []string
+}
+type RemoveAction struct {
+    item string
+}
+type BuyAction struct {}
+\end{lstlisting}
+\caption[scale=1.0]{Types representing simple actions.}
+\label{fig:actions}
+\end{figure}
+
+Now Figure \ref{fig:addAction} shows the implementation of the \texttt{performAction}
+method for the \texttt{addAction}. This action creates the map object if necessary and
+then adds contents of the items array of the \texttt{addAction} object to the map
+object in the \texttt{shoppingCart}.
+\begin{figure}[h]
+\begin{lstlisting}
+func (a AddAction) performAction(s ShoppingCart) (State, error) {
+    if (s.items == nil) {
+        s.items = make(map[string]int)
+    }
+    for _, item := range a.items {
+        s.items[item] += 1
+    }
+    return s, nil
+}
+\end{lstlisting}
+\caption[scale=1.0]{\texttt{performAction} implementation by \texttt{addAction}.}
+\label{fig:addAction}
+\end{figure}
+
+\subsection{Implementing State interface}
+Now we want the \texttt{ShoppingCart} type to implement the \texttt{State} 
+interface defined in section
+\ref{sec:state}, so that it can be used by the session manager component.
+This component will maintain one \texttt{ShoppingCart} object for each user.
+Figure \ref{fig:shoppingCartImpl} below shows the implementation of the 
+methods of the \texttt{State} interface.
+\begin{figure}[h]
+\begin{lstlisting}
+func (s ShoppingCart) Next(val Value) (State, error) {
+    a, ok := val.GetResult().(Action)
+    if (!ok) {
+        return nil, errors.New("Action not provided")
+    }
+
+    return a.performAction(s)
+}
+func (s ShoppingCart) Result() interface{} {
+    return s.items
+}
+func (s ShoppingCart) Terminal() bool {
+    return s.bought
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the methods for \texttt{ShoppingCart}.}
+\label{fig:shoppingCartImpl}
+\end{figure}
+
+These are all very simple methods. The \texttt{Next} method calls 
+the \texttt{performAction} method on the provided action to generate 
+the next state.
+
+\subsection{Making actions}
+Now we need a way to create actions from requests. We create three different
+components to do that using the \texttt{MakeComponent} function. Below
+is the implementation of the function used to make the \texttt{addAction}.
+\begin{figure}[h]
+\begin{lstlisting}
+func addActionMakerFunc(val Value) Value {
+    q := val.GetRequest().URL.Query()
+    items, ok := q["item"]
+    if (ok && len(items) > 0) {
+        items = strings.Split(items[0], ",")
+    }
+    val.SetResult(AddAction{items})
+    
+    return val
+}
+var addActionMaker = MakeComponent(addActionMakerFunc) 
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the \texttt{addActionMaker}.}
+\label{fig:addActionMaker}
+\end{figure}
+
+\subsection{Plugging it together}
+We use different URL paths to perform different actions. We route the 
+requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
+and similarly for the other two actions. The output of the action maker
+will be connected to the session management component, that is wrapped in
+\texttt{ErrorPasser}, so that we don't process wrong requests.
+Finally the output from the session manager goes to the \texttt{ErrorSplitter}
+which sends all non-error values to to \texttt{JsonWriter} and error
+values to \texttt{ErrorWriter}. The overall design is show in diagram 
+of Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} is omitted 
+for clarity. The code for running the server is shown in figure 
+\ref{fig:shoppingCode}.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener1) {/add};
+    \node [listener, below of=listener1] (listener2) {/remove};
+    \node [listener, below of=listener2] (listener3) {/buy};
+    \node [component, right of=listener1, node distance=3cm] (maker1) {Add Action Maker};
+    \node [component, right of=listener2, node distance=3cm] (maker2) {Remove Action Maker};
+    \node [component, right of=listener3, node distance=3cm] (maker3) {Buy Action Maker};
+    \node [component, right of=maker2, node distance=3cm] (manager) {Session Manager};
+    \node [component, right of=manager, node distance=3cm] (splitter) {Error Splitter};
+    \node [writer, right of=splitter, node distance=3cm, yshift=1cm] (writer1) {JSON Writer};
+    \node [writer, below of=writer1] (writer2) {Error Writer};
+
+    % Edges
+    \path [line] (listener1) -- (maker1);
+    \path [line] (listener2) -- (maker2);
+    \path [line] (listener3) -- (maker3);
+    \path [draw] (maker1) -| ($ (maker2) !.5! (manager) $);
+    \path [line] (maker2) -- (manager);
+    \path [draw] (maker3) -| ($ (maker2) !.5! (manager) $);
+    \path [line] (manager) -- (splitter);
+    \path [line] (splitter) |- (writer1);
+    \path [line] (splitter) |- (writer2);
+
+
+\end{tikzpicture}
+\caption[scale=1.0]{Shopping server architecture.}
+\label{fig:shoppingDesign}
+\end{figure}
+
+\newpage
+\begin{figure}[h]
+\begin{lstlisting}
+func main() {
+    // Create channels
+    toAddActionMaker := make(mpserver.ValueChan)
+    toRemoveActionMaker := make(mpserver.ValueChan)
+    toBuyActionMaker := mpserver.GetChan()
+    in := mpserver.GetChan()
+    out := mpserver.GetChan()
+    toWriter := mpserver.GetChan()
+    errChan := mpserver.GetChan()
+
+    // Action makers
+    go addActionMaker(toAddActionMaker, in)
+    go removeActionMaker(toRemoveActionMaker, in)
+    go buyActionMaker(toBuyActionMaker, in)
+
+    // Session Manager
+    initial := ShoppingCart{nil, false}
+    store := mpserver.NewMemStore()
+    sComp := mpserver.SessionManagementComponent(
+        store, initial, time.Second*60*5, true)
+    sComp = mpserver.ErrorPasser(sComp)
+    go sComp(in, out)
+
+    // Writers
+    go mpserver.ErrorSplitter(out, toWriter, errChan)
+    go mpserver.JsonWriter(toWriter)
+    go mpserver.ErrorWriter(errChan)
+
+    mux := http.NewServeMux()
+    mpserver.Listen(mux, "/add", toAddActionMaker)
+    mpserver.Listen(mux, "/remove", toRemoveActionMaker)
+    mpserver.Listen(mux, "/buy", toBuyActionMaker)
+    log.Println("Listening on port 3000...")
+    http.ListenAndServe(":3000", mux)
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the Shopping Server.}
+\label{fig:shoppingCode}
+\end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Testing %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
@@ -1372,18 +1650,47 @@ func main() {
 \newpage
 \section{Conclusion}
 \label{sec:conclusion}
+\subsection{Summary}
+I successfully developed a compositional toolkit for construction of 
+web-servers in go. I first introduced the idea behind the toolkit that 
+makes the construction of web-servers very intuitive and straight forward. 
 
-\subsection{Related work}
-Similar work has been done by James Whitehead II in \cite{whitehead}.
-However, his approach is rather different than the approach used 
-in this project. He uses reader-writer pairs for communication between
-two different components in the network. This requires to construct the
-reader and writer objects for each pair of communicating components
-for all requests.
-In order to construct these readers and writers a connection object is 
-passed through the network.
-I believe this indirect approach introduces unnecessary overhead and 
-makes it more difficult to understand how the toolkit works.
+Then I presented my implementation. I started by introducing the basic types
+and then went on to describe much more components and component generators
+that make it easy to implement complex behaviors. I demonstrated the usage of the 
+toolkit on handful of simple examples and performed a case study of building
+a more complex server using the toolkit. This showed that the toolkit is
+functional and simple to use. [TODO: talk about testing] 
+
+\subsection{Critical analysis}
+As noted above the toolkit is functional and easy to use, but its performance
+can be very bad if not configured properly. This is because when using a simple
+pipeline without any load balancing all requests must go through all parts
+of the server one by one what highly limits the throughput. The provided
+tools for load balancing limit this problem.
+
+However, as one would expect even then the performance of the web-server
+is worse than just using the standard library. This is due to overheads
+for the usage of channels, creating the Value objects
+and switching between different goroutines.
+On the other hand the toolkit provides a lot of functionality over the
+standard library. Hence, developing servers using the toolkit should be
+significantly easier and therefore quicker. Hence, if a small performance
+penalty is acceptable, then my toolkit might be the preferred alternative.
+
+\subsection{Future Work}
+To make the toolkit production ready I would perform more testing of all
+components, implement other components and write a throughout documentation
+of the toolkit. One might want to implement a version of the \texttt{Storage}
+that uses an SQL database or a component that accesses a database and 
+gets returns data requested by the client. As noted before other strategies 
+for load balancing can be implemented.
+They can possibly be abstracted to their own class, so that the
+load manager can be parametrized based on our needs.  
+
+The library is very general and extensible. Hence, if we wanted to support 
+other protocols such as webSocket we can easily implement a different 
+type of value and associated components and writers. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Bibliography %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
@@ -1392,6 +1699,13 @@ makes it more difficult to understand how the toolkit works.
     title={References}
 ]
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Appendices %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section*{Appendix A}
+\addcontentsline{toc}{section}{Appendix A}
+\subsection*{Shopping Server Implementation}
+\addcontentsline{toc}{subsection}{Shopping Server Implementation}
+\lstinputlisting{../examples/shoppingServer/shoppingServer.go}
 \end{document}
 
 

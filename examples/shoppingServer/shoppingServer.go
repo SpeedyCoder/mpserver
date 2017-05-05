@@ -1,7 +1,6 @@
 package main
 
 import(
-    "fmt"
     "log"
     "errors"
     "net/http"
@@ -10,13 +9,14 @@ import(
     "strings"
 )
 
-type Session struct {
+// Type definitions
+type ShoppingCart struct {
     items map[string]int
-    finished bool
+    bought bool
 }
 
 type Action interface {
-    performAction(s Session) (mpserver.State, error)
+    performAction(s ShoppingCart) (mpserver.State, error)
 }
 
 type AddAction struct {
@@ -29,7 +29,9 @@ type RemoveAction struct {
 
 type BuyAction struct {}
 
-func (a AddAction) performAction(s Session) (mpserver.State, error) {
+// Definitions of performAction method
+func (a AddAction) performAction(s ShoppingCart) 
+                                (mpserver.State, error) {
     if (s.items == nil) {
         s.items = make(map[string]int)
     }
@@ -41,14 +43,16 @@ func (a AddAction) performAction(s Session) (mpserver.State, error) {
     return s, nil
 }
 
-func (a RemoveAction) performAction(s Session) (mpserver.State, error) {
+func (a RemoveAction) performAction(s ShoppingCart) 
+                                (mpserver.State, error) {
     if (s.items == nil) {
         return nil, errors.New("Shopping cart is empty.")
     }
 
     _, ok := s.items[a.item]
     if (!ok) {
-        return nil, errors.New("Item: "+a.item+" is not in the cart")
+        return nil, errors.New(
+            "Item: "+a.item+" is not in the cart")
     }
     s.items[a.item] -= 1
 
@@ -59,17 +63,18 @@ func (a RemoveAction) performAction(s Session) (mpserver.State, error) {
     return s, nil
 }
 
-func (a BuyAction) performAction(s Session) (mpserver.State, error) {
+func (a BuyAction) performAction(s ShoppingCart) 
+                                (mpserver.State, error) {
     // In real application this is where the payment and writing
     // to the database would happen
-    s.finished = true
+    s.bought = true
     return s, nil
 }
 
-
-
-func (s Session) Next(val mpserver.Value) (mpserver.State, error) {
-    a, ok := val.Result.(Action)
+// Definition of methods of the State interface
+func (s ShoppingCart) Next(val mpserver.Value) 
+                                (mpserver.State, error) {
+    a, ok := val.GetResult().(Action)
     if (!ok) {
         return nil, errors.New("Action not provided")
     }
@@ -77,69 +82,78 @@ func (s Session) Next(val mpserver.Value) (mpserver.State, error) {
     return a.performAction(s)
 }
 
-func (s Session) Result() mpserver.Any {
-    if (s.finished) {
-        return fmt.Sprintf("Bought: %v", s.items)
-    }
+func (s ShoppingCart) Result() interface{} {
     return s.items
 }
 
-func (s Session) Terminal() bool {
-    return s.finished
+func (s ShoppingCart) Terminal() bool {
+    return s.bought
 }
 
-func addActionMaker(val mpserver.Value) mpserver.Value {
-    q := val.Request.URL.Query()
+// Definition of Action makers
+func addActionMakerFunc(val mpserver.Value) mpserver.Value {
+    q := val.GetRequest().URL.Query()
     items, ok := q["item"]
     if (ok && len(items) > 0) {
         items = strings.Split(items[0], ",")
-        log.Println(items)
     }
-    val.Result = AddAction{items}
+    val.SetResult(AddAction{items})
     
     return val
 }
 
-func removeActionMaker(val mpserver.Value) mpserver.Value {
-    q := val.Request.URL.Query()
+func removeActionMakerFunc(val mpserver.Value) mpserver.Value {
+    q := val.GetRequest().URL.Query()
     items, ok := q["item"]
     if (ok && len(items) > 0) {
-        val.Result = RemoveAction{items[0]}
+        val.SetResult(RemoveAction{items[0]})
     } else {
-        val.Result = errors.New("removeActionMaker: Item not provided.")
+        val.SetResult(
+            errors.New("removeActionMaker: Item not provided."))
     }
     
     return val
 }
 
-func buyActionMaker(val mpserver.Value) mpserver.Value {
-    val.Result = BuyAction{}
+func buyActionMakerFunc(val mpserver.Value) mpserver.Value {
+    val.SetResult(BuyAction{})
     return val
 }
 
-
-var initial = Session{nil, false}
+var addActionMaker = mpserver.MakeComponent(addActionMakerFunc)
+var removeActionMaker = mpserver.MakeComponent(
+                                        removeActionMakerFunc)
+var buyActionMaker = mpserver.MakeComponent(buyActionMakerFunc)
 
 func main() {
+    // Make channels
     toAddActionMaker := make(mpserver.ValueChan)
     toRemoveActionMaker := make(mpserver.ValueChan)
     toBuyActionMaker := mpserver.GetChan()
+    in := mpserver.GetChan()
+    out := mpserver.GetChan()
+    toWriter := mpserver.GetChan()
+    errChan := mpserver.GetChan()
 
-    in := make(mpserver.ValueChan)
-    out := make(mpserver.ValueChan)
-    errChan := make(mpserver.ValueChan)
+    // Start action makers
+    go addActionMaker(toAddActionMaker, in)
+    go removeActionMaker(toRemoveActionMaker, in)
+    go buyActionMaker(toBuyActionMaker, in)
 
-    go mpserver.MakeComponent(addActionMaker)(toAddActionMaker, in)
-    go mpserver.MakeComponent(removeActionMaker)(toRemoveActionMaker, in)
-    go mpserver.MakeComponent(buyActionMaker)(toBuyActionMaker, in)
-
+    // Start the session manager
+    initial := ShoppingCart{nil, false}
     store := mpserver.NewMemStore()
-    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*60*5, true)
+    sComp := mpserver.SessionManagementComponent(
+                store, initial, time.Second*60*5, true)
     sComp = mpserver.ErrorPasser(sComp)
     go sComp(in, out)
-    go mpserver.AddErrorSplitter(mpserver.JsonWriter)(out, errChan)
+
+    // Start Error Splitter and Writers
+    go mpserver.ErrorSplitter(out, toWriter, errChan)
+    go mpserver.JsonWriter(toWriter)
     go mpserver.ErrorWriter(errChan)
 
+    // Start the server
     mux := http.NewServeMux()
     mpserver.Listen(mux, "/add", toAddActionMaker)
     mpserver.Listen(mux, "/remove", toRemoveActionMaker)
@@ -147,6 +161,4 @@ func main() {
     log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)
 }
-
-
 
