@@ -1,6 +1,7 @@
 package mpserver
 
 import (
+    "fmt"
 	"log"
     "errors"
     "net/http"
@@ -82,8 +83,9 @@ func StringWriter(in <-chan Value) {
     for val := range in {
         s, ok := val.GetResult().(string)
         if (!ok) {
-            WriteError(val, 
-                errors.New("Passed in wrong type to StringWriter."))
+            WriteError(val, errors.New(
+                fmt.Sprintf("Passed in %t to StringWriter.", 
+                    val.GetResult())))
         } else {
             val.SetResponseCodeIfUndef(http.StatusOK)
         	val.writeHeader()
