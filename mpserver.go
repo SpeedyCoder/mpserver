@@ -6,6 +6,7 @@ import (
     "os"
     "strings"
     "errors"
+    "reflect"
 )
 
 const UndefinedRespCode int = -1;
@@ -231,6 +232,30 @@ func Splitter(in <-chan Value, defOut chan<- Value, outs []chan<- Value, conds [
     for _, ch := range outs {
         close(ch)
     }
+}
+
+// Reads values from multiple sources and sends them to a single output
+func Collector(ins []<-chan Value, out chan<- Value) {
+    cases := make([]reflect.SelectCase, len(ins))
+    for i := 0; i < len(ins); i++ {
+        cases[i] = reflect.SelectCase{
+            Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ins[i])}
+    }
+
+    done := false
+    for !done {
+        index, value, ok := reflect.Select(cases)
+        if (ok) {
+            val := value.Interface().(Value)
+            out <- val
+        } else {
+            cases = append(cases[:index], cases[index+1:]...)
+            if len(cases) == 0 {
+                done = true
+            }
+        }
+    }
+    close(out)
 }
 
 

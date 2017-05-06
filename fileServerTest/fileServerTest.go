@@ -28,7 +28,7 @@ func main() {
 
 	if (*useMPS) {
 		log.Println("Using mpserver implementation.")
-		mux.Handle("/mpserver/", mpserver.SimpleFileServer(dir, "/mpserver"))
+		mux.Handle("/mpserver/", mpserver.SimpleFileServer(dir, "/mpserver", 10000))
 	}
 
 	if (*useWB) {
