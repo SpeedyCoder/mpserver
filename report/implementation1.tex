@@ -318,7 +318,10 @@ Every writer satisfies the following specification.
 	\item The writer terminates when its input channel is closed.
 \end{itemize}
 The package provides writers for writing string, json, file, error and many
-other types of responses.
+other types of responses. There is also a writer generator for static
+load balancing similar to the one for components. Note that components
+combined with writers appear like a single writer. Hence, we can use the
+load balancers for writers to manage a more complex part the network.
 
 \subsubsection{Making Writers}
 As noted before methods for writing responses from \texttt{Value}s 

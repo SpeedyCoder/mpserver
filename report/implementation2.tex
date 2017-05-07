@@ -26,6 +26,7 @@ This makes the components that use the storage highly configurable.
 
 \subsection{States and Session Management Component}
 \subsubsection{States}
+\label{sec:state}
 State is an interface defined as follows:
 \begin{figure}[h]
 \centering
@@ -112,7 +113,9 @@ a value for every value that is sent to it. This is one of the conditions
 that a component must meet, so this shouldn't be an issue.
 
 \subsection{Dynamic Load Balancing}
-\texttt{DynamicLoadBalancer} is a Component generator with the following signature:
+\texttt{DynamicLoadBalancer} is a Component generator whose signature is
+shown in Figure \ref{fig:loadComp} below. Its architecture is similar
+to that of the \texttt{StaticLoadBalancer}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -149,10 +152,11 @@ There are a lot of other possible load balancing strategies.
 Implementing them should be a simple modification of the existing code.
 Note that this is very powerful concept as it can also be used to share
 the load between multiple servers and turn them on or shut them down as
-required (here using a different strategy might be preferred).
+required (here using a different strategy might be preferred). There is
+similar dynamic load balancer for writers.
 
 \subsection{Error handling}
-% TODO: maybe add a diagram
+
 \subsubsection{Error Passer}
 As a lot of components expect an input of a certain type, their execution
 might end with an error if they are provided with an error result from
@@ -176,6 +180,27 @@ The generated component behaves as follows:
 		  passes the value to the worker, which after processing it passes 
 		  it further down the pipeline.
 \end{itemize}
+
+% TODO: finish the diagram
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node[component] (passer) {ErrorPasser};
+    \node[component, right of=passer, node distance=3cm] (worker) {Worker};
+    \node[right of=worker] (right) {};
+    \node[left of=passer] (left) {};
+
+    % Edges
+    \path[line] (left) -- (passer);
+    \path[line] (passer) -- (worker);
+    \path[line] (worker) -- (right);
+    % \path[line] (passer) -- (right);
+\end{tikzpicture}
+\caption[scale=1.0]{Inner design of the components generated with
+  \texttt{ErrorPasser}.}
+\label{fig:errPasserDiag}
+\end{figure}
 
 \subsubsection{Panic handling component}
 If we use a component which might cause panic, this will crash the whole

@@ -21,7 +21,7 @@ type ShoppingCart struct {
 Here, \texttt{items} is 
 a mapping that represents the contents of the cart. It stores the names
 of the items and their count. \texttt{bought} indicates whether the items
-were purchased. In a realistic implementation one might choose to use 
+were purchased. In a real life scenario one might choose to use 
 a list of ids rather than a map, but using a map keeps things simple
 for the purposes of this example.
 
@@ -38,9 +38,9 @@ type Action interface {
 a shopping cart.}
 \label{fig:action}
 \end{figure}
-That is any action implements a \texttt{performAction} method, which takes
+That is any action must implement the \texttt{performAction} method, which takes
 a \texttt{ShoppingCart} object and tries to perform its operation on it. If
-it succeed then it returns the updated object and \texttt{nil} pointer for the
+it succeeds then it returns the updated object and \texttt{nil} pointer for the
 error. If it does not succeed then the method returns \texttt{nil} for the
 object and the corresponding error.
 
@@ -62,9 +62,9 @@ type BuyAction struct {}
 \end{figure}
 
 Now Figure \ref{fig:addAction} shows the implementation of the \texttt{performAction}
-method for the \texttt{addAction}. This action creates the map object if necessary and
-then adds contents of the items array of the \texttt{addAction} object to the map
-object in the \texttt{shoppingCart}.
+method for the \texttt{addAction}. This action creates the map object if 
+necessary and then adds the contents of the items array in the \texttt{AddAction}
+object to the items map in the \texttt{shoppingCart}.
 \begin{figure}[h]
 \begin{lstlisting}
 func (a AddAction) performAction(s ShoppingCart) (State, error) {
@@ -87,7 +87,7 @@ interface defined in section
 \ref{sec:state}, so that it can be used by the session manager component.
 This component will maintain one \texttt{ShoppingCart} object for each user.
 Figure \ref{fig:shoppingCartImpl} below shows the implementation of the 
-methods of the \texttt{State} interface.
+methods of the \texttt{State} interface on the \texttt{ShoppingCart} type.
 \begin{figure}[h]
 \begin{lstlisting}
 func (s ShoppingCart) Next(val Value) (State, error) {
@@ -108,7 +108,6 @@ func (s ShoppingCart) Terminal() bool {
 \caption[scale=1.0]{Implementation of the methods for \texttt{ShoppingCart}.}
 \label{fig:shoppingCartImpl}
 \end{figure}
-
 These are all very simple methods. The \texttt{Next} method calls 
 the \texttt{performAction} method on the provided action to generate 
 the next state.
@@ -116,7 +115,8 @@ the next state.
 \subsection{Making actions}
 Now we need a way to create actions from requests. We create three different
 components to do that using the \texttt{MakeComponent} function. Below
-is the implementation of the function used to make the \texttt{addAction}.
+is the implementation of the component that is used to generate 
+the \texttt{addActions}.
 \begin{figure}[h]
 \begin{lstlisting}
 func addActionMakerFunc(val Value) Value {
@@ -140,7 +140,7 @@ We use different URL paths to perform different actions. We route the
 requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
 and similarly for the other two actions. The output of the action maker
 will be connected to the session management component, that is wrapped in
-\texttt{ErrorPasser}, so that we don't process wrong requests.
+\texttt{ErrorPasser}, so that we don't process invalid requests.
 Finally the output from the session manager goes to the \texttt{ErrorSplitter}
 which sends all non-error values to to \texttt{JsonWriter} and error
 values to \texttt{ErrorWriter}. The overall design is show in diagram 
@@ -211,6 +211,7 @@ func main() {
     go mpserver.JsonWriter(toWriter)
     go mpserver.ErrorWriter(errChan)
 
+    // Listeners
     mux := http.NewServeMux()
     mpserver.Listen(mux, "/add", toAddActionMaker)
     mpserver.Listen(mux, "/remove", toRemoveActionMaker)

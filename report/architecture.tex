@@ -104,26 +104,26 @@ This design is show in Figure \ref{fig:caching}.
 
 \begin{figure}[h]
 \centering
-\begin{tikzpicture}[
-    workerWidth/.style={minimum width=3cm},
-    workerHeight/.style={minimum height=2cm},
+\begin{tikzpicture}[node distance = 1.5cm, auto,
+    workerWidth/.style={text width=5em, text centered},
+    workerHeight/.style={minimum height=4em},
     UWidth/.style={minimum width=0.6cm},
-    every node/.style={
-        text centered,
-        }
-        ]
-    \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
+    UHeight/.style={minimum height=0.6cm}
+    ]
 
-    \node[anchor=north, minimum height=0.6cm, workerWidth, yshift=-0.25cm] (cache) at (worker.south) {Cache};
+    \node[component] (worker){Worker};
+    \node [workerWidth, UHeight, below of=worker] (cache) {Cache};
+    \node [UWidth, workerHeight, left of=worker, node distance=2cm] (left) {};
+    \node [UWidth, workerHeight, right of=worker, node distance=2cm] (right) {};
 
-    \node[anchor=east, workerHeight, UWidth, xshift=-0.5cm] (left) at (worker.west) {};
-    \node[anchor=west, workerHeight, UWidth, xshift=0.5cm] (right) at (worker.east) {};
-
-    \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- cache.south) -- (right.north east) -- (right.north west) -- (right.west |- cache.north) -- (left.east |- cache.north) -- (left.north east) -- cycle;
+    \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- 
+          cache.south) -- (right.north east) -- (right.north west) -- 
+          (right.west |- cache.north) -- (left.east |- cache.north) -- 
+          (left.north east) -- cycle;
 
     \draw[<-, >={latex}] (left.west) -- ++(-1, 0);
-    \draw[->, >={latex}] (left.east) -- (worker.west);
-    \draw[->, >={latex}] (worker.east) -- (right.west);
+    \draw[line] (left) -- (worker);
+    \draw[line] (worker) -- (right);
     \draw[->, >={latex}] (right.east) -- ++(1, 0);
 \end{tikzpicture}\caption[scale=1.0]{Caching output of a worker component.}
 \label{fig:caching}
@@ -149,32 +149,32 @@ See Figure \ref{fig:loadBalancing}.
 
 \begin{figure}[h]
 \centering
-\begin{tikzpicture}[
-    workerWidth/.style={minimum width=3cm},
-    workerHeight/.style={minimum height=2cm},
+\begin{tikzpicture}[node distance = 1.5cm, auto,
+    workerWidth/.style={text width=5em, text centered},
+    workerHeight/.style={minimum height=4em},
     UWidth/.style={minimum width=0.6cm},
-    every node/.style={
-        text centered,
-        }
-        ]
-    \node[workerWidth, workerHeight, draw] (worker) at (0, 0) {Worker};
-    \node[workerWidth, workerHeight, yshift=-1.2cm, draw] (worker2) at (worker.south) {Worker};
+    UHeight/.style={minimum height=0.6cm}
+    ]
 
-    \node[anchor=north, minimum height=0.6cm, workerWidth, yshift=-0.25cm] (cache) at (worker2.south) {Load Balancer};
+    \node[component] (worker2){Worker};
+    \node [component, below of=worker2, node distance=2cm] (worker) {Worker};
+    \node [workerWidth, UHeight, below of=worker, text width=7em] (load) {Load Balancer};
+    \node [UWidth, workerHeight, left of=worker, node distance=2cm] (left) {};
+    \node [UWidth, workerHeight, left of=worker2, node distance=2cm] (left2) {};
+    \node [UWidth, workerHeight, right of=worker, node distance=2cm] (right) {};
+    \node [UWidth, workerHeight, right of=worker2, node distance=2cm] (right2) {};
 
-    \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left) at (worker.west) {};
-    \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right) at (worker.east) {};
-    \node[anchor=east, workerHeight, UWidth, xshift=-1cm] (left2) at (worker2.west) {};
-    \node[anchor=west, workerHeight, UWidth, xshift=1cm] (right2) at (worker2.east) {};
+    \draw (left2.north west) -- (left2.west |- load.south) -- (right2.east |- 
+          load.south) -- (right2.north east) -- (right2.north west) -- 
+          (right2.west |- load.north) -- (left2.east |- load.north) -- 
+          (left2.north east) -- cycle;
 
-    \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- cache.south) -- (right.north east) -- (right.north west) -- (right.west |- cache.north) -- (left.east |- cache.north) -- (left.north east) -- cycle;
-
-    \draw[<-, >={latex}] (left.west) -- ++(-1, 0);
-    \draw[->, >={latex}] (left.east) -- (worker.west);
-    \draw[->, >={latex}] (worker.east) -- (right.west);
-    \draw[->, >={latex}] (left2.east) -- (worker2.west);
-    \draw[->, >={latex}] (worker2.east) -- (right2.west);
-    \draw[->, >={latex}] (right.east) -- ++(1, 0);
+    \draw[<-, >={latex}] (left2.west) -- ++(-1, 0);
+    \draw[line] (left) -- (worker);
+    \draw[line] (left2) -- (worker2);
+    \draw[line] (worker) -- (right);
+    \draw[line] (worker2) -- (right2);
+    \draw[->, >={latex}] (right2.east) -- ++(1, 0);
 \end{tikzpicture}\caption[scale=1.0]{
     Managing load in a given part of the network.
     One of the workers can be shut down or more workers can be added.
