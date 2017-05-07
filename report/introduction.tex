@@ -1,0 +1,80 @@
+\section{Introduction}
+In this first chapter I introduce the motivation behind this project and 
+an overview of the used design. I also review the related work done on similar
+problems and give a brief summary of this report. 
+
+\subsection{Motivation}
+The vast majority of web server frameworks such as Apache
+use a single handler function that
+computes responses to all types of client requests. When a request comes in a 
+worker is allocated from a pool of workers and it then executes the handler function
+and returns the result to the client.
+
+This project examines an alternative approach for building web-servers. 
+I propose to construct a web-server as a network of highly specialized 
+communicating components. The communication should be done using
+message passing. This builds on the premise that we can deal
+with different types of requests using different single purpose components.
+
+The main advantages of the proposed architecture are that it is easy to understand
+and configure. A conceptual design of response generation from a request translates 
+directly into a server architecture. That is a data flow diagram representing a transition
+of a request into a response can be directly translated into program code.
+Due to the compositional nature of this design its also very easy to reuse code
+and use wrappers to introduce new behaviors such as caching of responses.
+Note that wrappers in this project wrap around the input and output channels
+of a component rather than the component itself.
+
+\subsection{Proposed Architecture}
+The overall server architecture can be explained as follows.
+The components each representing a single action are plugged together into 
+a pipeline using channels to implement complex behaviors. The incoming
+request together with the result computed so far and other 
+information needed for computation and writing the result back to the client
+are passed through the channels.
+
+The incoming requests are fed into the input end of the pipeline and 
+after passing through the whole network the response is written to the
+client on the other end. Hence, we can view this server
+as a pipeline that transfers requests into responses.
+
+To implement this architecture I have constructed a package in the go programming 
+language called \texttt{mpserver}, that allows the construction of such web-servers.
+It uses the built in \texttt{http} package to handle the details of
+the HTTP \cite{http} protocol. The toolkit itself concentrates on the 
+structure of the web-server.
+
+\subsection{Related work}
+Similar work has been done by James Whitehead II in \cite{whitehead}.
+However, his approach is rather different than the approach used 
+in this project. He uses reader-writer pairs for communication between
+two different components in the network. These act like channels, but
+have to be constructed for each pair of communicating components
+for all requests.
+In order to construct these readers and writers a connection object is 
+passed through the network.
+I believe this indirect approach introduces unnecessary overhead and 
+makes it more difficult to understand how the toolkit works.
+It also restricts the communication to a stream of bytes.
+
+\subsection{Report overview}
+In this Chapter I introduced the motivation of the project, its main
+aim, the architecture of the proposed toolkit and I reviewed work done
+on similar problems. In Chapter \ref{sec:background}
+I present the necessary background for the project.
+
+In Chapter \ref{sec:arch} I analyze the design of a few simple servers
+in the suggested framework. Chapter \ref{sec:impl} describes the basic parts of 
+my implementation of the proposed toolkit. Chapter \ref{sec:impl2} then builds
+on this and introduces more advanced features of the implementation.
+
+Afterwards in Chapter \ref{sec:examples} I present
+implementations of servers described in Chapter \ref{sec:arch} in my framework.
+In Chapter \ref{sec:shopping} I perform a case study of building
+a part of a simple shopping server using my toolkit.
+
+In chapter \ref{sec:test} I present results of performance tests of equivalent 
+servers implemented in my framework, in pure go, using toolkit by James Whitehead II
+\cite{whitehead} and using Apache framework. Finally in chapter 
+\ref{sec:conclusion} I summarize the results and achievements of this 
+project and present ideas for future work.

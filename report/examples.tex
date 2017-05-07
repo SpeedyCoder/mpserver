@@ -1,0 +1,139 @@
+\section{Examples}
+\label{sec:examples}
+\subsection{Hello world! server}
+Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
+server described in section \ref{sec:helloWorld}.
+It's a direct translation of the diagram shown in Figure \ref{fig:helloWorld}.
+
+The Listener corresponds to the call of mpserver.Listen function.
+Hello world Component translates into an instance of ConstantComponent
+and String Writer is the writer in the package with the same name.
+We plug these together using two channels, start the components 
+and then start the server itself.
+
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+package main
+
+import(
+    "log"
+    "net/http"
+    "mpserver"
+)
+
+func main() {
+    in := mpserver.GetChan()
+    out := mpserver.GetChan()
+
+    mux := http.NewServeMux()
+    mpserver.Listen(mux, "/hello", in)
+
+    go mpserver.ConstantComponent("Hello world!")(in, out)
+    go mpserver.StringWriter(out, nil)
+    
+    log.Println("Listening on port 3000...")
+    http.ListenAndServe(":3000", mux)
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the Hello World! server.}
+\label{fig:HelloWorldImpl}
+\end{figure}
+
+\newpage
+\subsection{File server}
+Figure \ref{fig:FileServerImpl} shows the implementation of a simple 
+file server that compresses all '.go' files. It is almost a direct translation
+of the diagram shown in figure \ref{fig:fileServer2} in section \ref{sec:fileServer}.
+However, here the File Getter is composed of two parts, which are \texttt{PathMaker}
+and \texttt{FileComponent}. The \texttt{PathMaker} firstly strips a given
+prefix from the request path and then prepends a provided directory name to 
+the result. The \texttt{FileComponent} tries to open a file at a path 
+provided in the result field of the incoming value. Other modifications
+are the addition of the \texttt{ErrorWriter} and the channel going to it from
+the \texttt{Splitter}.
+This path is used when a non existent file is requested be the client.
+Otherwise '.go' files goes to the \texttt{GzipWriter} and all other files to 
+the standard \texttt{FileWriter}.
+The diagram that represents this server is shown in 
+Figure \ref{fig:fileServer3}.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [component, right of=listener, node distance=3cm] (maker) {Path Maker};
+    \node [component, right of=maker, node distance=3cm] (comp) {File Component};
+    \node [component, right of=comp, node distance=3cm] (splitter) {Splitter};
+    \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
+    \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
+     \node [writer, below of=gwriter] (ewriter) {Error Writer};
+    % Edges
+    \path [line] (listener) -- (maker);
+    \path [line] (maker) -- (comp);
+    \path [line] (comp) -- (splitter);
+    \path [line] (splitter) -- (fwriter);
+    \path [line] (splitter) |- (gwriter);
+    \path [line] (splitter) |- (ewriter);
+\end{tikzpicture}
+\caption[scale=1.0]{File server with compression and error handling.}
+\label{fig:fileServer3}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}
+package main
+import(
+    "log"
+    "net/http"
+    "mpserver"
+    "strings"
+)
+// Test if the provided value contains an error in the Result
+func isError(val mpserver.Value) bool {
+    _, isErr := val.Result.(error)
+    return isErr
+}
+// Test if the path of the requested file ends with .go
+func isGoFile(val mpserver.Value) bool {
+    return strings.HasSuffix(val.Request.URL.Path, ".go")
+}
+
+func main() {
+    // Construct the channels
+    in := mpserver.GetChan()
+    toFileComp := mpserver.GetChan()
+    toSplitter := mpserver.GetChan()
+    compressed := mpserver.GetChan()
+    errChan := mpserver.GetChan()
+    splitterOut := mpserver.ToOutChans(
+        []mpserver.ValueChan{errChan, compressed})
+    uncompressed := mpserver.GetChan()
+
+    // Start the file components
+    go mpserver.PathMaker("files", "")(in, toFileComp)
+    go mpserver.FileComponent(toFileComp, toSplitter)
+    
+    // Start the splitter
+    go mpserver.Splitter(toSplitter, uncompressed, splitterOut, 
+                         []mpserver.Condition{isError, isGoFile})
+
+    // Start the writers
+    go mpserver.GzipWriter(compressed, errChan)
+    go mpserver.GenericWriter(uncompressed, errChan)
+    go mpserver.ErrorWriter(errChan)
+
+    // Start the server
+    mux := http.NewServeMux()
+    mpserver.Listen(mux, "/", in)
+    log.Println("Listening on port 3000...")
+    http.ListenAndServe(":3000", mux)
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of a File Server that compresses go files.}
+\label{fig:FileServerImpl}
+\end{figure}
+
+\newpage
+\subsection{Proxy server}

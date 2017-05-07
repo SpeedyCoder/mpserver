@@ -1,0 +1,43 @@
+\section{Conclusion}
+\label{sec:conclusion}
+\subsection{Summary}
+I successfully developed a compositional toolkit for construction of 
+web-servers in go. I first introduced the idea behind the toolkit that 
+makes the construction of web-servers very intuitive and straight forward. 
+
+Then I presented my implementation. I started by introducing the basic types
+and then went on to describe much more components and component generators
+that make it easy to implement complex behaviors. I demonstrated the usage of the 
+toolkit on handful of simple examples and performed a case study of building
+a more complex server using the toolkit. This showed that the toolkit is
+functional and simple to use. [TODO: talk about testing] 
+
+\subsection{Critical analysis}
+As noted above the toolkit is functional and easy to use, but its performance
+can be very bad if not configured properly. This is because when using a simple
+pipeline without any load balancing all requests must go through all parts
+of the server one by one what highly limits the throughput. The provided
+tools for load balancing limit this problem.
+
+However, as one would expect even then the performance of the web-server
+is worse than just using the standard library. This is due to overheads
+for the usage of channels, creating the Value objects
+and switching between different goroutines.
+On the other hand the toolkit provides a lot of functionality over the
+standard library. Hence, developing servers using the toolkit should be
+significantly easier and therefore quicker. Hence, if a small performance
+penalty is acceptable, then my toolkit might be the preferred alternative.
+
+\subsection{Future Work}
+To make the toolkit production ready I would perform more testing of all
+components, implement other components and write a throughout documentation
+of the toolkit. One might want to implement a version of the \texttt{Storage}
+that uses an SQL database or a component that accesses a database and 
+gets returns data requested by the client. As noted before other strategies 
+for load balancing can be implemented.
+They can possibly be abstracted to their own class, so that the
+load manager can be parametrized based on our needs.  
+
+The library is very general and extensible. Hence, if we wanted to support 
+other protocols such as webSocket we can easily implement a different 
+type of value and associated components and writers. 

@@ -1,0 +1,430 @@
+\section{Implementation}
+\label{sec:impl}
+In this Chapter I present basic elements of my \texttt{mpserver} toolkit
+and how to work with them. The most important are the primitive types:
+\texttt{Value}, \texttt{Component} and \texttt{Writer}.
+
+\subsection{Values}
+\texttt{Value} is an interface that represents the type of messages that are
+passed between the components of the network. It definition is shown
+in Figure \ref{fig:Value} below.
+
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+type Value interface {
+    //Public methods
+    GetRequest() *http.Request
+    GetResult() interface{}
+    SetResult(interface{})
+    SetResponseCode(int)
+    SetResponseCodeIfUndef(int)
+    SetHeader(string, string)
+
+    // Private methods
+    getResponseWriter() http.ResponseWriter
+    getResponseCode() int
+    writeHeader()
+    write([]byte)
+    close()
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of the Value interface.}
+\label{fig:Value}
+\end{figure}
+
+Note that in Go only types, functions, constants and variables whose name
+starts with a capital letter are exported from a package. Hence, anyone
+using the package can only use the first 6 methods of the \texttt{Value}
+interface.
+
+The interface is implemented by the struct type shown in Figure \ref{fig:value}
+that is private to the package.
+\newpage
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+type value struct {
+    request *http.Request
+    result interface{}
+
+    responseCode int
+    responseWriter http.ResponseWriter
+    done chan<- bool
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of a private type that implements the Value 
+interface.}
+\label{fig:value}
+\end{figure}
+Here:
+\begin{itemize}
+  \item \texttt{request} is a pointer to the HTTP request made by the 
+        client implemented in the default HTTP library. It can be accessed
+        using the \texttt{GetRequest} method. 
+
+  \item \texttt{result} is the result computed so far (initially nil). This is
+        of type \texttt{interface{}} which is implemented by any type.
+        Hence, values of all types can be stored there. This field can be
+        accessed and changed using the \texttt{GetResult} and \texttt{SetResult}
+        methods respectively.
+  
+  \item \texttt{responseCode} is the HTTP response code that should be 
+        returned to the client. The default value of this field is -1,
+        which indicates that the responseCode has not been set yet. 
+        It can be set using the \texttt{SetResponseCode} or 
+        \texttt{SetResponseCodeIfUndef} methods, where the second method only
+        makes a change in case the response code is undefined. The value
+        of the response code can be retrieved using the \texttt{getResponseCode}
+        method inside the package. This is intended to be used only by the 
+        \texttt{Writer} type introduced later.
+
+  \item \texttt{responseWriter} is an object that writes the response back 
+        to the client. Again only \texttt{Writer}s use this field. They
+        can retrieve it using \texttt{getResponseWriter} method. 
+        Alternatively, they can use the \texttt{writeHeader} and
+        \texttt{write} methods to access the field indirectly.
+        These methods write the headers and 
+        the body of the response to the client respectively.
+
+  \item \texttt{done} is a signaling channel. Signal is sent on this channel,
+		after the response is written at the end of the pipeline using the 
+        \texttt{close} method. This allows the connection to the client to 
+        be closed after the result is written.
+\end{itemize}
+Note that all methods related to writing the response back to the client
+are private to the package. This is to ensure correct behavior, as otherwise
+these methods could be accessed by users of the package in any part of the 
+network, what could lead to exceptions.
+
+\subsection{Components}
+This section introduces the \texttt{Component} type and then shows how we can simply
+create components. Afterwards it presents a way how multiple components can
+be combined to form a linear pipeline. The sections ends with a description
+of a component generator that implements simple load balancing among
+multiple components.
+
+\subsubsection{The Component type}
+Component is a generic part of the pipeline with an input and output channel.
+It processes the values provided on input channel and outputs the results
+on the output channel. The type \texttt{Component} is defined as follows:
+\begin{lstlisting}
+type Component func (in <-chan Value, out chan<- Value)
+\end{lstlisting}
+Every component should satisfy the following conditions:
+\begin{itemize}
+    \item When run a component should eventually read all values that are
+          written to its input channel.
+
+    \item Every value that a component reads from its input channel
+          should be written to its output channel after the value was processed
+          and possibly modified. This ensures that every request gets a response.
+
+    \item A component can terminate only when its input channel is closed 
+          Before terminating, the component should close its output channel.
+          This ensures termination of any components further down in the network.
+
+    \item Component can only close its output channel and it can only do so
+    	  after its input channel have been closed. It should never attempt
+          to close the input channel as this will likely result in an exception.
+\end{itemize}
+
+\subsubsection{Making Components}
+To simplify the construction of components, so that they adhere to 
+the above specification the package provides a helper function that 
+constructs a component using a function that maps one \texttt{Value} object 
+into another \texttt{Value} object. 
+That is the function has the following signature:
+\begin{lstlisting}
+type ComponentFunc func (val Value) Value
+\end{lstlisting}
+This represents the mapping of the input values to the output values. 
+The implementation of the described component generator is shown in 
+Figure \ref{fig:MakeComponent} below.
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+func MakeComponent(f ComponentFunc) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        for val := range in {
+            out <- f(val)
+        }
+        close(out)
+    }
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of MakeComponent function.}
+\label{fig:MakeComponent}
+\end{figure}
+
+Here the for loop reads values from the input channel and assigns them
+to the variable \texttt{val} while the input channel is open. Then the 
+the function \texttt{f} is applied to this value and the result is outputted.
+Afterwards, the component waits for another value. When the input channel
+is closed the loop terminates. Afterwards, the component closes its output channel
+and terminates.
+
+\subsubsection{Constant Component}
+Constant Component is a simple component generator that takes a value c
+of any type and returns a component that writes c to the Result field of 
+all inputted values and then outputs them. It's definition using the 
+\texttt{MakeComponent} generator is show below.
+\begin{lstlisting}
+func ConstantComponent(c interface{}) Component {
+    return MakeComponent(func (val Value) Value {
+        val.SetResult(c); return val
+    })
+}
+\end{lstlisting}
+
+\subsubsection{Linking components}
+The library also provides a component generator \texttt{LinkComponents} that takes 
+any number of components and returns a component that behaves as their 
+linear combination. That is as a pipeline constructed from these components 
+in the order in which they are provided. Its signature is shown below.
+\begin{lstlisting}
+func LinkComponents(components ...Component) Component
+\end{lstlisting}
+The subcomponents are linked and run when the combined component is run. 
+The last of the provided components is run in the goroutine in which
+the combined component was run.
+
+\subsubsection{Simple Load Balancing}
+To support running the same component with the same input and output 
+channels multiple times the toolkit provides \texttt{SimpleLoadBalancer}.
+Note that this is possible as channels in go are many-to-many.
+\texttt{SimpleLoadBalancer} is a component generator that takes a worker 
+component and number $n$ and returns a component that when run starts 
+$n$ instances of the worker component. 
+
+The case with $n=3$ in a simple pipeline is shown in Figure \ref{fig:slbEx} below. 
+In order to support clean shutdown of the combined component, the load balancer uses 
+wrappers (U shaped components in the diagram) around workers and a component that 
+forwards incoming values to the workers. When input channel of the forwarding
+component is closed it sends a signal to the component wrappers on shut 
+down channels (dashed arrows in the diagram). The wrappers then close
+the channels to the workers, which will force workers to terminate.
+Finally the distributer closes the output channel of the whole component
+and then the termination signal propagates further down the network.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 1.5cm, auto,
+    workerWidth/.style={text width=5em, text centered},
+    workerHeight/.style={minimum height=4em},
+    UWidth/.style={minimum width=0.6cm},
+    UHeight/.style={minimum height=0.6cm}
+    ]
+    % Nodes
+    \node [component] (worker1) {Worker};
+    \node [workerWidth, UHeight, below of=worker1] (passer1) {};
+    \node [workerWidth, UHeight, above of=worker1] (passer2) {};
+    \node [component, above of=passer2] (worker2) {Worker};
+    \node [component, below of=passer1] (worker3) {Worker};
+    \node [workerWidth, UHeight, below of=worker3] (passer3) {};
+    \node [above of=worker2, node distance=1.3cm, xshift=-0.8cm] {Simple Load Balancer};
+
+    % Left
+    \node [UWidth, workerHeight, left of=worker1, node distance=2cm] (left1) {};
+    \node [UWidth, workerHeight, left of=worker2, node distance=2cm] (left2) {};
+    \node [UWidth, workerHeight, left of=worker3, node distance=2cm] (left3) {};
+
+    \node [UWidth, workerHeight, left of=left1, node distance=1.5cm] (lleft1) {};
+    \node [UWidth, workerHeight, left of=left2, node distance=1.5cm] (lleft2) {};
+    \node [UWidth, workerHeight, left of=left3, node distance=1.5cm] (lleft3) {};
+
+    \draw (lleft2.north west) -- (lleft2.west |- passer3.south) --
+          (lleft2.east |- passer3.south) -- (lleft2.north east) --
+          cycle;
+
+    % Right
+    \node [UWidth, workerHeight, right of=worker1, node distance=2cm] (right1) {};
+    \node [UWidth, workerHeight, right of=worker2, node distance=2cm] (right2) {};
+    \node [UWidth, workerHeight, right of=worker3, node distance=2cm] (right3) {};
+
+    \draw (left1.north west) -- (left1.west |- passer1.south) -- (right1.east |- 
+          passer1.south) -- (right1.north east) -- (right1.north west) -- 
+          (right1.west |- passer1.north) -- (left1.east |- passer1.north) -- 
+          (left1.north east) -- cycle;
+    \draw (left2.north west) -- (left2.west |- passer2.south) -- (right2.east |- 
+          passer2.south) -- (right2.north east) -- (right2.north west) -- 
+          (right2.west |- passer2.north) -- (left2.east |- passer2.north) -- 
+          (left2.north east) -- cycle;
+    \draw (left3.north west) -- (left3.west |- passer3.south) -- (right3.east |- 
+          passer3.south) -- (right3.north east) -- (right3.north west) -- 
+          (right3.west |- passer3.north) -- (left3.east |- passer3.north) -- 
+          (left3.north east) -- cycle;
+
+    \node [listener, left of=left1, node distance=4cm] (listener) {Listener};
+    \node [writer, right of=right1, node distance=3cm] (writer) {Writer};
+    % Edges
+    \path [line] (listener) -- (lleft1);
+    \path [line] (lleft1) -- (left1);
+    \path [line] ($ (lleft1) !.4! (left1) $) |- (left2);
+    \path [line] ($ (lleft1) !.4! (left1) $) |- (left3);
+
+    \path [line, dashed,transform canvas={shift={(0,-0.5)}}] (lleft1) -- (left1);
+    \path [line, dashed,transform canvas={shift={(0,-0.5)}}] (lleft2) -- (left2);
+    \path [line, dashed,transform canvas={shift={(0,-0.5)}}] (lleft3) -- (left3);
+
+    \path [line] (left1) -- (worker1);
+    \path [line] (left2) -- (worker2);
+    \path [line] (left3) -- (worker3);
+
+    \path [line] (worker1) -- (right1);
+    \path [line] (worker2) -- (right2);
+    \path [line] (worker3) -- (right3);
+    \path [line] (right1) -- (writer);
+    \path [draw] (right2) -| ($ (right1) !.3! (writer) $);
+    \path [draw] (right3) -| ($ (right1) !.3! (writer) $);
+    \node[xshift=0.5em, draw, densely dotted, minimum width=18em, inner sep=0.5em,fit=(right2) (right3) (lleft2) (lleft3) (passer3)] {};
+\end{tikzpicture}
+\caption[scale=1.0]{Simple server example showing usage of \texttt{SimpleLoadBalancer}.}
+\label{fig:slbEx}
+\end{figure}
+
+This combined component allows multiple requests to be processed by the worker
+components at the same time and this in turn allows faster requests to 
+overtake slower requests in the pipeline. The worker component can represent
+a simple computation done locally or they can connect to other servers
+and perform expensive computation there. More advanced version of load 
+balancing component is introduced in the next Chapter.
+
+\newpage
+\subsection{Writers}
+Here, I introduce the \texttt{Writer} type, which acts as the end of the 
+pipeline. Then I present a way how custom writers can be implemented.
+\subsubsection{Writer type}
+Writer is the end of the pipeline which writes results to the client.
+The type \texttt{Writer} is defined as follows:
+\begin{lstlisting}
+type Writer func (in <-chan Value)
+\end{lstlisting}
+It is a function with only an input channel.
+Every writer satisfies the following specification.
+\begin{itemize}
+    \item When run a writer eventually reads all values that are written 
+          to its input channel.
+
+	\item For every value that is input any writer behaves as follows. 
+          It firstly checks if the result field contains the expected type. 
+          If that is the case, it firstly writes the headers, then
+          writes the body and finally closes the connection for the value
+          using the \texttt{writeHeader}, \texttt{write} and \texttt{close}
+          methods of the value respectively. If the value in the result 
+          field has an incorrect type the writer writes an appropriate 
+          error message to the client and closes the connection for the value. 
+
+	\item The writer terminates when its input channel is closed.
+\end{itemize}
+The package provides writers for writing string, json, file, error and many
+other types of responses.
+
+\subsubsection{Making Writers}
+As noted before methods for writing responses from \texttt{Value}s 
+back to the client can not be used outside of the package. To allow
+for construction of custom writers the package provides writer generator
+component similar to the \texttt{MakeComponent} function. It uses 
+functions with the following signature to generate the writers.
+\begin{lstlisting}
+type WriterFunc func (val Value) ([]byte, error)
+\end{lstlisting}
+These functions should set headers and convert the provided value into 
+an array of bytes or return an error in case they are provided with a 
+wrong input. The implementation of the writer generator itself is shown
+in Figure \ref{fig:MakeWriter} below.
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+func MakeWriter(writerFunc WriterFunc) Writer {
+    return func (in <-chan Value) {
+        for val := range in {
+            resp, err := writerFunc(val)
+
+            if (err == nil) {
+                // Write the response
+                val.SetResponseCodeIfUndef(http.StatusOK)
+                val.writeHeader()
+                val.write(resp)
+                val.close()
+            } else {
+                WriteError(val, err)
+            }
+        }       
+    }
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of writer generator.}
+\label{fig:MakeWriter}
+\end{figure}
+
+The generated writer runs the provided \texttt{writerFunc} for every value 
+that is inputted. If the function returns an error it writes the error 
+back to the client using the \texttt{WriteError} function. Otherwise, it 
+writes the headers and the body of the response to the client and then 
+closes the connection. (The \texttt{WriteError} does this for the error
+results).
+
+\subsection{Splitter and Collector}
+In this section I introduce a way to split a stream of incoming values into
+multiple streams of values that go into different parts of the network
+using very flexible rules for splitting.
+
+\subsubsection{Conditions}
+Condition type is defined as follows:
+\begin{lstlisting}
+type Condition func (val Value) bool
+\end{lstlisting}
+It is a just function that takes a value and returns a boolean.
+
+\subsubsection{Splitter}
+Conditions are used in Splitter, which is a component with the 
+following signature:
+\begin{lstlisting}
+func Splitter(in <-chan Value, defOut chan<- Value, 
+			  outs []chan<- Value, conds []Condition)
+\end{lstlisting}
+It takes an input channel, default output channel, array of output channels and array of conditions.
+The number of output channels and the number of conditions should be the same.
+For every input value the Splitter evaluates the conditions from first to last.
+When a condition returns true the value is written to a corresponding output channel 
+and the processing of the current value terminates. If all conditions return false
+then the value is written to the default output channel.
+
+\subsubsection{Error Splitter}
+The package also implements a special splitter that redirects error messages
+to a special error channel and sends all other messages to the default output 
+channel. This is used to avoid sending error values to 
+any other type of writer than the error writer. If we allowed this, then
+all errors will only show that a particular writer got a wrong input.
+The signature of the \texttt{ErrorSplitter} function is shown below.
+\begin{lstlisting}
+func ErrorSplitter(in <-chan Value, out chan<- Value, 
+                                    errChan chan<- Value)
+\end{lstlisting}
+
+\subsubsection{Collector}
+Collector is a component whose behavior is the opposite of splitter. 
+It gets multiple input channels
+and forwards their outputs to a single output channel. Now as channels
+in go are many-to-many we could just use a single channel to which all
+multiple components output their values. 
+
+However, when we shutdown
+one of the components, this component will close the output channel
+what will cause panic next time one of the other components tries to write
+to it. Now, \texttt{Collector} only closes its output channel, when
+all of its input channels have been closed, thus avoiding the above
+problem. It is acceptable to just use a single channel instead of
+the collector component, if we don't intend to shut down the network.
+The type signature of the \texttt{Collector} is show below.
+\begin{lstlisting}
+func Collector(ins []<-chan Value, out chan<- Value)
+\end{lstlisting}
+
+
+\subsection{Summary}
+In this Chapter I introduced the basic elements of the library. This 
+is enough to implement some simple serves. The next section introduces
+more advanced components that allow more complex behaviors.
+

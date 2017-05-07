@@ -1,0 +1,152 @@
+\section{Background}
+\label{sec:background}
+In this Chapter I explain the basics of message passing concurrency and 
+the basics of the go programming language, which was used to implement 
+the proposed toolkit.
+
+\subsection{Introduction to Message passing Concurrency}
+This section first introduces channels and then presents the Message
+Passing Concurrency Paradigm.
+
+\subsubsection{Channels}
+Channel is a FIFO queue of pending messages. It can be accessed by two
+primitive operations, which are send and receive. To start communication
+a process sends a value to the channel. Another process acquires the message
+by receiving from the channel. Sending a message can be asynchronous (nonblocking)
+or synchronous (blocking). Note that receiving message is invariably blocking.
+\cite[293]{book:foundations}
+
+\subsubsection{Message Passing Concurrency}
+Message Passing Concurrency is a style of Concurrent Programming, in which
+processes communicate using only channels. That is channel communication is 
+the only way any two processes can communicate and synchronize. 
+Hence, this style does not 
+suffer any problems that arise from using shared memory for communication 
+and synchronization by multiple concurrent processes.
+
+\subsection{Introduction to go}
+``Go is a statically-typed programming language. Programs are compiled 
+to native code and are linked with a small runtime environment that performs 
+automatic memory management and scheduling for lightweight processes called 
+goroutines.'' \cite[2]{whitehead} Its main advantage is 
+that it has a lot of concurrent constructs built natively into it.
+This is also the reason why it was chosen as implementation language 
+for this project.
+In this section I introduce the main concurrency constructs that are
+present in the language and its type system. Other features
+of the language are explained as they are used.
+
+\subsubsection{Goroutines}
+``A goroutine is a cross between a lightweight thread and a coroutine
+managed by the Go runtime.'' \cite[2]{whitehead} Goroutines are multiplexed
+on a set of threads, when a goroutine blocks another goroutine is scheduled
+on the same thread. 
+
+What makes goroutines powerful is that they are very cheap to create and 
+it is also cheap to switch between them. ``This is the case, because they 
+have very small overhead beyond the memory for the stack (which is only 
+a few kilobytes). To make the stacks small, the runtime uses resizable, 
+bounded stacks. The CPU overhead averages about three cheap 
+instructions per function call.'' \cite{FAQ} These costs are much smaller
+than using operating system threads, hence it is feasible to use thousands
+of goroutines.
+% TODO; simplify the above
+
+To create a new goroutine we only need to prefix a function call with
+the \texttt{go} keyword. The arguments will be evaluated in the current
+goroutine, but unlike with regular function call this goroutine won't
+wait for the function to return. The called 
+function will be evaluated in a new goroutine and that goroutine will 
+terminate when the function terminates \cite{GoDocumentation}.
+
+\subsubsection{Channels}
+Channels in go are many-to-many. That is multiple goroutines can
+read and write to a single channel. Channels are statically typed and
+dynamically allocated using \texttt{make} function. This function takes 
+two arguments: the type of the channel and the size of its buffer.
+A channel with buffer size 0 implements a synchronous channel, whereas 
+channels with lager buffers implement asynchronous channels, as reads
+are only blocked when the buffer is empty and writes are only blocked
+when the buffer is full.
+
+By default the channel type exposes both reading and writing end of the
+channel. Hence, we can view it as a bidirectional channel. 
+However, we can access only one of its ends using the following:
+\begin{lstlisting}
+channel := make(chan Value, 10)
+in := (<-chan Value)(channel)
+out := (chan<- Value)(channel)
+\end{lstlisting}
+Here, we define 3 variables. \texttt{channel} variable refers to the 
+channel itself, \texttt{in} refers to the reading end of the channel
+and \texttt{out} to the writing end of the channel. We used casting
+from the channel to access only one of its end. The \texttt{:=} is a
+short form of variable declaration with assignment and an implicit type.
+
+\subsubsection{Objects methods and Interfaces}
+Go doesn't have classes and inheritance as Object Oriented Languages 
+such as Java do. It instead allows programmers to define named types
+and methods on these types. This is illustrated in the example shown in 
+Figure \ref{fig:counterObj}, which defines a simple counter object.
+Note that the operations are defined on a pointer to a \texttt{Counter}
+object. This is because all function parameters are passed by value, so
+if we defined the update method on Counter object, calling it wouldn't
+change the value of the Counter.
+
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+type Counter struct {
+    count int
+}
+func (c *Counter) update(k int) {c.count += k}
+func (c *Counter) getCount() int {return c.count}
+\end{lstlisting}
+\caption[scale=1.0]{Definition of a simple \texttt{Counter} object.}
+\label{fig:counterObj}
+\end{figure}
+
+To specify behavior of types go provides interfaces. An interface
+specifies methods that a type must implement in order to satisfy an 
+interface. ``Interfaces are satisfied implicitly. A type implements 
+an interface by implementing its methods.'' \cite{tour}
+\texttt{CounterInterface}, defined in Figure \ref{fig:counterInter} below,
+defines methods that any counter object should provide. This interface 
+is implemented by a pointer to a \texttt{Counter} object defined above.
+
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+type CounterInterface interface {
+    update(int)
+    getCount() int
+}
+\end{lstlisting}
+\caption[scale=1.0]{Definition of a \texttt{CounterInterface}.}
+\label{fig:counterInter}
+\end{figure}
+
+\subsubsection{Panic and Recover}
+Go doesn't support standard form of exceptions as are found in Java or
+C++. Instead it implements \texttt{panic} and \texttt{recover} methods, 
+which are very similar to Java's \texttt{throw} and \texttt{catch}.
+\texttt{panic} can be called explicitly or it can be a result of 
+a run time error such as out of bounds indexing of an array.
+
+When \texttt{panic} is called inside a function \texttt{F}, the execution
+of \texttt{F} is stopped and any functions that have been deferred by
+\texttt{F} are executed. ``Next, any deferred functions run by \texttt{F}'s caller 
+are run, and so on up to any deferred by the top-level function in the executing 
+goroutine. Then the program is terminated and error condition 
+is reported. This termination sequence is called panicking.'' \cite{goSpec}
+A call function to function \texttt{H} is deferred by prefixing it with a 
+\texttt{defer} keyword. This function is called when the function that 
+called it terminates.
+
+Panic sequence can be stopped in case one of the deferred functions
+calls the \texttt{recover} method and then returns normally. The value
+returned by the \texttt{recover} method is the same value that was passed
+to the call of panic \texttt{panic} or \texttt{nil} if the goroutine
+is not panicking. \cite{goSpec}
+
+\subsection{Background Summary}
