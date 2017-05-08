@@ -4,8 +4,10 @@ In this section I introduce more advanced component generators for caching,
 session management, load balancing, network communication and error handling.
 
 \subsection{Storage}
-Storage is an interface representing thread safe mapping from string keys
-to values of any type. Its definition is shown below.
+\texttt{Storage} is an interface representing thread safe mapping from string keys
+to values of any type. Its definition is shown in Figure \ref{fig:Storage} below.
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 type Storage interface {
     Get(string) (interface{}, bool)
@@ -15,19 +17,22 @@ type Storage interface {
     Keys() []string
 }
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of the \texttt{Storage} interface.}
+\label{fig:Storage}
+\end{figure}
 The package provides a default implementation of this interface that
 stores the data in memory using (with minor modifications) sharded concurrent map implementation
 by Or Hiltch\footnote{Code available at \url{https://github.com/orcaman/concurrent-map}}.
 If a developer wants to store the values in the 
-database instead, they can provide their own implementation of the store interface
+database instead, they can provide their own implementation of the 
+\texttt{Store} interface
 and use any component that uses the storage the same way as before.
 This makes the components that use the storage highly configurable.
-
 
 \subsection{States and Session Management Component}
 \subsubsection{States}
 \label{sec:state}
-State is an interface defined as follows:
+\texttt{State} is an interface defined in Figure \ref{fig:State}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -40,62 +45,57 @@ type State interface {
 \caption[scale=1.0]{Declaration of the State interface.}
 \label{fig:State}
 \end{figure}
-
-Here the expected behavior of the member functions is as follows:
+The expected behavior of the member functions is as follows:
 \begin{itemize}
-	\item The \texttt{Next} function returns the next state when provided with a value.
-	\item The \texttt{Terminal} function indicates whether the current state is a terminal state.
-	\item The \texttt{Result} function returns the result that possibly after further 
-		  processing should be returned to the client.
+	\item The \texttt{Next} function returns the next state when provided 
+          with a value.
+	\item The \texttt{Terminal} function indicates whether the current 
+          state is a terminal state.
+	\item The \texttt{Result} function returns the result that possibly 
+          after further processing should be returned to the client.
 \end{itemize}
 
-\subsubsection{Session Management Component}
-\texttt{SessionManagementComponent} is a following component generator.
+\subsubsection{Session Management}
+\texttt{SessionManager} is a component generator with the following signature:
 \begin{lstlisting}
-func SessionManagementComponent(store Storage, initial State, 
+func SessionManager(store Storage, initial State, 
                 seshExp time.Duration, useCleaner bool) Component
 \end{lstlisting}
-
-It arguments are a storage object to be used, an initial state for each session,
+Its arguments are a storage object to be used, an initial state for each session,
 a session expiration time and a boolean indicating whether expired
 entries should be automatically removed from the map.
 The returned component behaves as a session manager. 
-It behaves as follows:
+Its behavior is described below.
 
 The component stores a mapping from session ids to current state of the session.
-
-Every new request gets assigned a unique session id. Then a mapping from the generated 
-id to the current state, which is generated from the initial state using the provided value,
-is stored. The result of the call to the \texttt{Result} function on the next state with the provided 
-value is then sent down the pipeline.
+Every new request gets assigned a unique session id. Then a current state
+of the session is generated from the initial state using the provided
+value. Afterwards a mapping from the generated id to the current state
+is stored. The result of the call to the \texttt{Result} function on the
+current state with the provided value is then sent down the pipeline and
+client response is generated from it.
 
 When a request with set `Session-Id` header comes in, the component gets the current 
 state for the session and gets the next state for it based on the provided value.
-The mapping is then updated with the generated state and the result from the current state
+The mapping is then updated with the new state and the result from the new state
 is passed down the pipeline.
 
 When a session reaches a Terminal state, the session id is removed from the map
 and the final result is outputted.
 
 The states in the mapping are timestamped and are removed from the map after
-the session expiration time, if they haven't finished before that.
+the session expiration time, if the session haven't finished before that.
 
 % More hype
 The abstraction using states allows the users of the package to implement the
 logic for the session, independently of the session management part.
 
 \subsection{Caching}
-\texttt{CacheComponent} is a Component generator with the following signature:
-\begin{figure}[h]
-\centering
+\texttt{CacheComponent} is a component generator with the following signature:
 \begin{lstlisting}
 func CacheComponent(cache Storage, worker Component, 
             expiration time.Duration, useCleaner bool) Component
 \end{lstlisting}
-\caption[scale=1.0]{Type signature of the \texttt{Cache Component} generator.}
-\label{fig:cacheComp}
-\end{figure}
-
 The returned component behaves as follows:
 \begin{itemize}
 	\item When a value is input that the component hasn't seen before, then
@@ -110,23 +110,16 @@ The returned component behaves as follows:
 
 For the generated component to function properly, the worker must output
 a value for every value that is sent to it. This is one of the conditions
-that a component must meet, so this shouldn't be an issue.
+that any component must satisfy, so this shouldn't be an issue.
 
 \subsection{Dynamic Load Balancing}
-\texttt{DynamicLoadBalancer} is a Component generator whose signature is
-shown in Figure \ref{fig:loadComp} below. Its architecture is similar
+\texttt{DynamicLoadBalancer} is a component generator whose signature is
+shown below. Its architecture is similar
 to that of the \texttt{StaticLoadBalancer}.
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 func DynamicLoadBalancer(addTimeout, removeTimeout time.Duration, 
         worker Component, maxWorkers int) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of \texttt{DynamicLoadBalancing} 
-component generator.}
-\label{fig:loadComp}
-\end{figure}
-
 The returned component has an array of workers which can be easily shut down.
 The initial number of workers is 1. 
 For every input value, the component behaves as follows:
@@ -153,26 +146,22 @@ Implementing them should be a simple modification of the existing code.
 Note that this is very powerful concept as it can also be used to share
 the load between multiple servers and turn them on or shut them down as
 required (here using a different strategy might be preferred). There is
-similar dynamic load balancer for writers.
+also a similar dynamic load balancer for writers.
 
 \subsection{Error handling}
 
 \subsubsection{Error Passer}
 As a lot of components expect an input of a certain type, their execution
 might end with an error if they are provided with an error result from
-a previous component. This would make debugging very hard. Hence, the 
-package provides the following component wrapper, that won't pass errors
-to the provided component. This signature of this wrapper is shown below.
-\begin{figure}[h]
-\centering
+the previous component. This would make debugging very hard. Hence, the 
+package provides the following component wrapper, that allows error messages
+to bypass a component. The signature of this wrapper is shown below.
 \begin{lstlisting}
 func ErrorPasser(worker Component) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Error Passer Component generator.}
-\label{fig:ErrorPasser}
-\end{figure}
-
-The generated component behaves as follows:
+The inner design of the generated component is shown in Figure 
+\ref{fig:errPasserDiag}. The behavior of the generated component 
+can be described as follows:
 \begin{itemize}
 	\item For every input value it checks whether the result is an error
 		  and if that is the cases it just outputs the value.
@@ -181,53 +170,53 @@ The generated component behaves as follows:
 		  it further down the pipeline.
 \end{itemize}
 
-% TODO: finish the diagram
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
     % Nodes
-    \node[component] (passer) {ErrorPasser};
-    \node[component, right of=passer, node distance=3cm] (worker) {Worker};
-    \node[right of=worker] (right) {};
+    \node[component, text width=2em] (passer) {};
+    \node[component, right of=passer] (worker) {Worker};
+    \node[above of=worker, node distance=1.5cm, xshift=-0.7cm](name){ErrorPasser};
+    \node[text width=2em, right of=worker] (right) {};
+    \node[below of=worker, node distance=1.2cm] (lineh) {};
     \node[left of=passer] (left) {};
 
     % Edges
-    \path[line] (left) -- (passer);
+    \path[line] (left) edge node {in} (passer); 
+    \path[] (right.west) edge node {out} (right.east);
+    \path[line] (right.west) -- (right.east);
     \path[line] (passer) -- (worker);
-    \path[line] (worker) -- (right);
-    % \path[line] (passer) -- (right);
+    \path[draw] (worker) -- (right);
+    \path[draw] (passer.south) |- (lineh.east);
+    \path[draw] (lineh.east) -| (right.west);
+    \node[draw, densely dotted, inner sep=1em,
+          fit=(passer) (worker) (lineh)] {};
 \end{tikzpicture}
 \caption[scale=1.0]{Inner design of the components generated with
   \texttt{ErrorPasser}.}
 \label{fig:errPasserDiag}
 \end{figure}
 
-\subsubsection{Panic handling component}
+\subsubsection{Panic handling}
 If we use a component which might cause panic, this will crash the whole
 server when the panic occurs. Hence, the package provides the 
-\texttt{PanicHandlingComponent}. The signature of this wrapper is shown 
+\texttt{PanicHandler}. The signature of this wrapper is shown 
 below.
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
-func PanicHandlingComponent(worker Component) Component
+func PanicHandler(worker Component) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Panic Handling Component generator.}
-\label{fig:panicHandler}
-\end{figure}
-
 It takes a component that can cause panic and returns a component the 
 behaves as follows:
 \begin{itemize}
 	\item It passes every input value to the worker, gets the result 
-          from it and then passes the result further down the pipeline.
-	\item In case the worker crashes, that is causes panic, the component 
-          writes an error as a result for the value that caused the crash 
-          and the restarts the worker.
+        from it and then passes the result further down the pipeline.
+	\item In case the worker crashes, that is it causes panic, the component 
+        writes an error as a result for the value that caused the crash 
+        and then restarts the worker.
 	\item The component can itself cause a panic if the worker closes its 
-          input channel, or if it closes its output channel before its input 
-          channel is closed. That is if the worker violates the contract
-          for components.
+        input channel, or if it closes its output channel before its input 
+        channel is closed. That is if the worker violates the contract
+        for components.
 \end{itemize}
 
 \subsection{Network Components}
@@ -239,22 +228,15 @@ can these components be plugged together to act as a proxy server.
 
 \subsubsection{Network Component}
 Network Component is a component generator with the following signature:
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 func NetworkComponent(client *http.Client) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Network Component generator.}
-\label{fig:NetworkComponent}
-\end{figure}
-
 It takes a single parameter, which is an http client.
 The generated component for each input value makes an http request,
 taken from the Result field of the value, using the provided http client.
 If there is no request in the Result field or the request fails, then
 the component returns an appropriate error. The behavior of the generated 
-component is type described in Figure \ref{fig:networkComp}
-below.
+component is described in Figure \ref{fig:networkComp} below.
 
 \begin{figure}[h]
 \centering
@@ -276,27 +258,22 @@ below.
 
 Note that the result of the request is fetched in the goroutine where the
 component runs. Hence, slow requests might block the pipeline. To avoid
-this behavior the \texttt{NetworkComponent} is usually used together with one
+this behavior \texttt{NetworkComponent} is usually used together with one
 of the load managers.
 
 \subsubsection{Request Copier}
 Request Copier is a component generator with the following signature:
-\begin{figure}[h]
-\centering
 \begin{lstlisting}
 func RequestCopier(scheme, host string) Component
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of Request Copier Component generator.}
-\label{fig:RequestCopier}
-\end{figure}
 It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
 and returns a component that for each input value copies the Request made 
 by the client to the Result field and updates it with the given scheme and 
 path and then outputs this value.
 
 \subsubsection{Response Processor}
-The \texttt{Response} type of the mpserver package is defined as a following struct:
-
+The \texttt{Response} type of the \texttt{mpserver} is defined a struct
+that is shown in Figure \ref{fig:Response}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -309,20 +286,24 @@ type Response struct {
 \label{fig:Response}
 \end{figure}
 
-It holds the header and body of a http response. The difference between
-this definition and the definition in the default http package is that
-the body of my response is a slice of bytes. That is the body have already been
-read and the connection to server has been closed.
+It holds the headers and body of an http response. The difference between
+this definition and the definition in the default \texttt{http} package is that
+the body of my \texttt{Response} is a slice of bytes. 
+That is the body have already been
+read and the connection to the server has been closed.
 
-The Response Processor is a component that for each input value
-looks if provided Result is the default http Response, and if it is
-it then reads it and transfers it to mpsever Response type, which it
-then writes to the Result field and outputs the value. If no response
+The \texttt{ResponseProcessor} is a component that for each input value
+looks if the provided result is the default \texttt{http} Response. 
+If that is the case,
+then it reads the response and transfers it to \texttt{mpsever Response} 
+type, which it
+then writes to the result field and outputs the value. If no response
 is provided, then the component outputs an appropriate error.
 
-To use this component after the Network component, the Response Processor
-should be wrapped in an error passing component, so that when the 
-Network component fails, then the response processor won't have to do
+To use this component after the \texttt{NetworkComponent}, 
+the \texttt{ResponseProcessor}
+should be wrapped in an error passing component, so that when the\\
+\texttt{NetworkComponent} fails, then the response processor won't have to do
 any work.
 
 \subsubsection{Proxy Component}
@@ -336,7 +317,7 @@ All components are wrapped
 in an \texttt{ErrorPasser} to avoid doing unnecessary work and to make the component
 more robust. Furthermore, the linear combination of all the components is wrapped in 
 \texttt{DynamicLoadBalancer} to make the whole component more 
-responsive. The implementation is shown below:
+responsive. The implementation is shown in Figure \ref{fig:ProxyComp} below.
 
 \begin{figure}[h]
 \centering
@@ -355,9 +336,8 @@ func ProxyComponent(scheme, host string, client *http.Client,
 \caption[scale=1.0]{Declaration of Proxy Component generator.}
 \label{fig:ProxyComp}
 \end{figure}
-\newpage
 \subsection{Summary}
 In this section I introduced more advanced component wrappers and generators
-and described a way to use them. The next section shows a few example
+and described how to use them. The next section shows a few example
 servers implemented using my toolkit.
 

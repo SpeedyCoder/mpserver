@@ -165,10 +165,13 @@ is closed the loop terminates. Afterwards, the component closes its output chann
 and terminates.
 
 \subsubsection{Constant Component}
-Constant Component is a simple component generator that takes a value c
-of any type and returns a component that writes c to the Result field of 
+Constant Component is a simple component generator that takes a value \texttt{c}
+of any type and returns a component that writes \texttt{c} to the result field of 
 all inputted values and then outputs them. It's definition using the 
-\texttt{MakeComponent} generator is show below.
+\texttt{MakeComponent} generator is shown in Figure 
+\ref{fig:ConstantComponent} below.
+\begin{figure}[h]
+\centering
 \begin{lstlisting}
 func ConstantComponent(c interface{}) Component {
     return MakeComponent(func (val Value) Value {
@@ -176,6 +179,9 @@ func ConstantComponent(c interface{}) Component {
     })
 }
 \end{lstlisting}
+\caption[scale=1.0]{Declaration of constant component generator.}
+\label{fig:ConstantComponent}
+\end{figure}
 
 \subsubsection{Linking components}
 The library also provides a component generator \texttt{LinkComponents} that takes 
