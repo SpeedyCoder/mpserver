@@ -115,16 +115,18 @@ This design is show in Figure \ref{fig:caching}.
     \node [workerWidth, UHeight, below of=worker] (cache) {Cache};
     \node [UWidth, workerHeight, left of=worker, node distance=2cm] (left) {};
     \node [UWidth, workerHeight, right of=worker, node distance=2cm] (right) {};
+    \node [UWidth, workerHeight, left of=left, node distance=2cm] (lleft) {};
+    \node [UWidth, workerHeight, right of=right, node distance=2cm] (rright) {};
 
     \draw (left.north west) -- (left.west |- cache.south) -- (right.east |- 
           cache.south) -- (right.north east) -- (right.north west) -- 
           (right.west |- cache.north) -- (left.east |- cache.north) -- 
           (left.north east) -- cycle;
 
-    \draw[<-, >={latex}] (left.west) -- ++(-1, 0);
+    \path[line] (lleft) edge node{in} (left);
     \draw[line] (left) -- (worker);
     \draw[line] (worker) -- (right);
-    \draw[->, >={latex}] (right.east) -- ++(1, 0);
+    \path[line] (right) edge node{out} (rright);
 \end{tikzpicture}\caption[scale=1.0]{Caching output of a worker component.}
 \label{fig:caching}
 \end{figure}
@@ -145,7 +147,7 @@ have to be only adding components locally.
 If we use channels over network then
 we can connect to other servers and distribute the workload among them.
 Hence we can start or shut down other servers based on the current traffic.
-See Figure \ref{fig:loadBalancing}.
+See Figure \ref{fig:loadBalancing} below.
 
 \begin{figure}[h]
 \centering
@@ -164,17 +166,20 @@ See Figure \ref{fig:loadBalancing}.
     \node [UWidth, workerHeight, right of=worker, node distance=2cm] (right) {};
     \node [UWidth, workerHeight, right of=worker2, node distance=2cm] (right2) {};
 
+    \node [UWidth, workerHeight, left of=left2, node distance=2cm] (lleft) {};
+    \node [UWidth, workerHeight, right of=right2, node distance=2cm] (rright) {};
+
     \draw (left2.north west) -- (left2.west |- load.south) -- (right2.east |- 
           load.south) -- (right2.north east) -- (right2.north west) -- 
           (right2.west |- load.north) -- (left2.east |- load.north) -- 
           (left2.north east) -- cycle;
 
-    \draw[<-, >={latex}] (left2.west) -- ++(-1, 0);
+    \path[line] (lleft) edge node{in} (left2);
     \draw[line] (left) -- (worker);
     \draw[line] (left2) -- (worker2);
     \draw[line] (worker) -- (right);
     \draw[line] (worker2) -- (right2);
-    \draw[->, >={latex}] (right2.east) -- ++(1, 0);
+    \path[line] (right2) edge node{out} (rright);
 \end{tikzpicture}\caption[scale=1.0]{
     Managing load in a given part of the network.
     One of the workers can be shut down or more workers can be added.

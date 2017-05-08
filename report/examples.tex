@@ -5,37 +5,15 @@ Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
 server described in section \ref{sec:helloWorld}.
 It's a direct translation of the diagram shown in Figure \ref{fig:helloWorld}.
 
-The Listener corresponds to the call of mpserver.Listen function.
-Hello world Component translates into an instance of ConstantComponent
+The Listener corresponds to the call of \texttt{mpserver.Listen} function.
+Hello world Component translates into an instance of \texttt{ConstantComponent}
 and String Writer is the writer in the package with the same name.
-We plug these together using two channels, start the components 
+We plug these together using two channels, start the component and writer 
 and then start the server itself.
 
 \begin{figure}[h]
 \centering
-\begin{lstlisting}
-package main
-
-import(
-    "log"
-    "net/http"
-    "mpserver"
-)
-
-func main() {
-    in := mpserver.GetChan()
-    out := mpserver.GetChan()
-
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/hello", in)
-
-    go mpserver.ConstantComponent("Hello world!")(in, out)
-    go mpserver.StringWriter(out, nil)
-    
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
-}
-\end{lstlisting}
+\lstinputlisting{../examples/helloServer/helloServer.go}
 \caption[scale=1.0]{Implementation of the Hello World! server.}
 \label{fig:HelloWorldImpl}
 \end{figure}
@@ -52,7 +30,7 @@ the result. The \texttt{FileComponent} tries to open a file at a path
 provided in the result field of the incoming value. Other modifications
 are the addition of the \texttt{ErrorWriter} and the channel going to it from
 the \texttt{Splitter}.
-This path is used when a non existent file is requested be the client.
+This path is used when a non existent file is requested by the client.
 Otherwise '.go' files goes to the \texttt{GzipWriter} and all other files to 
 the standard \texttt{FileWriter}.
 The diagram that represents this server is shown in 
@@ -82,58 +60,15 @@ Figure \ref{fig:fileServer3}.
 \end{figure}
 
 \begin{figure}
-\begin{lstlisting}
-package main
-import(
-    "log"
-    "net/http"
-    "mpserver"
-    "strings"
-)
-// Test if the provided value contains an error in the Result
-func isError(val mpserver.Value) bool {
-    _, isErr := val.Result.(error)
-    return isErr
-}
-// Test if the path of the requested file ends with .go
-func isGoFile(val mpserver.Value) bool {
-    return strings.HasSuffix(val.Request.URL.Path, ".go")
-}
-
-func main() {
-    // Construct the channels
-    in := mpserver.GetChan()
-    toFileComp := mpserver.GetChan()
-    toSplitter := mpserver.GetChan()
-    compressed := mpserver.GetChan()
-    errChan := mpserver.GetChan()
-    splitterOut := mpserver.ToOutChans(
-        []mpserver.ValueChan{errChan, compressed})
-    uncompressed := mpserver.GetChan()
-
-    // Start the file components
-    go mpserver.PathMaker("files", "")(in, toFileComp)
-    go mpserver.FileComponent(toFileComp, toSplitter)
-    
-    // Start the splitter
-    go mpserver.Splitter(toSplitter, uncompressed, splitterOut, 
-                         []mpserver.Condition{isError, isGoFile})
-
-    // Start the writers
-    go mpserver.GzipWriter(compressed, errChan)
-    go mpserver.GenericWriter(uncompressed, errChan)
-    go mpserver.ErrorWriter(errChan)
-
-    // Start the server
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
-}
-\end{lstlisting}
+\lstinputlisting{../examples/fileServer/fileServer.go}
 \caption[scale=1.0]{Implementation of a File Server that compresses go files.}
 \label{fig:FileServerImpl}
 \end{figure}
 
 \newpage
 \subsection{Proxy server}
+\begin{figure}[h]
+\lstinputlisting{../examples/proxyServer/proxyServer.go}
+\caption[scale=1.0]{Implementation of a simple proxy server with caching.}
+\label{fig:FileServerImpl}
+\end{figure}

@@ -174,7 +174,7 @@ can be described as follows:
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
     % Nodes
-    \node[component, text width=2em] (passer) {};
+    \node[component, fill=gray!12, text width=1.5em] (passer) {};
     \node[component, right of=passer] (worker) {Worker};
     \node[above of=worker, node distance=1.5cm, xshift=-0.7cm](name){ErrorPasser};
     \node[text width=2em, right of=worker] (right) {};
@@ -183,7 +183,7 @@ can be described as follows:
 
     % Edges
     \path[line] (left) edge node {in} (passer); 
-    \path[] (right.west) edge node {out} (right.east);
+    \path (right.west) edge node {out} (right.east);
     \path[line] (right.west) -- (right.east);
     \path[line] (passer) -- (worker);
     \path[draw] (worker) -- (right);

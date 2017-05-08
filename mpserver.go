@@ -122,7 +122,16 @@ func ListenWebSocket(s *http.ServeMux, url string, out chan<- Value) {
 //----------------------- Components ----------------------------------
 type Component func (in <-chan Value, out chan<- Value)
 
-type ComponentFunc func (val Value) Value
+type ComponentFunc func (val Value)
+
+func MakeComponent(f ComponentFunc) Component {
+    return func (in <-chan Value, out chan<- Value) {
+        for val := range in {
+            f(val); out <- val
+        }
+        close(out)
+    }
+}
 
 func LinkComponents(components ...Component) Component {
     return func (in <-chan Value, out chan<- Value) {
@@ -143,26 +152,16 @@ func LinkComponents(components ...Component) Component {
     }
 }
 
-func MakeComponent(f ComponentFunc) Component {
-    return func (in <-chan Value, out chan<- Value) {
-        for val := range in {
-            out <- f(val)
-        }
-        close(out)
-    }
-}
-
 func ConstantComponent(c interface{}) Component {
-    return MakeComponent(func (val Value) Value {
-        val.SetResult(c); return val
+    return MakeComponent(func (val Value) {
+        val.SetResult(c)
     })
 }
 
 func PathMaker(dir, prefix string) Component {
-    return MakeComponent(func (val Value) Value {
+    return MakeComponent(func (val Value) {
         val.SetResult(dir + strings.TrimPrefix(
             val.GetRequest().URL.Path, prefix))
-        return val
     })
 }
 

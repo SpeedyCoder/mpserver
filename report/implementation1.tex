@@ -1,12 +1,12 @@
 \section{Implementation}
 \label{sec:impl}
-In this Chapter I present basic elements of my \texttt{mpserver} toolkit
-and how to work with them. The most important are the primitive types:
+In this Chapter I present basic elements of the \texttt{mpserver} toolkit
+and how to work with them. The most important parts are the primitive types:
 \texttt{Value}, \texttt{Component} and \texttt{Writer}.
 
 \subsection{Values}
 \texttt{Value} is an interface that represents the type of messages that are
-passed between the components of the network. It definition is shown
+passed between the components of the network. Its definition is shown
 in Figure \ref{fig:Value} below.
 
 \begin{figure}[h]
@@ -29,7 +29,7 @@ type Value interface {
     close()
 }
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of the Value interface.}
+\caption[scale=1.0]{Declaration of the type \texttt{Value}.}
 \label{fig:Value}
 \end{figure}
 
@@ -38,8 +38,8 @@ starts with a capital letter are exported from a package. Hence, anyone
 using the package can only use the first 6 methods of the \texttt{Value}
 interface.
 
-The interface is implemented by the struct type shown in Figure \ref{fig:value}
-that is private to the package.
+The interface is implemented by a pointer to a private struct type shown in 
+Figure \ref{fig:value}.
 \newpage
 \begin{figure}[h]
 \centering
@@ -60,27 +60,27 @@ interface.}
 Here:
 \begin{itemize}
   \item \texttt{request} is a pointer to the HTTP request made by the 
-        client implemented in the default HTTP library. It can be accessed
+        client implemented in the default http library. It can be accessed
         using the \texttt{GetRequest} method. 
 
   \item \texttt{result} is the result computed so far (initially nil). This is
-        of type \texttt{interface{}} which is implemented by any type.
+        of type \texttt{interface\{\}} which is implemented by any type.
         Hence, values of all types can be stored there. This field can be
         accessed and changed using the \texttt{GetResult} and \texttt{SetResult}
         methods respectively.
   
   \item \texttt{responseCode} is the HTTP response code that should be 
-        returned to the client. The default value of this field is -1,
-        which indicates that the responseCode has not been set yet. 
+        returned to the client. The default value of this field is $-1$,
+        which indicates that the \texttt{responseCode} has not been set yet. 
         It can be set using the \texttt{SetResponseCode} or 
         \texttt{SetResponseCodeIfUndef} methods, where the second method only
         makes a change in case the response code is undefined. The value
         of the response code can be retrieved using the \texttt{getResponseCode}
-        method inside the package. This is intended to be used only by the 
+        method inside the package. This is only used by a 
         \texttt{Writer} type introduced later.
 
   \item \texttt{responseWriter} is an object that writes the response back 
-        to the client. Again only \texttt{Writer}s use this field. They
+        to the client. Again only \texttt{Writers} use this field. They
         can retrieve it using \texttt{getResponseWriter} method. 
         Alternatively, they can use the \texttt{writeHeader} and
         \texttt{write} methods to access the field indirectly.
@@ -95,7 +95,7 @@ Here:
 Note that all methods related to writing the response back to the client
 are private to the package. This is to ensure correct behavior, as otherwise
 these methods could be accessed by users of the package in any part of the 
-network, what could lead to exceptions.
+network, what could lead to panic.
 
 \subsection{Components}
 This section introduces the \texttt{Component} type and then shows how we can simply
@@ -105,7 +105,7 @@ of a component generator that implements simple load balancing among
 multiple components.
 
 \subsubsection{The Component type}
-Component is a generic part of the pipeline with an input and output channel.
+Component is a generic part of the pipeline with an input and an output channel.
 It processes the values provided on input channel and outputs the results
 on the output channel. The type \texttt{Component} is defined as follows:
 \begin{lstlisting}
@@ -120,25 +120,26 @@ Every component should satisfy the following conditions:
           should be written to its output channel after the value was processed
           and possibly modified. This ensures that every request gets a response.
 
-    \item A component can terminate only when its input channel is closed 
+    \item A component can terminate only when its input channel is closed. 
           Before terminating, the component should close its output channel.
-          This ensures termination of any components further down in the network.
+          This ensures termination of any components further down the network.
 
     \item Component can only close its output channel and it can only do so
-    	  after its input channel have been closed. It should never attempt
-          to close the input channel as this will likely result in an exception.
+    	    after its input channel have been closed. It should never attempt
+          to close the input channel as this will likely result in a panic.
 \end{itemize}
 
 \subsubsection{Making Components}
 To simplify the construction of components, so that they adhere to 
 the above specification the package provides a helper function that 
-constructs a component using a function that maps one \texttt{Value} object 
-into another \texttt{Value} object. 
-That is the function has the following signature:
+constructs a component using a function that takes a \texttt{Value} object 
+and processes it. The \texttt{Value} can be modified by the function as it is 
+implemented by a pointer type. The function has the following signature:
 \begin{lstlisting}
-type ComponentFunc func (val Value) Value
+type ComponentFunc func (val Value)
 \end{lstlisting}
-This represents the mapping of the input values to the output values. 
+This represents a transition function that is applied to input values
+to produce output values.
 The implementation of the described component generator is shown in 
 Figure \ref{fig:MakeComponent} below.
 \begin{figure}[h]
@@ -147,7 +148,7 @@ Figure \ref{fig:MakeComponent} below.
 func MakeComponent(f ComponentFunc) Component {
     return func (in <-chan Value, out chan<- Value) {
         for val := range in {
-            out <- f(val)
+            f(val); out <- val
         }
         close(out)
     }
@@ -159,7 +160,7 @@ func MakeComponent(f ComponentFunc) Component {
 
 Here the for loop reads values from the input channel and assigns them
 to the variable \texttt{val} while the input channel is open. Then the 
-the function \texttt{f} is applied to this value and the result is outputted.
+the function \texttt{f} is applied to this value and finally the value is outputted.
 Afterwards, the component waits for another value. When the input channel
 is closed the loop terminates. Afterwards, the component closes its output channel
 and terminates.
@@ -167,15 +168,15 @@ and terminates.
 \subsubsection{Constant Component}
 Constant Component is a simple component generator that takes a value \texttt{c}
 of any type and returns a component that writes \texttt{c} to the result field of 
-all inputted values and then outputs them. It's definition using the 
+all input values and then outputs them. It's definition using the 
 \texttt{MakeComponent} generator is shown in Figure 
 \ref{fig:ConstantComponent} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
 func ConstantComponent(c interface{}) Component {
-    return MakeComponent(func (val Value) Value {
-        val.SetResult(c); return val
+    return MakeComponent(func (val Value) {
+        val.SetResult(c)
     })
 }
 \end{lstlisting}
@@ -197,9 +198,9 @@ the combined component was run.
 
 \subsubsection{Simple Load Balancing}
 To support running the same component with the same input and output 
-channels multiple times the toolkit provides \texttt{SimpleLoadBalancer}.
+channels multiple times the toolkit provides \texttt{StaticLoadBalancer}.
 Note that this is possible as channels in go are many-to-many.
-\texttt{SimpleLoadBalancer} is a component generator that takes a worker 
+\texttt{StaticLoadBalancer} is a component generator that takes a worker 
 component and number $n$ and returns a component that when run starts 
 $n$ instances of the worker component. 
 
@@ -239,7 +240,7 @@ and then the termination signal propagates further down the network.
     \node [UWidth, workerHeight, left of=left2, node distance=1.5cm] (lleft2) {};
     \node [UWidth, workerHeight, left of=left3, node distance=1.5cm] (lleft3) {};
 
-    \draw (lleft2.north west) -- (lleft2.west |- passer3.south) --
+    \draw[fill=gray!12] (lleft2.north west) -- (lleft2.west |- passer3.south) --
           (lleft2.east |- passer3.south) -- (lleft2.north east) --
           cycle;
 
@@ -248,18 +249,18 @@ and then the termination signal propagates further down the network.
     \node [UWidth, workerHeight, right of=worker2, node distance=2cm] (right2) {};
     \node [UWidth, workerHeight, right of=worker3, node distance=2cm] (right3) {};
 
-    \draw (left1.north west) -- (left1.west |- passer1.south) -- (right1.east |- 
-          passer1.south) -- (right1.north east) -- (right1.north west) -- 
-          (right1.west |- passer1.north) -- (left1.east |- passer1.north) -- 
-          (left1.north east) -- cycle;
-    \draw (left2.north west) -- (left2.west |- passer2.south) -- (right2.east |- 
-          passer2.south) -- (right2.north east) -- (right2.north west) -- 
-          (right2.west |- passer2.north) -- (left2.east |- passer2.north) -- 
-          (left2.north east) -- cycle;
-    \draw (left3.north west) -- (left3.west |- passer3.south) -- (right3.east |- 
-          passer3.south) -- (right3.north east) -- (right3.north west) -- 
-          (right3.west |- passer3.north) -- (left3.east |- passer3.north) -- 
-          (left3.north east) -- cycle;
+    \draw[fill=gray!12] (left1.north west) -- (left1.west |- passer1.south) -- 
+          (right1.east |- passer1.south) -- (right1.north east) -- 
+          (right1.north west) -- (right1.west |- passer1.north) -- 
+          (left1.east |- passer1.north) -- (left1.north east) -- cycle;
+    \draw[fill=gray!12] (left2.north west) -- (left2.west |- passer2.south) -- 
+          (right2.east |- passer2.south) -- (right2.north east) -- 
+          (right2.north west) -- (right2.west |- passer2.north) -- 
+          (left2.east |- passer2.north) -- (left2.north east) -- cycle;
+    \draw[fill=gray!12] (left3.north west) -- (left3.west |- passer3.south) -- 
+          (right3.east |- passer3.south) -- (right3.north east) -- 
+          (right3.north west) -- (right3.west |- passer3.north) -- 
+          (left3.east |- passer3.north) -- (left3.north east) -- cycle;
 
     \node [listener, left of=left1, node distance=4cm] (listener) {Listener};
     \node [writer, right of=right1, node distance=3cm] (writer) {Writer};
@@ -285,7 +286,7 @@ and then the termination signal propagates further down the network.
     \path [draw] (right3) -| ($ (right1) !.3! (writer) $);
     \node[xshift=0.5em, draw, densely dotted, minimum width=18em, inner sep=0.5em,fit=(right2) (right3) (lleft2) (lleft3) (passer3)] {};
 \end{tikzpicture}
-\caption[scale=1.0]{Simple server example showing usage of \texttt{SimpleLoadBalancer}.}
+\caption[scale=1.0]{Simple server example showing usage of \texttt{StaticLoadBalancer}.}
 \label{fig:slbEx}
 \end{figure}
 
@@ -294,12 +295,12 @@ components at the same time and this in turn allows faster requests to
 overtake slower requests in the pipeline. The worker component can represent
 a simple computation done locally or they can connect to other servers
 and perform expensive computation there. More advanced version of load 
-balancing component is introduced in the next Chapter.
+balancing component is introduced in the next chapter.
 
 \newpage
 \subsection{Writers}
-Here, I introduce the \texttt{Writer} type, which acts as the end of the 
-pipeline. Then I present a way how custom writers can be implemented.
+In this section I introduce the \texttt{Writer} type, which acts as the end of the 
+pipeline. Then I present a way how to create custom writers.
 \subsubsection{Writer type}
 Writer is the end of the pipeline which writes results to the client.
 The type \texttt{Writer} is defined as follows:
@@ -313,13 +314,14 @@ Every writer satisfies the following specification.
           to its input channel.
 
 	\item For every value that is input any writer behaves as follows. 
-          It firstly checks if the result field contains the expected type. 
-          If that is the case, it firstly writes the headers, then
-          writes the body and finally closes the connection for the value
-          using the \texttt{writeHeader}, \texttt{write} and \texttt{close}
-          methods of the value respectively. If the value in the result 
-          field has an incorrect type the writer writes an appropriate 
-          error message to the client and closes the connection for the value. 
+        It firstly checks if the result field contains the expected type. 
+        If that is the case, it first writes the headers and then
+        the body of the response using the \texttt{writeHeader} and
+        \texttt{write} methods of the value respectively. 
+        Afterwards it closes the connection for the value and using 
+        the \texttt{close} method. If the value in the result 
+        field has an incorrect type, the writer writes an appropriate 
+        error message to the client and closes the connection for the value. 
 
 	\item The writer terminates when its input channel is closed.
 \end{itemize}
@@ -330,16 +332,18 @@ combined with writers appear like a single writer. Hence, we can use the
 load balancers for writers to manage a more complex part the network.
 
 \subsubsection{Making Writers}
-As noted before methods for writing responses from \texttt{Value}s 
-back to the client can not be used outside of the package. To allow
+As noted before the methods for writing responses from \texttt{Values}
+back to the client cannot be used outside of the package. To allow
 for construction of custom writers the package provides writer generator
 component similar to the \texttt{MakeComponent} function. It uses 
 functions with the following signature to generate the writers.
 \begin{lstlisting}
 type WriterFunc func (val Value) ([]byte, error)
 \end{lstlisting}
-These functions should set headers and convert the provided value into 
-an array of bytes or return an error in case they are provided with a 
+This function should set headers and convert the provided value into 
+a slice\footnote{``Slice is a dynamically-sized, flexible view into the elements 
+of an array.''\cite{tour}} of bytes or return an error in case they 
+are provided with a 
 wrong input. The implementation of the writer generator itself is shown
 in Figure \ref{fig:MakeWriter} below.
 \begin{figure}[h]
@@ -369,7 +373,8 @@ func MakeWriter(writerFunc WriterFunc) Writer {
 
 The generated writer runs the provided \texttt{writerFunc} for every value 
 that is inputted. If the function returns an error it writes the error 
-back to the client using the \texttt{WriteError} function. Otherwise, it 
+back to the client using the \texttt{WriteError}\footnote{See Appendix for the 
+implementation.} function. Otherwise, it 
 writes the headers and the body of the response to the client and then 
 closes the connection. (The \texttt{WriteError} does this for the error
 results).
@@ -377,7 +382,8 @@ results).
 \subsection{Splitter and Collector}
 In this section I introduce a way to split a stream of incoming values into
 multiple streams of values that go into different parts of the network
-using very flexible rules for splitting.
+using very flexible rules for splitting. Then I present a way how to
+safely combine multiple streams into one.
 
 \subsubsection{Conditions}
 Condition type is defined as follows:
@@ -393,12 +399,14 @@ following signature:
 func Splitter(in <-chan Value, defOut chan<- Value, 
 			  outs []chan<- Value, conds []Condition)
 \end{lstlisting}
-It takes an input channel, default output channel, array of output channels and array of conditions.
+It takes an input channel, default output channel, a slice of output channels 
+and a slice of conditions.
 The number of output channels and the number of conditions should be the same.
 For every input value the Splitter evaluates the conditions from first to last.
-When a condition returns true the value is written to a corresponding output channel 
-and the processing of the current value terminates. If all conditions return false
-then the value is written to the default output channel.
+When a condition returns \texttt{true} the value is written to a 
+corresponding output channel 
+and the processing of the current value terminates. If all conditions 
+return \texttt{false} then the value is written to the default output channel.
 
 \subsubsection{Error Splitter}
 The package also implements a special splitter that redirects error messages
@@ -413,18 +421,18 @@ func ErrorSplitter(in <-chan Value, out chan<- Value,
 \end{lstlisting}
 
 \subsubsection{Collector}
-Collector is a component whose behavior is the opposite of splitter. 
-It gets multiple input channels
+Collector is a component whose behavior is the opposite of the behavior 
+of a splitter. It gets multiple input channels
 and forwards their outputs to a single output channel. Now as channels
-in go are many-to-many we could just use a single channel to which all
-multiple components output their values. 
+in go are many-to-many we could just use a single channel to which
+multiple components would output their values. 
 
 However, when we shutdown
 one of the components, this component will close the output channel
 what will cause panic next time one of the other components tries to write
 to it. Now, \texttt{Collector} only closes its output channel, when
-all of its input channels have been closed, thus avoiding the above
-problem. It is acceptable to just use a single channel instead of
+all of its input channels have been closed, thus avoiding the problem 
+described above. It is acceptable to just use a single channel instead of
 the collector component, if we don't intend to shut down the network.
 The type signature of the \texttt{Collector} is show below.
 \begin{lstlisting}
@@ -433,7 +441,7 @@ func Collector(ins []<-chan Value, out chan<- Value)
 
 
 \subsection{Summary}
-In this Chapter I introduced the basic elements of the library. This 
+In this Chapter I introduced the basic elements of the toolkit. This 
 is enough to implement some simple serves. The next section introduces
 more advanced components that allow more complex behaviors.
 

@@ -1,19 +1,18 @@
 package main
-
 import(
     "log"
     "net/http"
     "mpserver"
     "strings"
 )
-
+// Test if the provided value contains an error in the Result
 func isError(val mpserver.Value) bool {
-    _, isErr := val.Result.(error)
+    _, isErr := val.GetResult().(error)
     return isErr
 }
-
+// Test if the path of the requested file ends with .go
 func isGoFile(val mpserver.Value) bool {
-    return strings.HasSuffix(val.Request.URL.Path, ".go")
+    return strings.HasSuffix(val.GetRequest().URL.Path, ".go")
 }
 
 func main() {
@@ -23,18 +22,21 @@ func main() {
     toSplitter := mpserver.GetChan()
     compressed := mpserver.GetChan()
     errChan := mpserver.GetChan()
-    splitterOut := mpserver.ToOutChans([]mpserver.ValueChan{errChan, compressed})
+    splitterOut := mpserver.ToOutChans(
+        []mpserver.ValueChan{errChan, compressed})
     uncompressed := mpserver.GetChan()
 
     // Start the file components
-    go mpserver.PathMaker("examples/fileServer", "")(in, toFileComp)
+    go mpserver.PathMaker("files", "")(in, toFileComp)
     go mpserver.FileComponent(toFileComp, toSplitter)
     
-    // Start the splitter and all the writers
+    // Start the splitter
     go mpserver.Splitter(toSplitter, uncompressed, splitterOut, 
                          []mpserver.Condition{isError, isGoFile})
-    go mpserver.GzipWriter(compressed, errChan)
-    go mpserver.GenericWriter(uncompressed, errChan)
+
+    // Start the writers
+    go mpserver.GzipWriter(compressed)
+    go mpserver.GenericWriter(uncompressed)
     go mpserver.ErrorWriter(errChan)
 
     // Start the server
