@@ -104,7 +104,7 @@ func StaticLoadBalancer(worker Component, nWorkers int) Component {
     }
 }
 
-func StaticLoadBalancerW(worker Writer, nWorkers int) Writer {
+func StaticLoadBalancerWriter(worker Writer, nWorkers int) Writer {
     return func (in <-chan Value) {
         toWorkers := make(ValueChan)
         staticLoadBalance(in, toWorkers, 
@@ -167,21 +167,21 @@ func dynamicLoadBalance(in <-chan Value, toWorkers ValueChan,
 }
 
 // Add a new component after addTimeout and remove a Component after removeTimeout
-func DynamicLoadBalancer(addTimeout, removeTimeout time.Duration, 
-                         comp Component, maxWorkers int) Component {
+func DynamicLoadBalancerComponent(component Component, maxWorkers int,
+                   addTimeout, removeTimeout time.Duration) Component {
     return func (in <-chan Value, out chan<- Value) {
         toWorkers := make(ValueChan)
 
         dynamicLoadBalance(in, toWorkers, 
-            startComponent(comp, toWorkers, out), 
+            startComponent(component, toWorkers, out), 
             shutdownComponents(out), addTimeout, 
             removeTimeout, maxWorkers)
     }
 }
 
 // Add a new worker after addTimeout and remove a Component after removeTimeout
-func DynamicLoadBalancerW(addTimeout, removeTimeout time.Duration, 
-                          writer Writer, maxWorkers int) Writer {
+func DynamicLoadBalancerWriter(writer Writer, maxWorkers int,
+                      addTimeout, removeTimeout time.Duration) Writer {
     return func (in <-chan Value) {
         toWorkers := make(ValueChan)
 

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"errors"
-	"time"
+	// "time"
 )
 
 func NetworkComponent(client *http.Client) Component {
@@ -85,14 +85,10 @@ func ResponseProcessor(in <-chan Value, out chan<- Value) {
 	close(out)
 }
 
-func ProxyComponent(scheme, host string, client *http.Client, 
-		addTimeout, removeTimeout time.Duration, nReq int) Component {
-	return DynamicLoadBalancer(
-		addTimeout, removeTimeout,
-		LinkComponents(
-			ErrorPasser(RequestCopier(scheme, host)),
-			ErrorPasser(NetworkComponent(client)),
-			ErrorPasser(ResponseProcessor)),
-		nReq)
+func ProxyComponent(scheme, host string, client *http.Client) Component {
+	return LinkComponents(
+		ErrorPasser(RequestCopier(scheme, host)),
+		ErrorPasser(NetworkComponent(client)),
+		ErrorPasser(ResponseProcessor))
 }
 

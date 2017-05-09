@@ -20,18 +20,17 @@ func FileServerWriter(dir, prefix string) Writer {
         // Start the splitter and all the writers
         go ErrorSplitter(out, toWriter, errChan)
         go GenericWriter(toWriter)
-        go ErrorWriter(errChan)
+        ErrorWriter(errChan)
     }
 }
 
 func SimpleFileServer(dir, prefix string, maxWorkers int) http.Handler{
     in := GetChan()
     writer := FileServerWriter(dir, prefix)
-    lb := DynamicLoadBalancerW(
-        time.Microsecond, time.Second*10, writer, maxWorkers)
+    lb := DynamicLoadBalancerWriter(
+        writer, maxWorkers, time.Microsecond, time.Second*10)
 
     go lb(in)
 	return Handler(in)
 }
-
 

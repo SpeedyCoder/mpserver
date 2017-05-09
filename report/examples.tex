@@ -46,7 +46,7 @@ Figure \ref{fig:fileServer3}.
     \node [component, right of=comp, node distance=3cm] (splitter) {Splitter};
     \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
     \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
-     \node [writer, below of=gwriter] (ewriter) {Error Writer};
+    \node [writer, below of=gwriter] (ewriter) {Error Writer};
     % Edges
     \path [line] (listener) -- (maker);
     \path [line] (maker) -- (comp);
@@ -67,8 +67,112 @@ Figure \ref{fig:fileServer3}.
 
 \newpage
 \subsection{Proxy server}
+A simple proxy server can be represented by a diagram shown in Figure
+\ref{fig:proxyServer} below.
 \begin{figure}[h]
-\lstinputlisting{../examples/proxyServer/proxyServer.go}
-\caption[scale=1.0]{Implementation of a simple proxy server with caching.}
-\label{fig:FileServerImpl}
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [component, text width=6em, right of=listener, node distance=3cm] (proxy) {Proxy Component};
+    \node [component, right of=proxy, node distance=3cm] (splitter) {Error Splitter};
+    \node [writer, right of=splitter, node distance=3cm] (rwriter) {Response Writer};
+    \node [writer, below of=rwriter] (ewriter) {Error Writer};
+    % Edges
+    \path [line] (listener) -- (proxy);
+    \path [line] (proxy) -- (splitter);
+    \path [line] (splitter) -- (rwriter);
+    \path [line] (splitter) |- (ewriter);
+\end{tikzpicture}
+\caption[scale=1.0]{Simple proxy server.}
+\label{fig:proxyServer}
 \end{figure}
+
+Now to increase throughput of this server I propose wrapping the Proxy
+Component in a Static Load Balancer. However, now the number of writers
+will be the limiting factor, so I propose to wrap both writers and 
+the splitter in Static Load Balancer for Writers. In order to be able 
+to do this I create a joint writer that internally runs all of the writers.
+The implementation is shown below in figure \ref{fig:ProxyWriters}.
+\begin{figure}[h]
+\begin{lstlisting}
+func writers(in <-chan mpserver.Value) {
+    toRespWriter := mpserver.GetChan()
+    toErrWriter := mpserver.GetChan()
+    go mpserver.ErrorSplitter(in, toRespWriter, toErrWriter)
+    go mpserver.ResponseWriter(toRespWriter)
+    mpserver.ErrorWriter(toErrWriter)
+}    
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the joint writer for the Proxy Server.}
+\label{fig:ProxyWriters}
+\end{figure}
+
+To avoid doing the same request over and over again I propose
+wrapping the Proxy Component again, but now in a Caching layer. The 
+implementation of the server described so far as a single writer is shown
+below in Figure \ref{fig:ProxyWriter}.
+\begin{figure}[h]
+\begin{lstlisting}
+func proxyServerWriter(storage mpserver.Storage) mpserver.Writer {
+    return func (in <-chan mpserver.Value) {
+        // Define the components
+        proxy := mpserver.ProxyComponent("http", 
+                    "www.google.co.uk", &http.Client{})
+        // Start 10 instances of the Proxy Component
+        loadProxy := mpserver.StaticLoadBalancer(proxy, 10)
+        // Cache the output
+        cachedProxy := mpserver.CacheComponent(
+                        storage, loadProxy, CacheTimeout)
+
+        out := mpserver.GetChan()
+        go cachedProxy(in, out)
+        mpserver.StaticLoadBalancerWriter(writers, 10)(out)
+    }
+}  
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the writer representing the Proxy Server.}
+\label{fig:ProxyWriter}
+\end{figure}
+
+\newpage
+The server that uses the above writer can process approximately 10 requests
+at once efficiently. That is if 10 requests arrive at approximately the same
+time then they also finish at approximately the same if the server wasn't
+doing any work when the requests arrived.
+To increase this number dynamically based on current traffic I propose
+to wrap the writer that represents the whole server in a Dynamic Load
+Balancer. The code for running this server is shown in Figure 
+\ref{fig:ProxyServerImpl}.
+\begin{figure}[h]
+\begin{lstlisting}
+func main() {
+    storage := mpserver.NewMemStorage()
+    server := mpserver.DynamicLoadBalancerWriter(
+        proxyServerWriter(storage), 20, AddTimeout, RemoveTimeout)
+
+    in := mpserver.GetChan()
+    go server(in)
+    go mpserver.StorageCleaner(storage, nil, CacheTimeout)
+
+    // Start the server
+    mux := http.NewServeMux()
+    mpserver.Listen(mux, "/", in)
+    log.Println("Listening on port 5000...")
+    http.ListenAndServe(":5000", mux)
+}
+\end{lstlisting}
+\caption[scale=1.0]{Implementation of the the Proxy Server.}
+\label{fig:ProxyServerImpl}
+\end{figure}
+
+This server will be able to process about 200 requests at once efficiently
+at maximal capacity. The whole implementation is shown in Appendix A.
+
+\subsection{Summary}
+In this section I presented implementations of 3 progressively more 
+complicated example servers. The throughput of the first two servers
+can be increased in the same way as shown for the Proxy Server. The 
+next section analyzes how to build part of a shopping server.
+
+

@@ -6,25 +6,44 @@ import (
 	"time"
 )
 
+const CacheTimeout = time.Minute
+const AddTimeout = time.Second*5
+const RemoveTimeout = time.Minute
+
+
+func writers(in <-chan mpserver.Value) {
+	toRespWriter := mpserver.GetChan()
+	toErrWriter := mpserver.GetChan()
+	go mpserver.ErrorSplitter(in, toRespWriter, toErrWriter)
+	go mpserver.ResponseWriter(toRespWriter)
+	mpserver.ErrorWriter(toErrWriter)
+}
+
+func proxyServerWriter(storage mpserver.Storage) mpserver.Writer {
+	return func (in <-chan mpserver.Value) {
+		// Define the components
+		proxy := mpserver.ProxyComponent("http", "www.google.co.uk",
+				    &http.Client{})
+		// Start 10 instances of the Proxy Component
+		loadProxy := mpserver.StaticLoadBalancer(proxy, 10)
+		// Cache the output
+		cachedProxy := mpserver.CacheComponent(
+						storage, loadProxy, CacheTimeout)
+
+		out := mpserver.GetChan()
+		go cachedProxy(in, out)
+		mpserver.StaticLoadBalancerWriter(writers, 10)(out)
+	}
+}
+
 func main() {
-	// Define the components
-	proxy := mpserver.ProxyComponent("http", "www.google.co.uk",
-			    &http.Client{}, time.Second, time.Second*60, 100)
-	store := mpserver.NewMemStore()
-	cachedComp := mpserver.CacheComponent(
-					store, proxy, time.Second*20, true)
+	storage := mpserver.NewMemStorage()
+	server := mpserver.DynamicLoadBalancerWriter(
+				proxyServerWriter(storage), 10, AddTimeout, RemoveTimeout)
 
-	// Create channels
 	in := mpserver.GetChan()
-	out := mpserver.GetChan()
-	toWriter := mpserver.GetChan()
-	errChan := mpserver.GetChan()
-
-	// Start the components and writers
-	go cachedComp(in, out)
-	go mpserver.ErrorSplitter(out, toWriter, errChan)
-	go mpserver.ResponseWriter(toWriter)
-	go mpserver.ErrorWriter(errChan)
+	go server(in)
+	go mpserver.StorageCleaner(storage, nil, CacheTimeout)
 
 	// Start the server
 	mux := http.NewServeMux()
@@ -32,3 +51,5 @@ func main() {
     log.Println("Listening on port 5000...")
     http.ListenAndServe(":5000", mux)
 }
+
+

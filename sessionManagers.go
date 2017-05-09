@@ -41,7 +41,7 @@ type State interface {
     Result() interface{}
 }
 
-func startNewSession(val Value, initial State, seshExp time.Duration, store Storage, out chan<- Value) {
+func startNewSession(val Value, initial State, seshExp time.Duration, storage Storage, out chan<- Value) {
     id, err := GenerateRandomString(32)
     if (err != nil) {
         // if the random generator fails
@@ -59,41 +59,34 @@ func startNewSession(val Value, initial State, seshExp time.Duration, store Stor
         return
     }
 
-    store.Set(id, StoreValue{state, time.Now().Add(seshExp)})
+    storage.Set(id, StorageValue{state, time.Now().Add(seshExp)})
     val.SetResult(state.Result())
     val.SetHeader("Session-Id", id)
     out <- val
 }
 
-func SessionManagementComponent(store Storage, initial State, seshExp time.Duration, useCleaner bool) Component {
+func SessionManagementComponent(storage Storage, initial State, seshExp time.Duration) Component {
     return func (in <-chan Value, out chan<- Value) {
-        var cleanerShutDown chan bool; 
-        if (useCleaner) {
-            cleanerShutDown = make(chan bool, 1)
-            go StoreCleaner(store, cleanerShutDown, seshExp)  
-        }
-
         for val := range in {
             // log.Println(val.Request.Header)
             id := val.GetRequest().Header.Get("Session-Id")
             log.Println(id)
             if (id == ""){
                 log.Println("No Session-Id")
-                startNewSession(val, initial, seshExp, store, out)
+                startNewSession(val, initial, seshExp, storage, out)
                 continue
             }
-            elem, in := store.Get(id)
+            storageValue, in := storage.Get(id)
             if (!in){
-                log.Println("Session-Id not in store")
+                log.Println("Session-Id not in storage")
                 // Invalid or expiredID
-                startNewSession(val, initial, seshExp, store, out)
+                startNewSession(val, initial, seshExp, storage, out)
                 continue
             }
 
-            storeValue, _ := elem.(StoreValue)
             now := time.Now()
-            if (storeValue.Time.After(now)) {
-                state, _ := storeValue.Value.(State)
+            if (storageValue.Time.After(now)) {
+                state, _ := storageValue.Value.(State)
                 next, err := state.Next(val)
                 if (err != nil) {
                     log.Println("Error while generating next state")
@@ -105,11 +98,12 @@ func SessionManagementComponent(store Storage, initial State, seshExp time.Durat
                     log.Println("Terminal state")
                     // If next is a terminal state, then 
                     // the session terminates
-                    store.Remove(id)
+                    storage.Remove(id)
                 } else {
                     log.Println("Updated state")
-                    storeValue.Value = next
-                    store.Set(id, storeValue)
+                    storageValue.Time = time.Now().Add(seshExp)
+                    storageValue.Value = next
+                    storage.Set(id, storageValue)
                     val.SetHeader("Session-Id", id)
                 }
 
@@ -118,12 +112,9 @@ func SessionManagementComponent(store Storage, initial State, seshExp time.Durat
             } else {
                 log.Println("Session expired")
                 // Session expired
-                store.Remove(id)
-                startNewSession(val, initial, seshExp, store, out)
+                storage.Remove(id)
+                startNewSession(val, initial, seshExp, storage, out)
             }
-        }
-        if (useCleaner) {
-            cleanerShutDown <- true
         }
         close(out)
     }

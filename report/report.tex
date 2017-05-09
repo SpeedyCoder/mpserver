@@ -56,12 +56,12 @@ backend=biber
 \usepackage[parfill]{parskip}
 \usepackage[labelfont=bf]{caption}
 \usepackage{hyperref}
+\usepackage{pdfpages}
 
 \begin{document}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Title page %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\maketitle
-\thispagestyle{empty}
+\includepdf[pages={1}]{titlePage.pdf}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Abstract %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage

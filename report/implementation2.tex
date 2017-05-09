@@ -3,18 +3,47 @@
 In this section I introduce more advanced component generators for caching,
 session management, load balancing, network communication and error handling.
 
-\subsection{Storage}
+\subsection{Storing values}
+In order to implement behaviors such as caching or session management
+components needs to be able to maintain an internal state.
+To do this they need to store some information (this can be in memory, 
+in a database...).
+This section introduces an interface that specifies methods that an 
+object must implement, in order to be used as a data storage. This 
+separates the problem of managing the data storage from the logic of
+the component that uses it.
+
+\subsubsection{Storage Values}
+Most of the components need to remove old values when they are no longer
+valid or relevant. Hence, the package stores timestamped values. 
+This values are represented by the struct type shown in Figure 
+\ref{fig:StorageValue} below. There \texttt{Time} represents the time 
+when the value becomes invalid and \texttt{Value} the value that is being
+stored, which can be of any type.
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+type StorageValue struct {
+  Value interface{}
+  Time time.Time
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of the \texttt{StorageValue} type.}
+\label{fig:StorageValue}
+\end{figure}
+
+\subsubsection{Storage}
 \texttt{Storage} is an interface representing thread safe mapping from string keys
-to values of any type. Its definition is shown in Figure \ref{fig:Storage} below.
+to \texttt{StorageValues}. Its definition is shown in Figure \ref{fig:Storage} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
 type Storage interface {
-    Get(string) (interface{}, bool)
-    Set(string, interface{})
-    Remove(string)
-    CompareAndRemove(string, interface{}) bool
-    Keys() []string
+  Get(string) (StorageValue, bool)
+  Set(string, StorageValue)
+  Remove(string)
+  CompareAndRemove(string, StorageValue) bool
+  Keys() []string
 }
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of the \texttt{Storage} interface.}
@@ -29,10 +58,52 @@ database instead, they can provide their own implementation of the
 and use any component that uses the storage the same way as before.
 This makes the components that use the storage highly configurable.
 
+\subsubsection{Removing expired values}
+In order to free up space used by expired values, the package implements
+\texttt{StorageCleaner} function that does exactly that. Its type signature
+is shown below:
+\begin{lstlisting}
+func StorageCleaner(storage Storage, shutDown <-chan bool, 
+                    sleepTime time.Duration)
+\end{lstlisting}
+The function will repeatedly remove expired values from the provided
+\texttt{storage} object until a message is sent on the \texttt{shutDown}
+channel. After going through the whole storage object, the cleaner 
+sleeps for time specified by the \texttt{sleepTime} argument.
+Note that this can be used with any type of storage as it only access
+the storage object via the methods specified by the \texttt{Storage} 
+interface.
+
+\subsection{Caching}
+To support caching of outputs of components, the toolkit provides
+component generator \texttt{CacheComponent}, which has the following type
+signature:
+\begin{lstlisting}
+func CacheComponent(cache Storage, worker Component, 
+            expiration time.Duration) Component
+\end{lstlisting}
+The returned component behaves as follows:
+\begin{itemize}
+  \item When a value is input that the component hasn't seen before, then
+        the value is passed to the provided \texttt{worker} and the result 
+        is stored in the provided \texttt{storage} object.
+
+  \item When the component gets a previously seen value, it returns the value
+        stored in the \texttt{storage} object, if it hasn't expired yet. If it 
+        expired, then the component treats it as a new value.
+\end{itemize}
+
+For the generated component to function properly, the worker must output
+a value for every value that is sent to it. This, however, is one of the 
+conditions that any component must satisfy, so this shouldn't be an issue.
+
 \subsection{States and Session Management Component}
+This section introduces the component that supports management of any
+type of session.
 \subsubsection{States}
 \label{sec:state}
-\texttt{State} is an interface defined in Figure \ref{fig:State}.
+To implement the logic of the session the toolkit uses \texttt{State}
+interface, whose definition is shown in Figure \ref{fig:State}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -56,64 +127,45 @@ The expected behavior of the member functions is as follows:
 \end{itemize}
 
 \subsubsection{Session Management}
-\texttt{SessionManager} is a component generator with the following signature:
+\texttt{SessionManager} is a component generator that performs the 
+management of sessions for individual users. It has the following signature:
 \begin{lstlisting}
 func SessionManager(store Storage, initial State, 
-                seshExp time.Duration, useCleaner bool) Component
+                seshExp time.Duration) Component
 \end{lstlisting}
-Its arguments are a storage object to be used, an initial state for each session,
-a session expiration time and a boolean indicating whether expired
-entries should be automatically removed from the map.
+Its arguments are a \texttt{storage} object to be used, an \texttt{initial} 
+state for each session and
+a session expiration time
 The returned component behaves as a session manager. 
 Its behavior is described below.
 
-The component stores a mapping from session ids to current state of the session.
+The component stores a mapping from session ids to the current state of the session
+in the \texttt{storage} object.
 Every new request gets assigned a unique session id. Then a current state
 of the session is generated from the initial state using the provided
 value. Afterwards a mapping from the generated id to the current state
 is stored. The result of the call to the \texttt{Result} function on the
 current state with the provided value is then sent down the pipeline and
-client response is generated from it.
+response for the client is generated from it.
 
 When a request with set `Session-Id` header comes in, the component gets the current 
-state for the session and gets the next state for it based on the provided value.
+state for the session and computes the next state for it based on the provided value.
 The mapping is then updated with the new state and the result from the new state
 is passed down the pipeline.
 
-When a session reaches a Terminal state, the session id is removed from the map
+When a session reaches a terminal state, the session id is removed from the map
 and the final result is outputted.
-
-The states in the mapping are timestamped and are removed from the map after
-the session expiration time, if the session haven't finished before that.
+The states in the mapping are timestamped. Timestamps are updated every time
+the state for a session is updated. When a client tries to access expired
+session a new session for this client is started.
 
 % More hype
 The abstraction using states allows the users of the package to implement the
 logic for the session, independently of the session management part.
 
-\subsection{Caching}
-\texttt{CacheComponent} is a component generator with the following signature:
-\begin{lstlisting}
-func CacheComponent(cache Storage, worker Component, 
-            expiration time.Duration, useCleaner bool) Component
-\end{lstlisting}
-The returned component behaves as follows:
-\begin{itemize}
-	\item When a value is input that the component hasn't seen before, then
-		  the value is passed to the provided worker and the result is stored in
-		  a map.
-	\item When the component gets a previously seen value, it returns the value
-		  stored in the map, if it hasn't expired yet. If it expired, then the component
-		  treats it as a new value.
-	\item Expired values are regularly deleted from the map if the useCleaner
-          option is set to \texttt{true}.
-\end{itemize}
-
-For the generated component to function properly, the worker must output
-a value for every value that is sent to it. This is one of the conditions
-that any component must satisfy, so this shouldn't be an issue.
-
 \subsection{Dynamic Load Balancing}
-\texttt{DynamicLoadBalancer} is a component generator whose signature is
+To support load balancing based on the current traffic the toolkit implements
+\texttt{DynamicLoadBalancer}. It is a component generator whose signature is
 shown below. Its architecture is similar
 to that of the \texttt{StaticLoadBalancer}.
 \begin{lstlisting}
@@ -122,24 +174,24 @@ func DynamicLoadBalancer(addTimeout, removeTimeout time.Duration,
 \end{lstlisting}
 The returned component has an array of workers which can be easily shut down.
 The initial number of workers is 1. 
-For every input value, the component behaves as follows:
+For every input value, the generated component behaves as follows:
 \begin{itemize}
 	\item It tries to send the value to the workers, if this is not successful, 
-		  before the \texttt{addTimeout}, then the component creates a new worker
-          if the current number of workers is smaller than \texttt{maxWorkers}.
-          Then the component tries to send the value to the workers again. This will 
-          be successful in case a worker was added because there is at least one 
-          worker that is not busy.
+		    before the \texttt{addTimeout}, then the component creates a new worker
+        if the current number of workers is smaller than \texttt{maxWorkers}.
+        Then the component tries to send the value to the workers again. This will 
+        be successful in case a worker was added because there is at least one 
+        worker that is not busy.
 
 	\item The workers send their results further down the pipeline.
 
 	\item If there are no incoming values for duration equal to the 
-          \texttt{removeTimeout}, then the component shuts down one 
-          of the workers, if there is more than one worker.
+        \texttt{removeTimeout}, then the component shuts down one 
+        of the workers, if there is more than one worker.
 
 	\item When the input channel of the component is closed, then the load balancer 
-          shuts down all the workers and afterwards closes its output channel and
-          terminates.
+        shuts down all the workers and afterwards closes its output channel and
+        terminates.
 \end{itemize}
 There are a lot of other possible load balancing strategies. 
 Implementing them should be a simple modification of the existing code.
@@ -312,25 +364,19 @@ Proxy component is a combination of \texttt{RequestCopier},
 and \texttt{ResponseProcessor} in a linear pipeline. It acts as a proxy server
 in the following sense. It forwards the provided request to the specified
 host and then reads and outputs the response. 
-
 All components are wrapped
 in an \texttt{ErrorPasser} to avoid doing unnecessary work and to make the component
-more robust. Furthermore, the linear combination of all the components is wrapped in 
-\texttt{DynamicLoadBalancer} to make the whole component more 
-responsive. The implementation is shown in Figure \ref{fig:ProxyComp} below.
+more robust. The implementation is shown in Figure \ref{fig:ProxyComp} below.
 
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-func ProxyComponent(scheme, host string, client *http.Client, 
-        addTime, removeTime time.Duration, nReq int) Component {
-    return DynamicLoadBalancer(
-        addTimeout, removeTimeout,
-        LinkComponents(
-            ErrorPasser(RequestCopier(scheme, host)),
-            ErrorPasser(NetworkComponent(client)),
-            ErrorPasser(ResponseProcessor)),
-        nReq)
+func ProxyComponent(scheme, host string, 
+                    client *http.Client) Component {
+  return LinkComponents(
+    ErrorPasser(RequestCopier(scheme, host)),
+    ErrorPasser(NetworkComponent(client)),
+    ErrorPasser(ResponseProcessor))
 }
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of Proxy Component generator.}

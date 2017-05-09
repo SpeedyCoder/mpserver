@@ -35,36 +35,29 @@ func requestToString(r *http.Request) string {
     return res
 }
 
-func CacheComponent(cache Storage, worker Component, expiration time.Duration, useCleaner bool) Component {
+func CacheComponent(cache Storage, worker Component, expiration time.Duration) Component {
 	return func (in <-chan Value, out chan<- Value) {
 		toWorker := make(ValueChan)
 		fromWorker := make(ValueChan)
 		go worker(toWorker, fromWorker)
 
-		var cleanerShutDown chan bool; 
-		if (useCleaner) {
-			cleanerShutDown = make(chan bool, 1)
-			go StoreCleaner(cache, cleanerShutDown, expiration)
-		}
-
 		var computeAndAdd = func (key string, val Value, now time.Time) {
 			toWorker <- val
             res := <- fromWorker
-            cache.Set(key, StoreValue{res.GetResult(), now.Add(expiration)})
+            cache.Set(key, StorageValue{res.GetResult(), now.Add(expiration)})
             out <- res
 		}
 
 	    for val := range in {
 	    	if (stringInSlice(val.GetRequest().Method, CachableMethods)) {
 	    		key := requestToString(val.GetRequest())
-		        elem, in := cache.Get(key)
+		        storageValue, in := cache.Get(key)
 		        now := time.Now()
 
 		        if (in) {
-		        	storeValue := elem.(StoreValue)
-		            if (storeValue.Time.After(now)) {
+		            if (storageValue.Time.After(now)) {
 		            	log.Println("In cache\n")
-		            	val.SetResult(storeValue.Value)
+		            	val.SetResult(storageValue.Value)
 		            	out <- val
 		            } else {
 		            	log.Println("Cache expired\n")
@@ -81,9 +74,6 @@ func CacheComponent(cache Storage, worker Component, expiration time.Duration, u
 	    		out <- res
 	    	}
 	        
-	    }
-	    if (useCleaner) {
-	    	cleanerShutDown <- true
 	    }
 	    close(toWorker) // To shut down the worker
 	    close(out)	
