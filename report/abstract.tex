@@ -1,9 +1,18 @@
 \section*{\hfil \ \ \ Abstract \hfil}
 \addcontentsline{toc}{section}{Abstract}
-\begin{quote}
-The goal of this project is to construct a well-structured
-library of communicating components, in the Go language, to support
-the programming of a family of webservers that could range in scale 
-from a full-scale commercial server to an embedded server used to provide 
-a browser-based GUI to a specific application.
-\end{quote}
+One of the traditional ways to construct a web servers is to use
+a pool of workers and a handler function that computes responses
+for all types of requests.
+This project introduces an alternative architecture in which 
+servers are constructed as a network of communicating components.
+This architecture is based on the idea that different requests 
+can be processed using different single purpose components.
+The main advantages of this approach are the clarity of the design 
+and reusability of the used components. The project introduces a toolkit 
+called \texttt{mpserver}, that implements this architecture as a 
+package in the Go programming language. Implementation of basic and 
+more advanced elements of the toolkit is explained in detail. 
+Throughput of simple servers constructed using this approach can
+be very limited. To address this problem the toolkit implements 
+various forms of load management that allow higher throughput. 
+The functionality of the toolkit is showed on multiple examples.

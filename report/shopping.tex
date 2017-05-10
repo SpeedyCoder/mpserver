@@ -77,7 +77,7 @@ func (a AddAction) performAction(s ShoppingCart) (State, error) {
     return s, nil
 }
 \end{lstlisting}
-\caption[scale=1.0]{\texttt{performAction} implementation by \texttt{addAction}.}
+\caption[scale=1.0]{\texttt{performAction} implementation for \texttt{addAction}.}
 \label{fig:addAction}
 \end{figure}
 
@@ -87,13 +87,13 @@ interface defined in section
 \ref{sec:state}, so that it can be used by the session manager component.
 This component will maintain one \texttt{ShoppingCart} object for each user.
 Figure \ref{fig:shoppingCartImpl} below shows the implementation of the 
-methods of the \texttt{State} interface on the \texttt{ShoppingCart} type.
+methods of the \texttt{State} interface for the \texttt{ShoppingCart} type.
 \begin{figure}[h]
 \begin{lstlisting}
 func (s ShoppingCart) Next(val Value) (State, error) {
     a, ok := val.GetResult().(Action)
     if (!ok) {
-        return nil, errors.New("Action not provided")
+        return nil, errors.New("No action provided")
     }
 
     return a.performAction(s)
@@ -119,15 +119,13 @@ is the implementation of the component that is used to generate
 the \texttt{addActions}.
 \begin{figure}[h]
 \begin{lstlisting}
-func addActionMakerFunc(val Value) Value {
+func addActionMakerFunc(val Value) {
     q := val.GetRequest().URL.Query()
     items, ok := q["item"]
     if (ok && len(items) > 0) {
         items = strings.Split(items[0], ",")
     }
     val.SetResult(AddAction{items})
-    
-    return val
 }
 var addActionMaker = MakeComponent(addActionMakerFunc) 
 \end{lstlisting}
@@ -135,6 +133,7 @@ var addActionMaker = MakeComponent(addActionMakerFunc)
 \label{fig:addActionMaker}
 \end{figure}
 
+\newpage
 \subsection{Plugging it together}
 We use different URL paths to perform different actions. We route the 
 requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
@@ -145,10 +144,11 @@ Finally the output from the session manager goes to the \texttt{ErrorSplitter}
 which sends all non-error values to to \texttt{JsonWriter} and error
 values to \texttt{ErrorWriter}. 
 
-We can share the session manager and the writer for all three actions. 
+We can share the session manager, the splitter and the writers for all three actions. 
 However, this will make it difficult to load balance individual parts
 of the networks. Hence, each action maker should be connected to their
-own load manager and this to writers. The overall design for the add action
+own load manager and this to its own splitter and writers. The overall 
+design for the add action
 is show in diagram of Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} 
 is omitted for clarity.
 \begin{figure}[h]
@@ -176,10 +176,11 @@ is omitted for clarity.
 \end{figure}
 
 We will make the each part of the network into a separate writer as in
-the Proxy Server example to be able to use the Dynamic Load Balancer.
+the Proxy Server example to be able to use the \texttt{DynamicLoadBalancer}.
 The code for making this writer is shown in figure \ref{fig:shoppingWriter}.
 Here, we provide action maker and storage for the session manager 
 as arguments for the function.
+
 \newpage
 \begin{figure}[h]
 \begin{lstlisting}
@@ -238,8 +239,8 @@ func main() {
         buyActionWriter, 40, AddTimeout, RemoveTimeout)
 
     // Make channels
-    toAddActionMaker := make(mpserver.ValueChan)
-    toRmvActionMaker := make(mpserver.ValueChan)
+    toAddActionMaker := mpserver.GetChan()
+    toRmvActionMaker := mpserver.GetChan()
     toBuyActionMaker := mpserver.GetChan()
 
     // Start the load balanced writers
