@@ -57,6 +57,7 @@ backend=biber
 \usepackage[labelfont=bf]{caption}
 \usepackage{hyperref}
 \usepackage{pdfpages}
+\usepackage[titletoc]{appendix}
 
 \begin{document}
 
@@ -116,28 +117,9 @@ backend=biber
 ]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Appendices %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\appendix
 \newpage
-\section*{Appendix A - Example servers}
-\addcontentsline{toc}{section}{Appendix A - Example servers}
-
-\subsection*{Proxy Server Implementation}
-\addcontentsline{toc}{subsection}{Proxy Server Implementation}
-\subsubsection*{proxyServer.go}
-\lstinputlisting{../examples/proxyServer/proxyServer.go}
-
-\newpage
-\subsection*{Shopping Server Implementation}
-\addcontentsline{toc}{subsection}{Shopping Server Implementation}
-\subsubsection*{actions.go}
-\lstinputlisting{../examples/shoppingServer/actions.go}
-\subsubsection*{shoppingCart.go}
-\lstinputlisting{../examples/shoppingServer/shoppingCart.go}
-\subsubsection*{actionMakers.go}
-\lstinputlisting{../examples/shoppingServer/actionMakers.go}
-\newpage
-\subsubsection*{shoppingServer.go}
-\lstinputlisting{../examples/shoppingServer/shoppingServer.go}
-
+\include{appendices}
 
 \end{document}
 

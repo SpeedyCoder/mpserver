@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"io/ioutil"
 	"errors"
-	// "time"
 )
 
 func NetworkComponent(client *http.Client) Component {

@@ -330,15 +330,17 @@ a struct that is shown in Figure \ref{fig:Response}.
 \centering
 \begin{lstlisting}
 type Response struct {
-		Header http.Header
-		Body []byte
+    Header http.Header
+    ResponseCode int
+    Body []byte
 }
 \end{lstlisting}
 \caption[scale=1.0]{Declaration of type Response.}
 \label{fig:Response}
 \end{figure}
 
-It holds the headers and body of an http response. The difference between
+It holds the headers, repose code and body of an http response. 
+The difference between
 this definition and the definition in the default \texttt{http} package is that
 the body of my \texttt{Response} is a slice of bytes. 
 That is the body have already been
