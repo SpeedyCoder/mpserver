@@ -45,7 +45,7 @@ func MakeWriter(writerFunc WriterFunc) Writer {
 
 func AddErrorSplitter(writer Writer, errChan chan<- Value) Writer {
     return func (in <-chan Value) {
-        toWriter := make(ValueChan)
+        toWriter := GetChan()
         go ErrorSplitter(in, toWriter, errChan)
         writer(toWriter)
     }

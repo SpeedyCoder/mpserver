@@ -8,7 +8,7 @@ import (
 
 func ErrorPasser(component Component) Component {
     return func (in <-chan Value, out chan<- Value) {
-        toComponent := make(ValueChan)
+        toComponent := GetChan()
         go component(toComponent, out)
 
         for val := range in {
@@ -27,8 +27,8 @@ func ErrorPasser(component Component) Component {
 func PannicHandlingComponent(worker Component) Component {
     var phComp Component
     phComp = func (in <-chan Value, out chan<- Value) {
-        toComponent := make(ValueChan)
-        fromComponent := make(ValueChan)
+        toComponent := GetChan()
+        fromComponent := GetChan()
         shutDown := make(chan bool)
 
         // Recover from panic and restart in a new goroutine

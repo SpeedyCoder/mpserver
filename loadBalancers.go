@@ -10,7 +10,7 @@ type startFunc func(chan bool)
 // Function for shutting down an array of workers
 type shutdownFunc func([](chan bool))
 
-func staticLoadBalance(in <-chan Value, toWorkers ValueChan,
+func staticLoadBalance(in <-chan Value, toWorkers chan<- Value,
           startWorker startFunc, shutdown shutdownFunc, nWorkers int) {
     shutdownChans := make([](chan bool), nWorkers)
     for i := 0; i < nWorkers; i++ {
@@ -26,8 +26,8 @@ func staticLoadBalance(in <-chan Value, toWorkers ValueChan,
 func startComponent(comp Component, in <-chan Value, 
                                     out chan<- Value) startFunc {
     return  func(end chan bool) {
-        toComponent := make(ValueChan)
-        fromComponent := make(ValueChan)
+        toComponent := GetChan()
+        fromComponent := GetChan()
         go comp(toComponent, fromComponent)
 
         done := false
@@ -68,7 +68,7 @@ func shutdownComponents(out chan<- Value) shutdownFunc {
 
 func startWriter(writer Writer, toWorkers <-chan Value) startFunc {
     return  func(end chan bool) {
-        toWriter:= make(ValueChan)
+        toWriter:= GetChan()
         go writer(toWriter)
 
         done := false
@@ -97,7 +97,7 @@ func shutdownWriters(shutdownChans [](chan bool)) {
 
 func StaticLoadBalancer(worker Component, nWorkers int) Component {
     return func (in <-chan Value, out chan<- Value) {
-        toWorkers := make(ValueChan)
+        toWorkers := GetChan()
         staticLoadBalance(in, toWorkers, 
             startComponent(worker, toWorkers, out), 
             shutdownComponents(out), nWorkers)
@@ -106,14 +106,14 @@ func StaticLoadBalancer(worker Component, nWorkers int) Component {
 
 func StaticLoadBalancerWriter(worker Writer, nWorkers int) Writer {
     return func (in <-chan Value) {
-        toWorkers := make(ValueChan)
+        toWorkers := GetChan()
         staticLoadBalance(in, toWorkers, 
             startWriter(worker, toWorkers), 
             shutdownWriters, nWorkers)
     }
 }
 
-func dynamicLoadBalance(in <-chan Value, toWorkers ValueChan, 
+func dynamicLoadBalance(in <-chan Value, toWorkers chan<- Value, 
                         startWorker startFunc, shutdown shutdownFunc, 
                         addTimeout, removeTimeout time.Duration, 
                         maxWorkers int) {
@@ -170,7 +170,7 @@ func dynamicLoadBalance(in <-chan Value, toWorkers ValueChan,
 func DynamicLoadBalancer(component Component, maxWorkers int,
                    addTimeout, removeTimeout time.Duration) Component {
     return func (in <-chan Value, out chan<- Value) {
-        toWorkers := make(ValueChan)
+        toWorkers := GetChan()
 
         dynamicLoadBalance(in, toWorkers, 
             startComponent(component, toWorkers, out), 
@@ -183,7 +183,7 @@ func DynamicLoadBalancer(component Component, maxWorkers int,
 func DynamicLoadBalancerWriter(writer Writer, maxWorkers int,
                       addTimeout, removeTimeout time.Duration) Writer {
     return func (in <-chan Value) {
-        toWorkers := make(ValueChan)
+        toWorkers := GetChan()
 
         dynamicLoadBalance(in, toWorkers, 
             startWriter(writer, toWorkers), 

@@ -37,8 +37,8 @@ func requestToString(r *http.Request) string {
 
 func CacheComponent(cache Storage, worker Component, expiration time.Duration) Component {
 	return func (in <-chan Value, out chan<- Value) {
-		toWorker := make(ValueChan)
-		fromWorker := make(ValueChan)
+		toWorker := GetChan()
+		fromWorker := GetChan()
 		go worker(toWorker, fromWorker)
 
 		var computeAndAdd = func (key string, val Value, now time.Time) {
