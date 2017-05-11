@@ -1,7 +1,7 @@
 \section{Building a shopping server}
 \label{sec:shopping}
-In this Chapter I show how to build a web-server using my toolkit that
-maintains a shopping cart for a simple shopping web-site. The whole 
+In this Chapter I show how to build a web server using my toolkit that
+maintains a shopping cart for a simple shopping web site. The whole 
 code for this example is shown in Appendix A.
 
 \subsection{Shopping cart}
@@ -42,9 +42,9 @@ That is any action must implement the \texttt{performAction} method, which takes
 a \texttt{ShoppingCart} object and tries to perform its operation on it. If
 it succeeds then it returns the updated object and \texttt{nil} pointer for the
 error. If it does not succeed then the method returns \texttt{nil} for the
-object and the corresponding error.
+object and a corresponding error.
 
-The \texttt{Action} interface is implemented by the following 3 types
+The \texttt{Action} interface is implemented by the following three types
 that represent adding items to the shopping cart, removing an item from it
 and buying the contents of the shopping cart.
 \begin{figure}[h]
@@ -141,12 +141,12 @@ and similarly for the other two actions. The output of the action maker
 will be connected to the session management component, that is wrapped in
 \texttt{ErrorPasser}, so that we don't process invalid requests.
 Finally the output from the session manager goes to the \texttt{ErrorSplitter}
-which sends all non-error values to to \texttt{JsonWriter} and error
-values to \texttt{ErrorWriter}. 
+which sends all non-error values to the \texttt{JsonWriter} and error
+values to the \texttt{ErrorWriter}. 
 
 We can share the session manager, the splitter and the writers for all three actions. 
 However, this will make it difficult to load balance individual parts
-of the networks. Hence, each action maker should be connected to their
+of the network. Hence, each action maker should be connected to their
 own load manager and this to its own splitter and writers. The overall 
 design for the add action
 is show in diagram of Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} 
@@ -175,11 +175,11 @@ is omitted for clarity.
 \label{fig:shoppingDesign}
 \end{figure}
 
-We will make the each part of the network into a separate writer as in
+We will make each part of the network into a separate writer as in
 the Proxy Server example to be able to use the \texttt{DynamicLoadBalancer}.
 The code for making this writer is shown in figure \ref{fig:shoppingWriter}.
 Here, we provide action maker and storage for the session manager 
-as arguments for the function.
+as arguments of the function.
 
 \newpage
 \begin{figure}[h]
@@ -262,5 +262,10 @@ func main() {
 \label{fig:ShoppingCode}
 \end{figure}
 
+\subsection{Summary}
+In this chapter I showed how to use the \texttt{mpserver} toolkit
+to build a more complex web server. I also presented how resources can
+be allocated independently for different tasks. The next chapter 
+presents the results of performance testing of the toolkit.
 
 

@@ -63,7 +63,7 @@ Here:
         client implemented in the default http library. It can be accessed
         using the \texttt{GetRequest} method. 
 
-  \item \texttt{result} is the result computed so far (initially nil). This is
+  \item \texttt{result} is the result computed so far (initially \texttt{nil}). This is
         of type \texttt{interface\{\}} which is implemented by any type.
         Hence, values of all types can be stored there. This field can be
         accessed and changed using the \texttt{GetResult} and \texttt{SetResult}
@@ -71,19 +71,19 @@ Here:
   
   \item \texttt{responseCode} is the HTTP response code that should be 
         returned to the client. The default value of this field is $-1$,
-        which indicates that the \texttt{responseCode} has not been set yet. 
+        which indicates that the \texttt{responseCode} hasn't been set yet. 
         It can be set using the \texttt{SetResponseCode} or 
         \texttt{SetResponseCodeIfUndef} methods, where the second method only
-        makes a change in case the response code is undefined. The value
+        makes a change in case the response code has not been set yet. The value
         of the response code can be retrieved using the \texttt{getResponseCode}
         method inside the package. This is only used by a 
-        \texttt{Writer} type introduced later.
+        \texttt{Writer} type that is introduced later.
 
   \item \texttt{responseWriter} is an object that writes the response back 
         to the client. Again only \texttt{Writers} use this field. They
         can retrieve it using \texttt{getResponseWriter} method. 
-        Alternatively, they can use the \texttt{writeHeader} and
-        \texttt{write} methods to access the field indirectly.
+        Alternatively, they can use the \texttt{write\-Header}
+        and \texttt{write} methods to access the field indirectly.
         These methods write the headers and 
         the body of the response to the client respectively.
 
@@ -154,7 +154,7 @@ func MakeComponent(f ComponentFunc) Component {
     }
 }
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of MakeComponent function.}
+\caption[scale=1.0]{Declaration of the \texttt{MakeComponent} function.}
 \label{fig:MakeComponent}
 \end{figure}
 
@@ -210,8 +210,8 @@ wrappers (U shaped components in the diagram) around workers and a component tha
 forwards incoming values to the workers. When input channel of the forwarding
 component is closed it sends a signal to the component wrappers on shut 
 down channels (dashed arrows in the diagram). The wrappers then close
-the channels to the workers, which will force workers to terminate.
-Finally the distributer closes the output channel of the whole component
+the channels to the workers, which will force the workers to terminate.
+Finally the distributor closes the output channel of the whole component
 and then the termination signal propagates further down the network.
 
 \begin{figure}[h]
@@ -327,7 +327,9 @@ Every writer satisfies the following specification.
 \end{itemize}
 The package provides writers for writing string, json, file, error and many
 other types of responses. There is also a writer generator for static
-load balancing similar to the one for components. Note that components
+load balancing similar to the one for components. It's implementation
+is significantly simpler as we don't have to forward the processed
+values further down the network. Note that components
 combined with writers appear like a single writer. Hence, we can use the
 load balancers for writers to manage a more complex part the network.
 
@@ -416,7 +418,7 @@ any other type of writer than the error writer. If we allowed this, then
 all errors will only show that a particular writer got a wrong input.
 The signature of the \texttt{ErrorSplitter} function is shown below.
 \begin{lstlisting}
-func ErrorSplitter(in <-chan Value, out chan<- Value, 
+func ErrorSplitter(in <-chan Value, defOut chan<- Value, 
                                     errChan chan<- Value)
 \end{lstlisting}
 

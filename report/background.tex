@@ -69,7 +69,7 @@ when the buffer is full.
 
 By default the channel type exposes both reading and writing end of the
 channel. Hence, we can view it as a bidirectional channel. 
-However, we can access only one of its ends using the following:
+However, we can restrict the access to only one of its ends using the following:
 \begin{lstlisting}
 channel := make(chan Value, 10)
 in := (<-chan Value)(channel)
@@ -148,5 +148,12 @@ a goroutine panics when \texttt{panic} is called.
 % returned by the \texttt{recover} method is the same value that was passed
 % to the call of panic \texttt{panic} or \texttt{nil} if the goroutine
 % is not panicking. \cite{goSpec}
+
+\subsection{Summary}
+In this chapter I introduced the basics of the message passing concurrency
+paradigm and the go programming language. In the next chapter I 
+analyze conceptual design of a few example servers in the proposed
+architecture.
+
 
 

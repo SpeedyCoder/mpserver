@@ -1,5 +1,8 @@
 \section{Examples}
 \label{sec:examples}
+This chapter presents the implementations of a Hello World! server,
+a file server and a proxy server in the \texttt{mpserver} toolkit.
+
 \subsection{Hello world! server}
 Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
 server described in section \ref{sec:helloWorld}.
@@ -21,17 +24,19 @@ and then start the server itself.
 \newpage
 \subsection{File server}
 Figure \ref{fig:FileServerImpl} shows the implementation of a simple 
-file server that compresses all '.go' files. It is almost a direct translation
-of the diagram shown in figure \ref{fig:fileServer2} in section \ref{sec:fileServer}.
+file server that compresses all `.go' files. It is almost a direct translation
+of the diagram shown in Figure \ref{fig:fileServer2} in section \ref{sec:fileServer}.
 However, here the File Getter is composed of two parts, which are \texttt{PathMaker}
-and \texttt{FileComponent}. The \texttt{PathMaker} firstly strips a given
-prefix from the request path and then prepends a provided directory name to 
+and \texttt{FileComponent}.
+
+The \texttt{PathMaker} firstly strips a given
+prefix from the requested path and then prepends a provided directory name to 
 the result. The \texttt{FileComponent} tries to open a file at a path 
 provided in the result field of the incoming value. Other modifications
 are the addition of the \texttt{ErrorWriter} and the channel going to it from
 the \texttt{Splitter}.
 This path is used when a non existent file is requested by the client.
-Otherwise '.go' files goes to the \texttt{GzipWriter} and all other files to 
+Otherwise `.go' files goes to the \texttt{GzipWriter} and all other files to 
 the standard \texttt{FileWriter}.
 The diagram that represents this server is shown in 
 Figure \ref{fig:fileServer3}.
@@ -170,7 +175,7 @@ This server will be able to process about 200 requests at once efficiently
 at maximal capacity. The whole implementation is shown in Appendix A.
 
 \subsection{Summary}
-In this section I presented implementations of 3 progressively more 
+In this chapter I presented implementations of 3 progressively more 
 complicated example servers. The throughput of the first two servers
 can be increased in the same way as shown for the Proxy Server. The 
 next section analyzes how to build part of a shopping server.

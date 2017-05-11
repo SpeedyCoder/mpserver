@@ -1,0 +1,14 @@
+httperf --server localhost --port 8080 --uri /go/testFile.txt --num-conns 1500 --rate 500 --timeout 1
+httperf --server localhost --port 8080 --uri /webpipes/testFile.txt --num-conns 1500 --rate 500 --timeout 1
+httperf --server localhost --port 8080 --uri /mpserver/testFile.txt --num-conns 1500 --rate 500 --timeout 1
+
+When you get Segmentation fault: 11
+ulimit -a = shows the limit on open file descriptors
+ulimit -n <rate>
+
+need to change it again in /httperf/src/core.c
+line 954
+and recompile
+
+Default setting:
+ulimit -n 256

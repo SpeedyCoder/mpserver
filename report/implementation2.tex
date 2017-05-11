@@ -3,11 +3,11 @@
 In this section I introduce more advanced component generators for caching,
 session management, load balancing, network communication and error handling.
 
-\subsection{Storing values}
+\subsection{Storing data}
 In order to implement behaviors such as caching or session management
 components needs to be able to maintain an internal state.
 To do this they need to store some information (this can be in memory, 
-in a database...).
+in a database etc.).
 This section introduces an interface that specifies methods that an 
 object must implement, in order to be used as a data storage. This 
 separates the problem of managing the data storage from the logic of
@@ -70,7 +70,7 @@ The function will repeatedly remove expired values from the provided
 \texttt{storage} object until a message is sent on the \texttt{shutDown}
 channel. After going through the whole storage object, the cleaner 
 sleeps for time specified by the \texttt{sleepTime} argument.
-Note that this can be used with any type of storage as it only access
+Note that this can be used with any type of storage as it only accesses
 the storage object via the methods specified by the \texttt{Storage} 
 interface.
 
@@ -95,9 +95,9 @@ The returned component behaves as follows:
 
 For the generated component to function properly, the worker must output
 a value for every value that is sent to it. This, however, is one of the 
-conditions that any component must satisfy, so this shouldn't be an issue.
+conditions that any component must satisfy, so it shouldn't be an issue.
 
-\subsection{States and Session Management Component}
+\subsection{Session Management}
 This section introduces the component that supports management of any
 type of session.
 \subsubsection{States}
@@ -119,14 +119,14 @@ type State interface {
 The expected behavior of the member functions is as follows:
 \begin{itemize}
 	\item The \texttt{Next} function returns the next state when provided 
-          with a value.
+        with a value or an error in case the next state can't be generated.
 	\item The \texttt{Terminal} function indicates whether the current 
-          state is a terminal state.
+        state is a terminal state.
 	\item The \texttt{Result} function returns the result that possibly 
-          after further processing should be returned to the client.
+        after further processing should be returned to the client.
 \end{itemize}
 
-\subsubsection{Session Management}
+\subsubsection{Session Manager}
 \texttt{SessionManager} is a component generator that performs the 
 management of sessions for individual users. It has the following signature:
 \begin{lstlisting}
@@ -135,7 +135,7 @@ func SessionManager(store Storage, initial State,
 \end{lstlisting}
 Its arguments are a \texttt{storage} object to be used, an \texttt{initial} 
 state for each session and
-a session expiration time
+a session expiration time.
 The returned component behaves as a session manager. 
 Its behavior is described below.
 
@@ -148,7 +148,7 @@ is stored. The result of the call to the \texttt{Result} function on the
 current state with the provided value is then sent down the pipeline and
 response for the client is generated from it.
 
-When a request with set `Session-Id` header comes in, the component gets the current 
+When a request with set `Session-Id' header comes in, the component gets the current 
 state for the session and computes the next state for it based on the provided value.
 The mapping is then updated with the new state and the result from the new state
 is passed down the pipeline.
@@ -180,7 +180,7 @@ For every input value, the generated component behaves as follows:
 		    before the \texttt{addTimeout}, then the component creates a new worker
         if the current number of workers is smaller than \texttt{maxWorkers}.
         Then the component tries to send the value to the workers again. This will 
-        be successful in case a worker was added because there is at least one 
+        be successful in case a worker was added because then there is at least one 
         worker that is not busy.
 
 	\item The workers send their results further down the pipeline.
@@ -244,7 +244,7 @@ can be described as follows:
     \node[draw, densely dotted, inner sep=1em,
           fit=(passer) (worker) (lineh)] {};
 \end{tikzpicture}
-\caption[scale=1.0]{Inner design of the components generated with
+\caption[scale=1.0]{Inner design of the component generated with
   \texttt{ErrorPasser}.}
 \label{fig:errPasserDiag}
 \end{figure}
@@ -324,8 +324,8 @@ by the client to the Result field and updates it with the given scheme and
 path and then outputs this value.
 
 \subsubsection{Response Processor}
-The \texttt{Response} type of the \texttt{mpserver} is defined a struct
-that is shown in Figure \ref{fig:Response}.
+The \texttt{Response} type of the \texttt{mpserver} package is defined as
+a struct that is shown in Figure \ref{fig:Response}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -383,7 +383,7 @@ func ProxyComponent(scheme, host string,
 \label{fig:ProxyComp}
 \end{figure}
 \subsection{Summary}
-In this section I introduced more advanced component wrappers and generators
-and described how to use them. The next section shows a few example
+In this chapter I introduced more advanced component wrappers and generators
+and described how to use them. The next chapter shows a few example
 servers implemented using my toolkit.
 

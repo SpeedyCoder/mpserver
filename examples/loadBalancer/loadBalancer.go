@@ -9,14 +9,13 @@ import (
 
 func main() {
 	worker := mpserver.MakeComponent(
-		func (val mpserver.Value) mpserver.Value {
+		func (val mpserver.Value) {
 			time.Sleep(time.Second*5)
 			val.SetResult("Hello World!")
-			return val
 	})
 
 	lb := mpserver.DynamicLoadBalancer(
-			time.Second, time.Second*60, worker, 10)
+			worker, 10, time.Second, time.Second*60, )
 	// lb := mpserver.StaticLoadBalancer(worker, 10)
 
 	in := mpserver.GetChan()

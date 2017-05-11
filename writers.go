@@ -68,15 +68,16 @@ func ErrorWriter(in <-chan Value) {
     }
 }
 
-func ErrorSplitter(in <-chan Value, out chan<- Value, errChan chan<- Value) {
+func ErrorSplitter(in <-chan Value, defOut chan<- Value, errChan chan<- Value) {
     for val := range in {
         if _, ok := val.GetResult().(error); ok {
             errChan <- val
         } else {
-            out <- val
+            defOut <- val
         }
     }
-    close(out)
+    close(defOut)
+    close(errChan)
 }
 
 func StringWriter(in <-chan Value) {

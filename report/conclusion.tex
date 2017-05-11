@@ -27,7 +27,8 @@ for the usage of channels, creating the Value objects
 and switching between different goroutines.
 
 On the other hand the toolkit provides a lot of functionality over the
-standard library. Hence, developing servers using the toolkit should be
+standard library and makes implementing servers more straight forward. 
+Hence, developing servers using the toolkit should be
 significantly easier and therefore quicker. Hence, if a small performance
 penalty is acceptable, then my toolkit might be the preferred alternative.
 
@@ -40,7 +41,7 @@ One might want to implement a version of the \texttt{Storage}
 that uses an SQL database or a component that accesses a database and 
 returns the requested data. As noted before other strategies 
 for load balancing can be implemented.
-They can possibly be abstracted to their own class, so that the
+They can possibly be abstracted into their own type, so that the
 load manager can be parametrized based on our needs.  
 
 The library is very general and extensible. Hence, if we wanted to support 

@@ -167,7 +167,7 @@ func dynamicLoadBalance(in <-chan Value, toWorkers ValueChan,
 }
 
 // Add a new component after addTimeout and remove a Component after removeTimeout
-func DynamicLoadBalancerComponent(component Component, maxWorkers int,
+func DynamicLoadBalancer(component Component, maxWorkers int,
                    addTimeout, removeTimeout time.Duration) Component {
     return func (in <-chan Value, out chan<- Value) {
         toWorkers := make(ValueChan)

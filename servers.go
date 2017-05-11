@@ -28,7 +28,7 @@ func SimpleFileServer(dir, prefix string, maxWorkers int) http.Handler{
     in := GetChan()
     writer := FileServerWriter(dir, prefix)
     lb := DynamicLoadBalancerWriter(
-        writer, maxWorkers, time.Microsecond, time.Second*10)
+        writer, maxWorkers, time.Nanosecond, time.Minute)
 
     go lb(in)
 	return Handler(in)

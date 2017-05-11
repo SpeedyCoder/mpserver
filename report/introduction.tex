@@ -10,8 +10,8 @@ computes responses to all types of client requests. When a request comes in a
 worker is allocated from a pool of workers and it then executes the handler function
 and returns the result to the client.
 
-This project examines an alternative approach for building web-servers. 
-I propose to construct a web-server as a network of highly specialized 
+This project examines an alternative approach for building web servers. 
+I propose to construct a web server as a network of highly specialized 
 communicating components. The communication should be done using
 message passing. This builds on the premise that we can deal
 with different types of requests using different single purpose components.
@@ -39,7 +39,7 @@ client on the other end. Hence, we can view this server
 as a pipeline that transfers requests into responses.
 
 To implement this architecture I have constructed a package in the go programming 
-language called \texttt{mpserver}, that allows the construction of such web-servers.
+language called \texttt{mpserver}, that allows the construction of such web servers.
 It uses the built in \texttt{http} package to handle the details of
 the HTTP \cite{http} protocol. The toolkit itself concentrates on the 
 structure of the web-server.

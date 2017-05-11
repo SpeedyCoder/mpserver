@@ -39,10 +39,10 @@ used as a response to its output channel.
 The \texttt{String Writer} writes the text response back to the client.
 
 This is a good example of the basic components of the suggested framework.
-We can call the three main parts the \texttt{Listener}, \texttt{Processor} 
+We can call the three main parts the \texttt{Listener}, \texttt{Component} 
 and \texttt{Writer}, where
 the \texttt{Listener} catches the incoming requests and feeds them into the network,
-the \texttt{Processor} processes them and the \texttt{Writer} writes the generated result 
+the \texttt{Component} processes them and the \texttt{Writer} writes the generated result 
 back to the client. That is \texttt{Listener} is the start and \texttt{Writer}
 is the end of the server pipeline.
 
@@ -208,7 +208,7 @@ Alias /project /path/to/project/
 \caption[scale=1.0]{Part of Apache configuration file for a file server.}
 \label{fig:apache}
 \end{figure}
-% TODO: explain the whole configuration
+
 The first line in the above configuration specifies that accessing URL 
 path "/project" should point to the "/path/to/project/" directory.
 Lines 3 to 10 specify who and how can access this directory.
@@ -219,14 +219,14 @@ to access a directory, then the server should list its contents.
 a file in the specified folder is accessed. Lines 6 to 8 specify that
 anyone can access the directory. Finally, option 
 \texttt{AddOutputFilter DEFLATE py} tells the server to compress
-all python files, that is all files whose name ends with '.py'.
+all python files, that is all files whose name ends with `.py'.
 
 At first this does not look like a difficult configuration. However, 
 one might argue that it is not as clear as the architecture proposed above,
-as we are mixing different aspects of the server in one place.
+as we are mixing different aspects of the server configuration in one place.
 The main issue is that configuring more complex servers gets much more 
 difficult very quickly. Furthermore if we want to serve dynamic content
-we might need to use scripts written in other languages such as perl or python.
+we might need to use scripts written in other languages.
 
 \subsection{Summary}
 In this Chapter I described the conceptual architecture of the proposed

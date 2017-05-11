@@ -1,0 +1,23 @@
+\section{Performance Testing}
+\label{sec:test}
+In order to evaluate the performance of the \texttt{mpserver} toolkit we 
+need to compare it against other server architectures.
+This chapter presents the setup and results of the performance tests
+that were carried on equivalent servers implemented in the \texttt{mpserver} toolkit,
+in plain go, in \texttt{webpipes} toolkit by James Whitehead II 
+\cite{whitehead} and the Apache framework.
+
+\subsection{Setup}
+To compare the performance of the four server architectures, I 
+implemented a simple file server in all of them. Their performance 
+was tested on serving a 4KB static file. The code for the servers 
+that were implemented in go is shown in Appendix B. To generate 
+the load I used \texttt{httperf} tool \cite{httperf}. This setup
+is inspired by the one used in \cite{whitehead}.
+
+% TODO: describe computers used ...
+
+\subsection{Results}
+
+\subsection{Summary}
+
