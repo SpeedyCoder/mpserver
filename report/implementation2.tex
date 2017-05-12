@@ -154,9 +154,9 @@ The mapping is then updated with the new state and the result from the new state
 is passed down the pipeline.
 
 When a session reaches a terminal state, the session id is removed from the map
-and the final result is outputted.
+and the final result is output.
 The states in the mapping are timestamped. Timestamps are updated every time
-the state for a session is updated. When a client tries to access expired
+the state for a session is updated. When a client tries to access an expired
 session a new session for this client is started.
 
 % More hype
@@ -203,9 +203,9 @@ also a similar dynamic load balancer for writers.
 \subsection{Error handling}
 
 \subsubsection{Error Passer}
-As a lot of components expect an input of a certain type, their execution
+A lot of components expect an input of a certain type. Their execution
 might end with an error if they are provided with an error result from
-the previous component. This would make debugging very hard. Hence, the 
+the previous component. This would make debugging very hard. So, the 
 package provides the following component wrapper, that allows error messages
 to bypass a component. The signature of this wrapper is shown below.
 \begin{lstlisting}
@@ -217,7 +217,7 @@ can be described as follows:
 \begin{itemize}
 	\item For every input value it checks whether the result is an error
 		  and if that is the cases it just outputs the value.
-	\item If the result of the input value is not an error, then the component
+	\item If the result part of the input value is not an error, then the component
 		  passes the value to the worker, which after processing it passes 
 		  it further down the pipeline.
 \end{itemize}
@@ -250,14 +250,15 @@ can be described as follows:
 \end{figure}
 
 \subsubsection{Panic handling}
-If we use a component which might cause panic, this will crash the whole
-server when the panic occurs. Hence, the package provides the 
+If we use a component which might cause panic (that is if it can 
+throw an exception), this could crash the whole. 
+Hence, the package provides the 
 \texttt{PanicHandler}. The signature of this wrapper is shown 
 below.
 \begin{lstlisting}
 func PanicHandler(worker Component) Component
 \end{lstlisting}
-It takes a component that can cause panic and returns a component the 
+It takes a component that can cause panic and returns a component that 
 behaves as follows:
 \begin{itemize}
 	\item It passes every input value to the worker, gets the result 

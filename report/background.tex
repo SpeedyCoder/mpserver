@@ -10,17 +10,16 @@ Passing Concurrency Paradigm.
 
 \subsubsection{Channels}
 Channel is a FIFO queue of pending messages. It can be accessed by two
-primitive operations, which are send and receive. To start communication
+primitive operations: send and receive. To start communication
 a process sends a value to the channel. Another process acquires the message
 by receiving from the channel. Sending a message can be asynchronous (nonblocking)
-or synchronous (blocking). Note that receiving message is invariably blocking.
-\cite[293]{book:foundations}
+or synchronous (blocking). \cite[293]{book:foundations}
 
 \subsubsection{Message Passing Concurrency}
 Message Passing Concurrency is a style of Concurrent Programming, in which
 processes communicate using only channels. That is channel communication is 
 the only way any two processes can communicate and synchronize. 
-Hence, this style does not 
+Hence this style does not 
 suffer any problems that arise from using shared memory for communication 
 and synchronization by multiple concurrent processes.
 
@@ -29,8 +28,8 @@ and synchronization by multiple concurrent processes.
 to native code and are linked with a small runtime environment that performs 
 automatic memory management and scheduling for lightweight processes called 
 goroutines.'' \cite[2]{whitehead} Its main advantage is 
-that it has a lot of concurrent constructs built natively into it.
-This is also the reason why it was chosen as implementation language 
+that it has concurrent constructs built natively into it,
+and this is why it was chosen as implementation language 
 for this project.
 In this section I introduce the main concurrency constructs that are
 present in the language, its type system and exception handling. Other 
@@ -47,8 +46,8 @@ it is also cheap to switch between them. The only significant cost when
 creating a goroutine is the memory allocation for the stack which is 
 usually only a few kilobytes \cite{FAQ}. ``The CPU overhead averages about 
 three cheap instructions per function call.''\cite{FAQ} These costs are much 
-smaller than using operating system threads, hence it is feasible to use 
-thousands of goroutines.
+smaller than using operating system threads, \textit{hence it is feasible to use 
+thousands of goroutines}.
 
 To create a new goroutine we only need to prefix a function call with
 the \texttt{go} keyword. The arguments will be evaluated in the current
@@ -59,11 +58,11 @@ terminate when the function terminates \cite{GoDocumentation}.
 
 \subsubsection{Channels}
 Channels in go are many-to-many. That is multiple goroutines can
-read and write to a single channel. Channels are statically typed and
+read from and write to a single channel. Channels are statically typed and
 dynamically allocated using \texttt{make} function. This function takes 
 two arguments: the type of the channel and the size of its buffer.
 A channel with buffer size 0 implements a synchronous channel, whereas 
-channels with lager buffers implement asynchronous channels, as reads
+channels with buffers implement asynchronous channels, as reads
 are only blocked when the buffer is empty and writes are only blocked
 when the buffer is full.
 

@@ -5,15 +5,6 @@ import(
     "mpserver"
     "strings"
 )
-// Test if the provided value contains an error in the Result
-func isError(val mpserver.Value) bool {
-    _, isErr := val.GetResult().(error)
-    return isErr
-}
-// Test if the path of the requested file ends with .go
-func isGoFile(val mpserver.Value) bool {
-    return strings.HasSuffix(val.GetRequest().URL.Path, ".go")
-}
 
 func main() {
     // Construct the channels
@@ -44,4 +35,16 @@ func main() {
     mpserver.Listen(mux, "/", in)
     log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)
+}
+
+// Condition to test whether the provided value contains an error 
+// in the result field
+func isError(val mpserver.Value) bool {
+    _, isErr := val.GetResult().(error)
+    return isErr
+}
+// Condition to test whether the path of the requested file ends 
+// with .go
+func isGoFile(val mpserver.Value) bool {
+    return strings.HasSuffix(val.GetRequest().URL.Path, ".go")
 }
