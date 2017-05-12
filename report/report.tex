@@ -15,6 +15,7 @@ backend=biber
 \usepackage{listings}
 \usepackage{listings-golang} % import this package after listings
 \usepackage{color}
+\usepackage[dvipsnames]{xcolor}
 
 % Images
 % \usepackage{graphicx}
@@ -41,7 +42,9 @@ backend=biber
     language=Golang,
     belowskip=0px,
     emph={go},
-    emphstyle={\color{blue}\bfseries}
+    emphstyle={\color{blue}\bfseries},
+    commentstyle={\color{ForestGreen}\textit},
+    rulecolor=\color{black}
 }
 
 % Define block styles

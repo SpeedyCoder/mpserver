@@ -11,20 +11,39 @@ import (
     "strings"
 )
 
-//-------------------- Helper Functions ----------------------------
-func WriteError(val Value, err error) {
+//-------------------- Helper Functions -------------------------
+
+// writeError writes the error message from the provided error to
+// the client that is represented by the provided value.
+func writeError(val Value, err error) {
     val.SetResponseCodeIfUndef(http.StatusInternalServerError)
     log.Println("Error:", err.Error())
-    http.Error(val.getResponseWriter(), err.Error(), val.getResponseCode())
+    http.Error(val.getResponseWriter(), 
+        err.Error(), val.getResponseCode())
     val.close()
 }
 
-//-------------------- Output Writers ------------------------------
+// writeWrongInput is used to write error message back to the 
+// client, when a writer is provided with a wrong input type.
+func writeWrongInput(val Value, template string) {
+    err := errors.New(fmt.Sprintf(template, val.GetResult()))
+    writeError(val, err)
+}
+
+//-------------------- Output Writers ---------------------------
+
+// Writer is the end of the pipeline which writes results back to
+// the clients for all values that it reads from its input 
+// channel.
 type Writer func (in <-chan Value)
 
-// This should set response code if it returns true
+// WriterFunc is used to create custom writers using the 
+// MakeWriter function. It should set headers and convert the 
+// provided value into a slice of bytes or return an error in 
+// case it is provided with a wrong input.
 type WriterFunc func (val Value) ([]byte, error)
 
+// MakeWriter generates a Writer using the provided WriterFunc.
 func MakeWriter(writerFunc WriterFunc) Writer {
     return func (in <-chan Value) {
         for val := range in {
@@ -37,56 +56,36 @@ func MakeWriter(writerFunc WriterFunc) Writer {
                 val.write(resp)
                 val.close()
             } else {
-                WriteError(val, err)
+                writeError(val, err)
             }
         }       
     }
 }
 
-func AddErrorSplitter(writer Writer, errChan chan<- Value) Writer {
-    return func (in <-chan Value) {
-        toWriter := GetChan()
-        go ErrorSplitter(in, toWriter, errChan)
-        writer(toWriter)
-    }
-}
-
+// ErrorWriter is a writer used for writing error responses. It 
+// expects an error object in the result field of input values. 
 func ErrorWriter(in <-chan Value) {
+    errorTemplate := "Passed in %t to ErrorWriter."
     for val := range in {
         err, ok := val.GetResult().(error)
         if (!ok) {
-            http.Error(
-                val.getResponseWriter(), 
-                "ErrorWriter couldn't write the error", 
-                http.StatusInternalServerError)
+            val.SetResponseCode(http.StatusInternalServerError)
+            writeWrongInput(val, errorTemplate)
         } else {
-            val.SetResponseCodeIfUndef(http.StatusInternalServerError)
-            log.Println(err.Error())
-            http.Error(val.getResponseWriter(), err.Error(), val.getResponseCode())
+            writeError(val, err)
         }
-        val.close()
+        
     }
 }
 
-func ErrorSplitter(in <-chan Value, defOut chan<- Value, errChan chan<- Value) {
-    for val := range in {
-        if _, ok := val.GetResult().(error); ok {
-            errChan <- val
-        } else {
-            defOut <- val
-        }
-    }
-    close(defOut)
-    close(errChan)
-}
-
+// StringWriter is a writer used for writing string responses. It 
+// expects a string in the result field of input values.  
 func StringWriter(in <-chan Value) {
+    errorTemplate := "Passed in %t to StringWriter."
     for val := range in {
         s, ok := val.GetResult().(string)
         if (!ok) {
-            WriteError(val, errors.New(
-                fmt.Sprintf("Passed in %t to StringWriter.", 
-                    val.GetResult())))
+            writeWrongInput(val, errorTemplate)
         } else {
             val.SetResponseCodeIfUndef(http.StatusOK)
         	val.writeHeader()
@@ -96,11 +95,14 @@ func StringWriter(in <-chan Value) {
     }
 }
 
+// JsonWriter is a writer used for writing JSON responses. It 
+// expects any object in the result field of input values that 
+// can be converted to a JSON string using the json module.
 func JsonWriter(in <-chan Value) {
     for val := range in {
         js, err := json.Marshal(val.GetResult())
         if err != nil {
-            WriteError(val, err)
+            writeError(val, err)
         } else {
             val.SetHeader("Content-Type", "application/json")
             val.SetResponseCodeIfUndef(http.StatusOK)
@@ -111,13 +113,15 @@ func JsonWriter(in <-chan Value) {
     }
 }
 
-// TODO: sort out Content-Type header
+// GzipWriter is a writer used for writing responses compressed 
+// using Gzip compression. It expects an io.ReadCloser object in 
+// the result field of input values.
 func GzipWriter(in <-chan Value) {
+    errorTemplate := "Passed in %t to GzipWriter."
 	for val := range in {
 		reader, ok := val.GetResult().(io.ReadCloser)
 		if (!ok) {
-			WriteError(val, 
-                errors.New("Passed in wrong type to GzipWriter."))
+			writeWrongInput(val, errorTemplate)
 			continue
 		}
 
@@ -127,8 +131,6 @@ func GzipWriter(in <-chan Value) {
         val.writeHeader()
 		
 		gzipWriter := gzip.NewWriter(val.getResponseWriter())
-		// Maybe do the compression in a separate goroutine, so that the
-		// writer can process another value
 		io.Copy(gzipWriter, reader)
 		gzipWriter.Close()
 		reader.Close()
@@ -136,35 +138,37 @@ func GzipWriter(in <-chan Value) {
 	}
 }
 
+// GenericWriter is a writer used for writing generic responses.
+// It expects an io.ReadCloser object in the result field of 
+// input values.
 func GenericWriter(in <-chan Value) {
+    errorTemplate := "Passed in %t to GenericWriter."
 	for val := range in {
 		reader, ok := val.GetResult().(io.ReadCloser)
 		if (!ok) {
-			WriteError(val, 
-                errors.New("Passed in wrong type to Writer."))
+			writeWrongInput(val, errorTemplate)
 			continue
 		}
 		val.SetResponseCodeIfUndef(http.StatusOK)
         val.writeHeader()
-
-		// Maybe do the writing in a separate goroutine, so that the
-		// writer can process another value
 		io.Copy(val.getResponseWriter(), reader)
 		reader.Close()
 		val.close()
 	}
 }
 
+// ResponseWriter is a writer used for writing generic responses
+// that were obtained from another server. It expects a
+// mpserver.Response object in the result field of input values.
 func ResponseWriter(in <-chan Value) {
+    errorTemplate := "Passed in %t to ResponseWriter."
     for val := range in {
         resp, ok := val.GetResult().(Response)
         if (!ok) {
-            WriteError(val, 
-                errors.New("Passed in wrong type to ResponseWriter."))
+            writeWrongInput(val, errorTemplate)
             continue
         }
-
-        // Write Headers
+        // Set Headers
         header := val.getResponseWriter().Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
@@ -177,15 +181,18 @@ func ResponseWriter(in <-chan Value) {
     }
 }
 
+// HttpResponseWriter is a writer used for writing generic 
+// responses that were obtained from another server. It expects a
+// http.Response object in the result field of input values.
 func HttpResponseWriter(in <-chan Value) {
+    errorTemplate := "Passed in %t to HttpResponseWriter."
     for val := range in {
         resp, ok := val.GetResult().(*http.Response)
         if (!ok) {
-            WriteError(val, 
-                errors.New("Passed in wrong type to HttpResponseWriter."))
+            writeWrongInput(val, errorTemplate)
             continue
         }
-        // Write Headers
+        // Set Headers
         header := val.getResponseWriter().Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
@@ -199,5 +206,3 @@ func HttpResponseWriter(in <-chan Value) {
         } ()
     }
 }
-
-

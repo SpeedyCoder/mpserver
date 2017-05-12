@@ -302,7 +302,7 @@ balancing component is introduced in the next chapter.
 In this section I introduce the \texttt{Writer} type, which acts as the end of the 
 pipeline. Then I present a way how to create custom writers.
 \subsubsection{Writer type}
-Writer is the end of the pipeline which writes results to the client.
+Writer is the end of the pipeline which writes results back to the client.
 The type \texttt{Writer} is defined as follows:
 \begin{lstlisting}
 type Writer func (in <-chan Value)
@@ -344,8 +344,8 @@ type WriterFunc func (val Value) ([]byte, error)
 \end{lstlisting}
 This function should set headers and convert the provided value into 
 a slice\footnote{``Slice is a dynamically-sized, flexible view into the elements 
-of an array.''\cite{tour}} of bytes or return an error in case they 
-are provided with a 
+of an array.''\cite{tour}} of bytes or return an error in case it 
+is provided with a 
 wrong input. The implementation of the writer generator itself is shown
 in Figure \ref{fig:MakeWriter} below.
 \begin{figure}[h]
@@ -363,7 +363,7 @@ func MakeWriter(writerFunc WriterFunc) Writer {
                 val.write(resp)
                 val.close()
             } else {
-                WriteError(val, err)
+                writeError(val, err)
             }
         }       
     }
@@ -375,10 +375,10 @@ func MakeWriter(writerFunc WriterFunc) Writer {
 
 The generated writer runs the provided \texttt{writerFunc} for every value 
 that is inputted. If the function returns an error it writes the error 
-back to the client using the \texttt{WriteError}\footnote{See Appendix for the 
-implementation.} function. Otherwise, it 
+back to the client using the \texttt{writeError}\footnote{See Appendix 
+\ref{sec:writer.go} for the implementation.} function. Otherwise, it 
 writes the headers and the body of the response to the client and then 
-closes the connection. (The \texttt{WriteError} does this for the error
+closes the connection. (The \texttt{writeError} does this for the error
 results).
 
 \subsection{Splitter and Collector}
@@ -393,6 +393,7 @@ Condition type is defined as follows:
 type Condition func (val Value) bool
 \end{lstlisting}
 It is a just function that takes a value and returns a boolean.
+The function shouldn't change the provided value.
 
 \subsubsection{Splitter}
 Conditions are used in Splitter, which is a component with the 
