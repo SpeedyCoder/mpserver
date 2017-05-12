@@ -23,7 +23,7 @@ func main() {
     compressed := mpserver.GetChan()
     errChan := mpserver.GetChan()
     splitterOut := mpserver.ToOutChans(
-        []mpserver.ValueChan{errChan, compressed})
+        [](chan mpserver.Value){errChan, compressed})
     uncompressed := mpserver.GetChan()
 
     // Start the file components

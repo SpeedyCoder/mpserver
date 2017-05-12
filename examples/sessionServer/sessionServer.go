@@ -17,7 +17,7 @@ func (s Session) Next(val mpserver.Value) (mpserver.State, error) {
     return Session{s.step+1, s.limit}, nil
 }
 
-func (s Session) Result() mpserver.Any {
+func (s Session) Result() interface{} {
     return "Hello world " + strconv.Itoa(s.step)
 }
 
@@ -28,15 +28,17 @@ func (s Session) Terminal() bool {
 var initial = Session{0, 5}
 
 func main() {
-    in := make(mpserver.ValueChan)
-    out := make(mpserver.ValueChan)
-    errChan := make(mpserver.ValueChan)
+    in := mpserver.GetChan()
+    out := mpserver.GetChan()
+    toStringWriter := mpserver.GetChan()
+    toErrorWriter := mpserver.GetChan()
 
-    store := mpserver.NewMemStore()
-    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*15, true)
+    store := mpserver.NewMemStorage()
+    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*15)
     go sComp(in, out)
-    go mpserver.AddErrorSplitter(mpserver.StringWriter)(out, errChan)
-    go mpserver.ErrorWriter(errChan)
+    go mpserver.ErrorSplitter(in, toStringWriter, toErrorWriter)
+    go mpserver.StringWriter(toStringWriter)
+    go mpserver.ErrorWriter(toErrorWriter)
 
     mux := http.NewServeMux()
     mpserver.Listen(mux, "/", in)

@@ -8,8 +8,8 @@ import(
 
 func stringer(in <-chan mpserver.Value, out chan<- mpserver.Value) {
 	for val := range in {
-		res, _ := val.Result.(mpserver.Response)
-		val.Result = string(res.Body)
+		res, _ := val.GetResult().(mpserver.Response)
+		val.SetResult(string(res.Body))
 		out <- val
 	}
 	close(out)
@@ -18,36 +18,34 @@ func stringer(in <-chan mpserver.Value, out chan<- mpserver.Value) {
 func main() {
 	//--------------------- Internal server ---------------------------
     mux := http.NewServeMux()
-    in := make(mpserver.ValueChan)
-    out := make(mpserver.ValueChan)
-    errChan := make(mpserver.ValueChan)
+    in := mpserver.GetChan()
+    out := mpserver.GetChan()
     sComp := mpserver.ConstantComponent("Hello world!")
 
     go sComp(in, out)
-    go mpserver.StringWriter(out, errChan)
-    go mpserver.ErrorWriter(errChan)
+    go mpserver.StringWriter(out)
 
     mpserver.Listen(mux, "/hello", in)
     log.Println("Listening on port 3000 for internal requests...")
     go http.ListenAndServe(":3000", mux)
 
     //--------------------- External server ---------------------------
-    in = make(mpserver.ValueChan)
-    out = make(mpserver.ValueChan)
-    errChan = make(mpserver.ValueChan)
+    in = mpserver.GetChan()
+    out = mpserver.GetChan()
+    toErrorWriter := mpserver.GetChan()
+    toStringWriter := mpserver.GetChan()
 
     req, _ := http.NewRequest("GET", "http://localhost:3000/hello", nil)
     combComp := mpserver.LinkComponents(
     	mpserver.ConstantComponent(req),
-    	mpserver.StaticLoadBalancer(
-                mpserver.NetworkComponent(&http.Client{}),
-                10),
-    	mpserver.ResponseProcessor,
+        mpserver.NetworkComponent(&http.Client{}),
+        mpserver.ErrorPasser(mpserver.ResponseProcessor),
     	mpserver.ErrorPasser(stringer))
 
-    go combComp(in, out)
-    go mpserver.AddErrorSplitter(mpserver.StringWriter)(out, errChan)
-    go mpserver.ErrorWriter(errChan)
+    go mpserver.StaticLoadBalancer(combComp, 10)(in, out)
+    go mpserver.ErrorSplitter(out, toStringWriter, toErrorWriter)
+    go mpserver.StringWriter(toStringWriter)
+    go mpserver.ErrorWriter(toErrorWriter)
 
     mux = http.NewServeMux()
     mpserver.Listen(mux, "/", in)
