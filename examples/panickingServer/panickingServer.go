@@ -22,14 +22,14 @@ func panickingComponent(in <-chan mpserver.Value,
 
 func main() {
     toComponent := mpserver.GetChan()
-    toSplitter := mpserver.GetChan()
+    toRouter := mpserver.GetChan()
     toStringWriter := mpserver.GetChan()
     toErrorWriter := mpserver.GetChan()
 
     phComp := mpserver.PannicHandler(panickingComponent)
-    go phComp(toComponent, toSplitter)
-    go mpserver.ErrorSplitter(
-        toSplitter, toStringWriter, toErrorWriter)
+    go phComp(toComponent, toRouter)
+    go mpserver.ErrorRouter(
+        toRouter, toStringWriter, toErrorWriter)
     go mpserver.StringWriter(toStringWriter)
     go mpserver.ErrorWriter(toErrorWriter)
 

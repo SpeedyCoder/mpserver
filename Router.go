@@ -29,16 +29,16 @@ func ToInChans(chans [](chan Value)) []<-chan Value {
     return res
 }
 
-// Splitter takes an input channel, default output channel, a 
+// Router takes an input channel, default output channel, a 
 // slice of output channels  and a slice of conditions. The 
 // number of output channels and the number of conditions should 
-// be the same. For every input value the Splitter evaluates the 
+// be the same. For every input value the Router evaluates the 
 // conditions from first to last. When a condition returns true
 // the value is written to a corresponding output channel and the 
 // processing of the current value terminates. If all conditions 
 // return false then the value is written to the default output 
 // channel.
-func Splitter(in <-chan Value, defOut chan<- Value, 
+func Router(in <-chan Value, defOut chan<- Value, 
               outs []chan<- Value, conds []Condition) {
     if len(outs) != len(conds) {
         panic("Number of channels and conditions is not equal.")
@@ -63,11 +63,11 @@ func Splitter(in <-chan Value, defOut chan<- Value,
     }
 }
 
-// ErrorSplitter reads values from its input channel and sends
+// ErrorRouter reads values from its input channel and sends
 // all values that have an error in the result field to the 
 // error channel. It sends all other values to the default output
 // channel.
-func ErrorSplitter(in <-chan Value, defOut chan<- Value, 
+func ErrorRouter(in <-chan Value, defOut chan<- Value, 
                    errChan chan<- Value) {
     for val := range in {
         if _, ok := val.GetResult().(error); ok {

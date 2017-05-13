@@ -5,14 +5,31 @@ a file server and a proxy server in the \texttt{mpserver} toolkit.
 
 \subsection{Hello world! server}
 Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
-server described in section \ref{sec:helloWorld}.
-It's a direct translation of the diagram shown in Figure \ref{fig:helloWorld}.
+server described in section \ref{sec:helloWorld}. Figure \ref{fig:helloWorld2}
+shows the same diagram as Figure \ref{fig:helloWorld}, but with
+added channel names that are the same as the names used in the code.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [component, right of=listener, text width=6em,, node distance=4cm] (hello) {Hello World Component};
+    \node [writer, right of=hello, node distance=4cm] (writer) {String Writer};
+    % Edges
+    \path [line] (listener) edge node {in} (hello);
+    \path [line] (hello) edge node {out} (writer);
+\end{tikzpicture}
+\caption[scale=1.0]{Hello world! server architecture with channel names.}
+\label{fig:helloWorld2}
+\end{figure}
 
 The Listener corresponds to the call of \texttt{mpserver.Listen} function.
 Hello world Component translates into an instance of \texttt{ConstantComponent}
 and String Writer is the writer in the package with the same name.
 We plug these together using two channels, start the component and writer 
-and then start the server itself.
+and then start the server itself. This demonstrates that the diagram translates
+directly into program code.
 
 \begin{figure}[h]
 \centering
@@ -34,7 +51,7 @@ prefix from the requested path and then prepends a provided directory name to
 the result. The \texttt{FileComponent} tries to open a file at a path 
 provided in the result field of the incoming value. Other modifications
 are the addition of the \texttt{ErrorWriter} and the channel going to it from
-the \texttt{Splitter}.
+the \texttt{Router}.
 This path is used when a non existent file is requested by the client.
 Otherwise `.go' files goes to the \texttt{GzipWriter} and all other files to 
 the standard \texttt{FileWriter}.
@@ -48,7 +65,7 @@ Figure \ref{fig:fileServer3}.
     \node [listener] (listener) {Listener};
     \node [component, right of=listener, node distance=3cm] (maker) {Path Maker};
     \node [component, right of=maker, node distance=3cm] (comp) {File Component};
-    \node [component, right of=comp, node distance=3cm] (splitter) {Splitter};
+    \node [component, right of=comp, node distance=3cm] (splitter) {Router};
     \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
     \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
     \node [writer, below of=gwriter] (ewriter) {Error Writer};
@@ -65,6 +82,7 @@ Figure \ref{fig:fileServer3}.
 \end{figure}
 
 \begin{figure}
+\vspace{-1cm}
 \lstinputlisting{../examples/fileServer/fileServer.go}
 \caption[scale=1.0]{Implementation of a File Server that compresses go files.}
 \label{fig:FileServerImpl}
@@ -80,7 +98,7 @@ A simple proxy server can be represented by a diagram shown in Figure
     % Nodes
     \node [listener] (listener) {Listener};
     \node [component, text width=6em, right of=listener, node distance=3cm] (proxy) {Proxy Component};
-    \node [component, right of=proxy, node distance=3cm] (splitter) {Error Splitter};
+    \node [component, right of=proxy, node distance=3cm] (splitter) {Error Router};
     \node [writer, right of=splitter, node distance=3cm] (rwriter) {Response Writer};
     \node [writer, below of=rwriter] (ewriter) {Error Writer};
     % Edges
@@ -96,19 +114,11 @@ A simple proxy server can be represented by a diagram shown in Figure
 Now to increase throughput of this server I propose wrapping the Proxy
 Component in a Static Load Balancer. However, now the number of writers
 will be the limiting factor, so I propose to wrap both writers and 
-the splitter in Static Load Balancer for Writers. In order to be able 
+the router in Static Load Balancer for Writers. In order to be able 
 to do this I create a joint writer that internally runs all of the writers.
 The implementation is shown below in figure \ref{fig:ProxyWriters}.
 \begin{figure}[h]
-\begin{lstlisting}
-func writers(in <-chan mpserver.Value) {
-    toRespWriter := mpserver.GetChan()
-    toErrWriter := mpserver.GetChan()
-    go mpserver.ErrorSplitter(in, toRespWriter, toErrWriter)
-    go mpserver.ResponseWriter(toRespWriter)
-    mpserver.ErrorWriter(toErrWriter)
-}    
-\end{lstlisting}
+\lstinputlisting[firstline=14,lastline=20]{../examples/proxyServer/proxyServer.go}  
 \caption[scale=1.0]{Implementation of the joint writer for the Proxy Server.}
 \label{fig:ProxyWriters}
 \end{figure}
@@ -118,24 +128,7 @@ wrapping the Proxy Component again, but now in a Caching layer. The
 implementation of the server described so far as a single writer is shown
 below in Figure \ref{fig:ProxyWriter}.
 \begin{figure}[h]
-\begin{lstlisting}
-func proxyServerWriter(storage mpserver.Storage) mpserver.Writer {
-    return func (in <-chan mpserver.Value) {
-        // Define the components
-        proxy := mpserver.ProxyComponent("http", 
-                    "www.google.co.uk", &http.Client{})
-        // Start 10 instances of the Proxy Component
-        loadProxy := mpserver.StaticLoadBalancer(proxy, 10)
-        // Cache the output
-        cachedProxy := mpserver.CacheComponent(
-                        storage, loadProxy, CacheTimeout)
-
-        out := mpserver.GetChan()
-        go cachedProxy(in, out)
-        mpserver.StaticLoadBalancerWriter(writers, 10)(out)
-    }
-}  
-\end{lstlisting}
+\lstinputlisting[firstline=22,lastline=37]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the writer representing the Proxy Server.}
 \label{fig:ProxyWriter}
 \end{figure}
@@ -150,23 +143,7 @@ to wrap the writer that represents the whole server in a Dynamic Load
 Balancer. The code for running this server is shown in Figure 
 \ref{fig:ProxyServerImpl}.
 \begin{figure}[h]
-\begin{lstlisting}
-func main() {
-    storage := mpserver.NewMemStorage()
-    server := mpserver.DynamicLoadBalancerWriter(
-        proxyServerWriter(storage), 20, AddTimeout, RemoveTimeout)
-
-    in := mpserver.GetChan()
-    go server(in)
-    go mpserver.StorageCleaner(storage, nil, CacheTimeout)
-
-    // Start the server
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
-    log.Println("Listening on port 5000...")
-    http.ListenAndServe(":5000", mux)
-}
-\end{lstlisting}
+\lstinputlisting[firstline=39,lastline=54]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the the Proxy Server.}
 \label{fig:ProxyServerImpl}
 \end{figure}

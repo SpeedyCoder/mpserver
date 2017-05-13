@@ -14,7 +14,7 @@ const RemoveTimeout = time.Minute
 func writers(in <-chan mpserver.Value) {
 	toRespWriter := mpserver.GetChan()
 	toErrWriter := mpserver.GetChan()
-	go mpserver.ErrorSplitter(in, toRespWriter, toErrWriter)
+	go mpserver.ErrorRouter(in, toRespWriter, toErrWriter)
 	go mpserver.ResponseWriter(toRespWriter)
 	mpserver.ErrorWriter(toErrWriter)
 }

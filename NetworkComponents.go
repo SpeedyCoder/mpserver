@@ -119,7 +119,7 @@ func ResponseReader(in <-chan Value, out chan<- Value) {
 func ProxyComponent(scheme, host string, 
 					client *http.Client) Component {
 	return LinkComponents(
-		ErrorPasser(HTTPRequestMaker(scheme, host)),
+		ErrorPasser(RequestRewriter(scheme, host)),
 		ErrorPasser(NetworkComponent(client)),
 		ErrorPasser(ResponseReader))
 }

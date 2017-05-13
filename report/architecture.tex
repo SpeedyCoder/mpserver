@@ -69,7 +69,7 @@ writes the file to the client. The architecture is shown in Figure \ref{fig:file
 \label{fig:fileServer}
 \end{figure}
 
-If we want to compress some subset of files, we can just add a \texttt{Splitter}
+If we want to compress some subset of files, we can just add a \texttt{Router}
 that sends files that are supposed to be compressed to a \texttt{Gzip Writer}, which
 compresses the file and writes the result to the client. The rest of the files
 will be passed to the standard \texttt{File Writer}. This architecture is shown in
@@ -81,7 +81,7 @@ Figure \ref{fig:fileServer2}.
     % Nodes
     \node [listener] (listener) {Listener};
     \node [component, right of=listener, node distance=3cm] (getter) {File Getter};
-    \node [component, right of=getter, node distance=3cm] (splitter) {Splitter};
+    \node [component, right of=getter, node distance=3cm] (splitter) {Router};
     \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
     \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
     % Edges

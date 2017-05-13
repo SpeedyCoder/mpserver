@@ -39,11 +39,11 @@ func main() {
     combComp := mpserver.LinkComponents(
     	mpserver.ConstantComponent(req),
         mpserver.NetworkComponent(&http.Client{}),
-        mpserver.ErrorPasser(mpserver.ResponseProcessor),
+        mpserver.ErrorPasser(mpserver.ResponseReader),
     	mpserver.ErrorPasser(stringer))
 
     go mpserver.StaticLoadBalancer(combComp, 10)(in, out)
-    go mpserver.ErrorSplitter(out, toStringWriter, toErrorWriter)
+    go mpserver.ErrorRouter(out, toStringWriter, toErrorWriter)
     go mpserver.StringWriter(toStringWriter)
     go mpserver.ErrorWriter(toErrorWriter)
 

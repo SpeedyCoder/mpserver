@@ -381,7 +381,7 @@ writes the headers and the body of the response to the client and then
 closes the connection. (The \texttt{writeError} does this for the error
 results).
 
-\subsection{Splitter and Collector}
+\subsection{Router and Collector}
 In this section I introduce a way to split a stream of incoming values into
 multiple streams of values that go into different parts of the network
 using very flexible rules for splitting. Then I present a way how to
@@ -395,37 +395,37 @@ type Condition func (val Value) bool
 It is a just function that takes a value and returns a boolean.
 The function shouldn't change the provided value.
 
-\subsubsection{Splitter}
-Conditions are used in Splitter, which is a component with the 
+\subsubsection{Router}
+Conditions are used in Router, which is a component with the 
 following signature:
 \begin{lstlisting}
-func Splitter(in <-chan Value, defOut chan<- Value, 
+func Router(in <-chan Value, defOut chan<- Value, 
 			  outs []chan<- Value, conds []Condition)
 \end{lstlisting}
 It takes an input channel, default output channel, a slice of output channels 
 and a slice of conditions.
 The number of output channels and the number of conditions should be the same.
-For every input value the Splitter evaluates the conditions from first to last.
+For every input value the Router evaluates the conditions from first to last.
 When a condition returns \texttt{true} the value is written to a 
 corresponding output channel 
 and the processing of the current value terminates. If all conditions 
 return \texttt{false} then the value is written to the default output channel.
 
-\subsubsection{Error Splitter}
-The package also implements a special splitter that redirects error messages
+\subsubsection{Error Router}
+The package also implements a special router that redirects error messages
 to a special error channel and sends all other messages to the default output 
 channel. This is used to avoid sending error values to 
 any other type of writer than the error writer. If we allowed this, then
 all errors will only show that a particular writer got a wrong input.
-The signature of the \texttt{ErrorSplitter} function is shown below.
+The signature of the \texttt{ErrorRouter} function is shown below.
 \begin{lstlisting}
-func ErrorSplitter(in <-chan Value, defOut chan<- Value, 
+func ErrorRouter(in <-chan Value, defOut chan<- Value, 
                                     errChan chan<- Value)
 \end{lstlisting}
 
 \subsubsection{Collector}
 Collector is a component whose behavior is the opposite of the behavior 
-of a splitter. It gets multiple input channels
+of a router. It gets multiple input channels
 and forwards their outputs to a single output channel. Now as channels
 in go are many-to-many we could just use a single channel to which
 multiple components would output their values. 

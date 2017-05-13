@@ -22,7 +22,7 @@ func FileServerWriter(dir, prefix string) Writer {
         go FileComponent(toFileComp, out)
         
         // Start the splitter and all the writers
-        go ErrorSplitter(out, toWriter, errChan)
+        go ErrorRouter(out, toWriter, errChan)
         go GenericWriter(toWriter)
         ErrorWriter(errChan)
     }

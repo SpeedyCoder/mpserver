@@ -140,14 +140,14 @@ requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
 and similarly for the other two actions. The output of the action maker
 will be connected to the session management component, that is wrapped in
 \texttt{ErrorPasser}, so that we don't process invalid requests.
-Finally the output from the session manager goes to the \texttt{ErrorSplitter}
+Finally the output from the session manager goes to the \texttt{ErrorRouter}
 which sends all non-error values to the \texttt{JsonWriter} and error
 values to the \texttt{ErrorWriter}. 
 
-We can share the session manager, the splitter and the writers for all three actions. 
+We can share the session manager, the router and the writers for all three actions. 
 However, this will make it difficult to load balance individual parts
 of the network. Hence, each action maker should be connected to their
-own load manager and this to its own splitter and writers. The overall 
+own load manager and this to its own router and writers. The overall 
 design for the add action
 is show in diagram of Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} 
 is omitted for clarity.
@@ -158,7 +158,7 @@ is omitted for clarity.
     \node [listener] (listener) {/add};
     \node [component, right of=listener, node distance=3cm] (maker) {Add Action Maker};
     \node [component, right of=maker, node distance=3cm] (manager) {Session Manager};
-    \node [component, right of=manager, node distance=3cm] (splitter) {Error Splitter};
+    \node [component, right of=manager, node distance=3cm] (splitter) {Error Router};
     \node [writer, right of=splitter, node distance=3cm, yshift=1cm] (writer) {JSON Writer};
     \node [writer, below of=writer] (ewriter) {Error Writer};
     
@@ -183,32 +183,7 @@ as arguments of the function.
 
 \newpage
 \begin{figure}[h]
-\begin{lstlisting}
-func actionWriter(actionMaker mpserver.Component, 
-                  storage mpserver.Storage) mpserver.Writer {
-    return func (in <-chan mpserver.Value) {
-        // Define session component
-        seshComp := mpserver.SessionManagementComponent(
-                storage, InitialState, SessionExpiration)
-        // Wrap it in an Error Passer
-        seshComp = mpserver.ErrorPasser(seshComp)
-
-        // Create channels
-        toSeshManager := mpserver.GetChan()
-        toSplitter := mpserver.GetChan()
-        toWriter := mpserver.GetChan()
-        toErrWriter := mpserver.GetChan()
-
-        // Start the components and writers
-        go actionMaker(in, toSeshManager)
-        go seshComp(toSeshManager, toSplitter)
-        go mpserver.ErrorSplitter(
-            toSplitter, toWriter, toErrWriter)
-        go mpserver.JsonWriter(toWriter)
-        mpserver.ErrorWriter(toErrWriter)
-    }
-}
-\end{lstlisting}
+\lstinputlisting[firstline=15,lastline=38]{../examples/shoppingServer/shoppingServer.go} 
 \caption[scale=1.0]{Implementation of the writer that represents the whole
 pipeline for one action.}
 \label{fig:shoppingWriter}
@@ -221,43 +196,7 @@ of the combined writer for the add action and fewer instances for the
 other two actions. The code for running the whole server is shown
 in Figure \ref{fig:ShoppingCode}.
 \begin{figure}[h]
-\begin{lstlisting}
-func main() {
-    // Create the storage
-    storage := mpserver.NewMemStorage()
-    // Create writers
-    addActionWriter := actionWriter(addActionMaker, storage)
-    rmvActionWriter := actionWriter(rmvActionMaker, storage)
-    buyActionWriter := actionWriter(buyActionMaker, storage)
-
-    // Wrap them in Load Balancers
-    addActionWriter = mpserver.DynamicLoadBalancerWriter(
-        addActionWriter, 100, AddTimeout, RemoveTimeout)
-    rmvActionWriter = mpserver.DynamicLoadBalancerWriter(
-        rmvActionWriter, 20, AddTimeout, RemoveTimeout)
-    buyActionWriter = mpserver.DynamicLoadBalancerWriter(
-        buyActionWriter, 40, AddTimeout, RemoveTimeout)
-
-    // Make channels
-    toAddActionMaker := mpserver.GetChan()
-    toRmvActionMaker := mpserver.GetChan()
-    toBuyActionMaker := mpserver.GetChan()
-
-    // Start the load balanced writers
-    go addActionWriter(toAddActionMaker)
-    go rmvActionWriter(toRmvActionMaker)
-    go buyActionWriter(toBuyActionMaker)
-    go mpserver.StorageCleaner(storage, nil, SessionExpiration)
-
-    // Start the server
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/add", toAddActionMaker)
-    mpserver.Listen(mux, "/remove", toRmvActionMaker)
-    mpserver.Listen(mux, "/buy", toBuyActionMaker)
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
-}
-\end{lstlisting}
+\lstinputlisting[firstline=40,lastline=74]{../examples/shoppingServer/shoppingServer.go} 
 \caption[scale=1.0]{Implementation of the Shopping Server.}
 \label{fig:ShoppingCode}
 \end{figure}

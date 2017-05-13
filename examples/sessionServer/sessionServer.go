@@ -34,9 +34,9 @@ func main() {
     toErrorWriter := mpserver.GetChan()
 
     store := mpserver.NewMemStorage()
-    sComp := mpserver.SessionManagementComponent(store, initial, time.Second*15)
+    sComp := mpserver.SessionManager(store, initial, time.Second*15)
     go sComp(in, out)
-    go mpserver.ErrorSplitter(in, toStringWriter, toErrorWriter)
+    go mpserver.ErrorRouter(out, toStringWriter, toErrorWriter)
     go mpserver.StringWriter(toStringWriter)
     go mpserver.ErrorWriter(toErrorWriter)
 

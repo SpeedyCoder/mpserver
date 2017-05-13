@@ -16,22 +16,22 @@ func actionWriter(actionMaker mpserver.Component,
                   storage mpserver.Storage) mpserver.Writer {
     return func (in <-chan mpserver.Value) {
         // Define session component
-        seshComp := mpserver.SessionManagementComponent(
+        seshComp := mpserver.SessionManager(
                 storage, InitialState, SessionExpiration)
         // Wrap it in an Error Passer
         seshComp = mpserver.ErrorPasser(seshComp)
 
         // Create channels
         toSeshManager := mpserver.GetChan()
-        toSplitter := mpserver.GetChan()
+        toRouter := mpserver.GetChan()
         toWriter := mpserver.GetChan()
         toErrWriter := mpserver.GetChan()
 
         // Start the components and writers
         go actionMaker(in, toSeshManager)
-        go seshComp(toSeshManager, toSplitter)
-        go mpserver.ErrorSplitter(
-            toSplitter, toWriter, toErrWriter)
+        go seshComp(toSeshManager, toRouter)
+        go mpserver.ErrorRouter(
+            toRouter, toWriter, toErrWriter)
         go mpserver.JsonWriter(toWriter)
         mpserver.ErrorWriter(toErrWriter)
     }
@@ -72,4 +72,3 @@ func main() {
     log.Println("Listening on port 3000...")
     http.ListenAndServe(":3000", mux)
 }
-

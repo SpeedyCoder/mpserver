@@ -10,20 +10,20 @@ func main() {
     // Construct the channels
     in := mpserver.GetChan()
     toFileComp := mpserver.GetChan()
-    toSplitter := mpserver.GetChan()
+    toRouter := mpserver.GetChan()
     compressed := mpserver.GetChan()
     errChan := mpserver.GetChan()
-    splitterOut := mpserver.ToOutChans(
+    routerOut := mpserver.ToOutChans(
         [](chan mpserver.Value){errChan, compressed})
     uncompressed := mpserver.GetChan()
 
     // Start the file components
     go mpserver.PathMaker("files", "")(in, toFileComp)
-    go mpserver.FileComponent(toFileComp, toSplitter)
+    go mpserver.FileComponent(toFileComp, toRouter)
     
-    // Start the splitter
-    go mpserver.Splitter(toSplitter, uncompressed, splitterOut, 
-                         []mpserver.Condition{isError, isGoFile})
+    // Start the router
+    go mpserver.Router(toRouter, uncompressed, routerOut, 
+                       []mpserver.Condition{isError, isGoFile})
 
     // Start the writers
     go mpserver.GzipWriter(compressed)
