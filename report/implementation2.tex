@@ -272,15 +272,76 @@ behaves as follows:
         for components.
 \end{itemize}
 
+\newpage
 \subsection{Network Components}
-In this section I present a component generator that can make network
-requests. Then I introduce a helper component that alters incoming 
-requests, so that they can be performed again using a different host
-and a component that processes HTTP responses. Finally, I show how
-can these components be plugged together to act as a proxy server. 
+In this section I present a proxy component, which is an essential
+part of a proxy server. Then I introduce three components that
+are used to construct the more complex proxy component. These components
+are quite useful on their own, especially the network component,
+which can be used to delegate tasks to other servers. The other 
+two perform rewriting of the http requests and reading of the http
+responses.
+
+\subsubsection{Proxy Component}
+In order to implements a proxy server one might want to use
+a component that forwards the incoming requests to another server
+and then reads and outputs the responses. The operation that this
+component needs to perform can be divided into three sub-operations: 
+rewriting of the request, doing the the request and reading the 
+response. To perform each of these sub-operations I implemented
+three separate components. These are \texttt{RequestRewriter}, 
+\texttt{NetworkComponent} and \texttt{ResponseReader}.
+
+Now the proxy component is just a linear combination of these three
+sub-components. Its implementation using the \texttt{LinkComponents}
+function is shown in Figure \ref{fig:ProxyComp} below. 
+The sub-components are described in the
+following sections. Note that all sub-components are wrapped
+in an \texttt{ErrorPasser} to avoid doing unnecessary work 
+and to make the component more robust.
+
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+func ProxyComponent(scheme, host string, 
+                    client *http.Client) Component {
+  return LinkComponents(
+    ErrorPasser(RequestCopier(scheme, host)),
+    ErrorPasser(NetworkComponent(client)),
+    ErrorPasser(ResponseProcessor))
+}
+\end{lstlisting}
+\caption[scale=1.0]{Declaration of Proxy Component generator.}
+\label{fig:ProxyComp}
+\end{figure}
+
+Note that this approach to building the \texttt{ProxyComponent} exploits
+the benefits of the compositional approach. That is we create simple
+components each performing a single operation. These can be easily
+reused in different scenarios. We can replace parts of the pipeline 
+to meet our requirements. If for example we wanted to produce different
+types of requests, we could replace the \texttt{RequestRewriter} with
+a custom component. In case we were only interested in the headers of
+the response we could replace the \texttt{ResponseReader} with another 
+custom component and so on.
+
+\subsubsection{Request Rewriter}
+Request Rewriter is the first part of in the pipeline of the 
+\texttt{ProxyComponent}. It is implemented as a component generator with the 
+following signature:
+\begin{lstlisting}
+func RequestRewriter(scheme, host string) Component
+\end{lstlisting}
+It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
+and returns a component that performs the rewriting. This component
+updates the request made by the client with the given scheme and path
+for each input value. It then stores the request in the result field of the 
+given value and outputs it.
 
 \subsubsection{Network Component}
-Network Component is a component generator with the following signature:
+Network Component is the second part of in the pipeline of the 
+\texttt{ProxyComponent}. It is implemented as a component generator 
+with the following signature:
 \begin{lstlisting}
 func NetworkComponent(client *http.Client) Component
 \end{lstlisting}
@@ -288,9 +349,13 @@ It takes a single parameter, which is an http client.
 The generated component for each input value makes an http request,
 taken from the Result field of the value, using the provided http client.
 If there is no request in the Result field or the request fails, then
-the component returns an appropriate error. The behavior of the generated 
-component is described in Figure \ref{fig:networkComp} below.
+the component returns an appropriate error. 
 
+The behavior of the generated component is described in 
+Figure \ref{fig:networkComp} below. This component is usually used
+to delegate tasks to other servers. In the case of a proxy server
+it delegates all of the work to the other server, but in other scenarios
+it can delegate only some tasks or their parts.
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
@@ -312,19 +377,9 @@ component is described in Figure \ref{fig:networkComp} below.
 Note that the result of the request is fetched in the goroutine where the
 component runs. Hence, slow requests might block the pipeline. To avoid
 this behavior \texttt{NetworkComponent} is usually used together with one
-of the load managers.
+of the load managers. 
 
-\subsubsection{Request Copier}
-Request Copier is a component generator with the following signature:
-\begin{lstlisting}
-func RequestCopier(scheme, host string) Component
-\end{lstlisting}
-It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
-and returns a component that for each input value copies the Request made 
-by the client to the Result field and updates it with the given scheme and 
-path and then outputs this value.
-
-\subsubsection{Response Processor}
+\subsubsection{Response Reader}
 The \texttt{Response} type of the \texttt{mpserver} package is defined as
 a struct that is shown in Figure \ref{fig:Response}.
 \begin{figure}[h]
@@ -345,46 +400,26 @@ The difference between
 this definition and the definition in the default \texttt{http} package is that
 the body of my \texttt{Response} is a slice of bytes. 
 That is the body have already been
-read and the connection to the server has been closed.
+read and the connection to the server has been closed. This is useful
+in the case of a proxy server, as we can cache these objects and reuse
+them. This is not possible with the default response type,
+as its body can be only read once.
 
-The \texttt{ResponseProcessor} is a component that for each input value
-looks if the provided result is the default \texttt{http} Response. 
+The \texttt{ResponseReader} is a component that for each input value
+looks if its result field contains the default \texttt{http} Response. 
 If that is the case,
 then it reads the response and transfers it to \texttt{mpsever Response} 
 type, which it
 then writes to the result field and outputs the value. If no response
-is provided, then the component outputs an appropriate error.
+is provided, then the component outputs an appropriate error. 
 
+This is the last part in the pipeline of the \texttt{ProxyComponent}.
 To use this component after the \texttt{NetworkComponent}, 
-the \texttt{ResponseProcessor}
-should be wrapped in an error passing component, so that when the\\
-\texttt{NetworkComponent} fails, then the response processor won't have to do
-any work.
+the \texttt{ResponseReader} should be wrapped in an error passing 
+component, so that when the \texttt{Network\-Component} fails, then 
+the \texttt{ResponseReader} won't have to do any work.
 
-\subsubsection{Proxy Component}
-Proxy component is a combination of \texttt{RequestCopier}, 
-\texttt{NetworkComponent} 
-and \texttt{ResponseProcessor} in a linear pipeline. It acts as a proxy server
-in the following sense. It forwards the provided request to the specified
-host and then reads and outputs the response. 
-All components are wrapped
-in an \texttt{ErrorPasser} to avoid doing unnecessary work and to make the component
-more robust. The implementation is shown in Figure \ref{fig:ProxyComp} below.
 
-\begin{figure}[h]
-\centering
-\begin{lstlisting}
-func ProxyComponent(scheme, host string, 
-                    client *http.Client) Component {
-  return LinkComponents(
-    ErrorPasser(RequestCopier(scheme, host)),
-    ErrorPasser(NetworkComponent(client)),
-    ErrorPasser(ResponseProcessor))
-}
-\end{lstlisting}
-\caption[scale=1.0]{Declaration of Proxy Component generator.}
-\label{fig:ProxyComp}
-\end{figure}
 \subsection{Summary}
 In this chapter I introduced more advanced component wrappers and generators
 and described how to use them. The next chapter shows a few example

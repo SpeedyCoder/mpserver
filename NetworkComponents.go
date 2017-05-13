@@ -52,11 +52,11 @@ func readResponse(resp *http.Response) ([]byte, error) {
 }
 
 
-// HTTPRequestMaker returns a component that modifies the request 
+// RequestRewriter returns a component that modifies the request 
 // in the request field of input values with the provided host 
 // and scheme and then stores it in the result field of the value
 // before outputting it.
-func HTTPRequestMaker(scheme, host string) Component {
+func RequestRewriter(scheme, host string) Component {
 	return func (in <-chan Value, out chan<- Value) {
 		for val := range in {
 			request := val.GetRequest()
