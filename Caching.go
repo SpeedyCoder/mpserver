@@ -18,7 +18,7 @@ func stringInSlice(a string, list []string) bool {
     return false
 }
 
-// HTTP methods that should be cached
+// HTTP methods that should be cached.
 var CachableMethods = []string{"GET", "HEAD", "POST", "PATCH"}
 
 // isCachable checks if the provided method is in the slice of 
