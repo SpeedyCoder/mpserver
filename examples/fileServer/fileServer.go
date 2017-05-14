@@ -1,7 +1,5 @@
 package main
 import(
-    "log"
-    "net/http"
     "mpserver"
     "strings"
 )
@@ -17,6 +15,8 @@ func main() {
         [](chan mpserver.Value){errChan, compressed})
     uncompressed := mpserver.GetChan()
 
+    mpserver.Listen("/", in, nil)   // Listener
+
     // Start the file components
     go mpserver.PathMaker("files", "")(in, toFileComp)
     go mpserver.FileComponent(toFileComp, toRouter)
@@ -26,15 +26,11 @@ func main() {
                        []mpserver.Condition{isError, isGoFile})
 
     // Start the writers
-    go mpserver.GzipWriter(compressed)
-    go mpserver.GenericWriter(uncompressed)
     go mpserver.ErrorWriter(errChan)
+    go mpserver.GzipWriter(compressed)
+    go mpserver.GenericWriter(uncompressed) // File Writer
 
-    // Start the server
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
+    mpserver.ListenAndServe(":3000", nil) // Start the server
 }
 
 // Condition to test whether the provided value contains an error 

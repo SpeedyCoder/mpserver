@@ -73,7 +73,11 @@ If we want to compress some subset of files, we can just add a \texttt{Router}
 that sends files that are supposed to be compressed to a \texttt{Gzip Writer}, which
 compresses the file and writes the result to the client. The rest of the files
 will be passed to the standard \texttt{File Writer}. This architecture is shown in
-Figure \ref{fig:fileServer2}.
+Figure \ref{fig:fileServer2}. The circular gate in the diagram represents 
+the condition that must be satisfied in order to send the files
+to the \texttt{Gzip Writer}. The gate is absent on the channel that goes to
+the \texttt{File Writer} to indicate that all requests that doesn't
+satisfy the condition are sent to the \texttt{File Writer}.
 
 \begin{figure}[h]
 \centering
@@ -83,12 +87,12 @@ Figure \ref{fig:fileServer2}.
     \node [component, right of=listener, node distance=3cm] (getter) {File Getter};
     \node [component, right of=getter, node distance=3cm] (splitter) {Router};
     \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
-    \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
+    \node [writer, above of=fwriter] (gwriter) {Gzip Writer};
     % Edges
     \path [line] (listener) -- (getter);
     \path [line] (getter) -- (splitter);
     \path [line] (splitter) -- (fwriter);
-    \path [line] (splitter) |- (gwriter);
+    \path [line] (splitter) |- node[condition, cross]{} (gwriter);
 \end{tikzpicture}
 \caption[scale=1.0]{File server with compression.}
 \label{fig:fileServer2}

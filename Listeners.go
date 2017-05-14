@@ -1,8 +1,12 @@
 package mpserver
 
 import "net/http"
+import "log"
 
 const UndefinedRespCode int = -1;
+
+// DefaultServeMux is the one used by 
+var DefaultServeMux = http.NewServeMux()
 
 // GetChan returns an unbuffered channel of type chan Value.
 func GetChan() chan Value {
@@ -35,7 +39,23 @@ func Handler(out chan<- Value) http.Handler {
 
 // Listen registers a handler on the provided ServeMux for the 
 // provided url, that will for each incoming request create 
-// a Value object and send it to the output channel.
-func Listen(s *http.ServeMux, url string, out chan<- Value) {
-    s.HandleFunc(url, HandlerFunction(out))
+// a Value object and send it to the output channel. If the 
+// provided ServeMux is nil DefaultServeMux is used.
+func Listen(url string, out chan<- Value, mux *http.ServeMux) {
+    if (mux != nil) {
+        mux.HandleFunc(url, HandlerFunction(out))
+    } else {
+        DefaultServeMux.HandleFunc(url, HandlerFunction(out))
+    }
+}
+
+// ListenAndServe call the ListenAndServe method of the default
+// http package with the provided handler if the handler is not 
+// nil. It otherwise uses the DefaultServeMux.
+func ListenAndServe(addr string, handler http.Handler) error {
+    log.Println("Listening at", addr)
+    if (handler != nil) {
+        return http.ListenAndServe(addr, handler)
+    }
+    return http.ListenAndServe(addr, DefaultServeMux)
 }

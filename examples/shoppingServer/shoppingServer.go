@@ -1,11 +1,8 @@
 package main
 
-import(
-    "log"
-    "net/http"
-    "mpserver"
-    "time"
-)
+import "mpserver"
+import "time"
+
 
 const SessionExpiration = time.Minute*5
 const AddTimeout = time.Second
@@ -38,37 +35,38 @@ func actionWriter(actionMaker mpserver.Component,
 }
 
 func main() {
+    // Make channels
+    toAddActionWriter := mpserver.GetChan()
+    toRmvActionWriter := mpserver.GetChan()
+    toBuyActionWriter := mpserver.GetChan()
+
+    // Set up listeners
+    mpserver.Listen("/add", toAddActionWriter, nil)
+    mpserver.Listen("/remove", toRmvActionWriter, nil)
+    mpserver.Listen("/buy", toBuyActionWriter, nil)
+
     // Create the storage
     storage := mpserver.NewMemStorage()
-    // Create writers
+
+    // Create writers that share the storage object
     addActionWriter := actionWriter(addActionMaker, storage)
     rmvActionWriter := actionWriter(rmvActionMaker, storage)
     buyActionWriter := actionWriter(buyActionMaker, storage)
 
-    // Wrap them in Load Balancers
+    // Wrap the writers in load balancers
     addActionWriter = mpserver.DynamicLoadBalancerWriter(
         addActionWriter, 100, AddTimeout, RemoveTimeout)
     rmvActionWriter = mpserver.DynamicLoadBalancerWriter(
         rmvActionWriter, 20, AddTimeout, RemoveTimeout)
     buyActionWriter = mpserver.DynamicLoadBalancerWriter(
         buyActionWriter, 40, AddTimeout, RemoveTimeout)
-
-    // Make channels
-    toAddActionMaker := mpserver.GetChan()
-    toRmvActionMaker := mpserver.GetChan()
-    toBuyActionMaker := mpserver.GetChan()
-
-    // Start the load balanced writers
-    go addActionWriter(toAddActionMaker)
-    go rmvActionWriter(toRmvActionMaker)
-    go buyActionWriter(toBuyActionMaker)
+    
+    // Start the load balanced writers and storage cleaner
+    go addActionWriter(toAddActionWriter)
+    go rmvActionWriter(toRmvActionWriter)
+    go buyActionWriter(toBuyActionWriter)
     go mpserver.StorageCleaner(storage, nil, SessionExpiration)
 
     // Start the server
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/add", toAddActionMaker)
-    mpserver.Listen(mux, "/remove", toRmvActionMaker)
-    mpserver.Listen(mux, "/buy", toBuyActionMaker)
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
+    mpserver.ListenAndServe(":3000", nil)
 }

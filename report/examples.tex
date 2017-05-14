@@ -53,10 +53,12 @@ provided in the result field of the incoming value. Other modifications
 are the addition of the \texttt{ErrorWriter} and the channel going to it from
 the \texttt{Router}.
 This path is used when a non existent file is requested by the client.
-Otherwise `.go' files goes to the \texttt{GzipWriter} and all other files to 
+
+Otherwise `.go' files are sent to the \texttt{GzipWriter} and all other files to 
 the standard \texttt{FileWriter}.
 The diagram that represents this server is shown in 
-Figure \ref{fig:fileServer3}.
+Figure \ref{fig:fileServer3}. Note that the diagram translates directly 
+to program code again.
 
 \begin{figure}[h]
 \centering
@@ -67,15 +69,15 @@ Figure \ref{fig:fileServer3}.
     \node [component, right of=maker, node distance=3cm] (comp) {File Component};
     \node [component, right of=comp, node distance=3cm] (splitter) {Router};
     \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
-    \node [writer, below of=fwriter] (gwriter) {Gzip Writer};
-    \node [writer, below of=gwriter] (ewriter) {Error Writer};
+    \node [writer, above of=fwriter] (gwriter) {Gzip Writer};
+    \node [writer, above of=gwriter] (ewriter) {Error Writer};
     % Edges
     \path [line] (listener) -- (maker);
     \path [line] (maker) -- (comp);
     \path [line] (comp) -- (splitter);
     \path [line] (splitter) -- (fwriter);
-    \path [line] (splitter) |- (gwriter);
-    \path [line] (splitter) |- (ewriter);
+    \path [line] ($(splitter.north) + (0.4, 0)$) |- node[condition, cross]{} (gwriter);
+    \path [line] ($(splitter.north) + (-0.4, 0)$) |- node[condition, cross]{} (ewriter);
 \end{tikzpicture}
 \caption[scale=1.0]{File server with compression and error handling.}
 \label{fig:fileServer3}
@@ -118,7 +120,7 @@ the router in Static Load Balancer for Writers. In order to be able
 to do this I create a joint writer that internally runs all of the writers.
 The implementation is shown below in figure \ref{fig:ProxyWriters}.
 \begin{figure}[h]
-\lstinputlisting[firstline=14,lastline=20]{../examples/proxyServer/proxyServer.go}  
+\lstinputlisting[firstline=12,lastline=18]{../examples/proxyServer/proxyServer.go}  
 \caption[scale=1.0]{Implementation of the joint writer for the Proxy Server.}
 \label{fig:ProxyWriters}
 \end{figure}
@@ -128,7 +130,7 @@ wrapping the Proxy Component again, but now in a Caching layer. The
 implementation of the server described so far as a single writer is shown
 below in Figure \ref{fig:ProxyWriter}.
 \begin{figure}[h]
-\lstinputlisting[firstline=22,lastline=37]{../examples/proxyServer/proxyServer.go} 
+\lstinputlisting[firstline=20,lastline=35]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the writer representing the Proxy Server.}
 \label{fig:ProxyWriter}
 \end{figure}
@@ -143,7 +145,7 @@ to wrap the writer that represents the whole server in a Dynamic Load
 Balancer. The code for running this server is shown in Figure 
 \ref{fig:ProxyServerImpl}.
 \begin{figure}[h]
-\lstinputlisting[firstline=39,lastline=54]{../examples/proxyServer/proxyServer.go} 
+\lstinputlisting[firstline=37,lastline=50]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the the Proxy Server.}
 \label{fig:ProxyServerImpl}
 \end{figure}

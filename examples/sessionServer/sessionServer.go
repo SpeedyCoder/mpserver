@@ -1,9 +1,7 @@
 package main
 
 import(
-    "log"
     "strconv"
-    "net/http"
     "mpserver"
     "time"
 )
@@ -40,11 +38,6 @@ func main() {
     go mpserver.StringWriter(toStringWriter)
     go mpserver.ErrorWriter(toErrorWriter)
 
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
+    mpserver.Listen("/", in, nil)
+    mpserver.ListenAndServe(":3000", nil)
 }
-
-
-

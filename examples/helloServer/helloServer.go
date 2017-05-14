@@ -1,16 +1,15 @@
 package main
-import "net/http"
 import "mpserver"
 
 func main() {
+	// Create the channels
     in := mpserver.GetChan()
     out := mpserver.GetChan()
 
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
-
+    // Start the components
+    mpserver.Listen("/", in, nil)
     go mpserver.ConstantComponent("Hello world!")(in, out)
     go mpserver.StringWriter(out)
     
-    http.ListenAndServe(":3000", mux)
+    mpserver.ListenAndServe(":3000", nil) // Start the server
 }

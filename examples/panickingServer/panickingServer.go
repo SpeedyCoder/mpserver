@@ -1,10 +1,6 @@
 package main
+import "mpserver"
 
-import(
-    "log"
-    "net/http"
-    "mpserver"
-)
 
 func panickingComponent(in <-chan mpserver.Value, 
                         out chan<- mpserver.Value) {
@@ -33,8 +29,6 @@ func main() {
     go mpserver.StringWriter(toStringWriter)
     go mpserver.ErrorWriter(toErrorWriter)
 
-    mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", toComponent)
-    log.Println("Listening on port 3000...")
-    http.ListenAndServe(":3000", mux)
+    mpserver.Listen("/", toComponent, nil)
+    mpserver.ListenAndServe(":3000", nil)
 }

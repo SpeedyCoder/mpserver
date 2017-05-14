@@ -1,15 +1,13 @@
 package main
 import (
-	"log"
-	"net/http"
 	"mpserver"
 	"time"
+	"net/http"
 )
 
 const CacheTimeout = time.Minute
 const AddTimeout = time.Second*5
 const RemoveTimeout = time.Minute
-
 
 func writers(in <-chan mpserver.Value) {
 	toRespWriter := mpserver.GetChan()
@@ -47,8 +45,6 @@ func main() {
 	go mpserver.StorageCleaner(storage, nil, CacheTimeout)
 
 	// Start the server
-	mux := http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
-    log.Println("Listening on port 5000...")
-    http.ListenAndServe(":5000", mux)
+    mpserver.Listen("/", in, nil)
+    mpserver.ListenAndServe(":5000", nil)
 }

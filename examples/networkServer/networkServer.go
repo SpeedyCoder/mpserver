@@ -25,7 +25,7 @@ func main() {
     go sComp(in, out)
     go mpserver.StringWriter(out)
 
-    mpserver.Listen(mux, "/hello", in)
+    mpserver.Listen("/hello", in, mux)
     log.Println("Listening on port 3000 for internal requests...")
     go http.ListenAndServe(":3000", mux)
 
@@ -48,7 +48,7 @@ func main() {
     go mpserver.ErrorWriter(toErrorWriter)
 
     mux = http.NewServeMux()
-    mpserver.Listen(mux, "/", in)
+    mpserver.Listen("/", in, mux)
     log.Println("Listening on port 5000...")
     http.ListenAndServe(":5000", mux)
 }
