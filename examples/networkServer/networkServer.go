@@ -6,11 +6,11 @@ import(
     "mpserver"
 )
 
-func stringer(in <-chan mpserver.Value, out chan<- mpserver.Value) {
-	for val := range in {
-		res, _ := val.GetResult().(mpserver.Response)
-		val.SetResult(string(res.Body))
-		out <- val
+func stringer(in <-chan mpserver.Job, out chan<- mpserver.Job) {
+	for job := range in {
+		res, _ := job.GetResult().(mpserver.Response)
+		job.SetResult(string(res.Body))
+		out <- job
 	}
 	close(out)
 }

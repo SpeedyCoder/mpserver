@@ -14,195 +14,194 @@ import (
 //-------------------- Helper Functions -------------------------
 
 // writeError writes the error message from the provided error to
-// the client that is represented by the provided value.
-func writeError(val Value, err error) {
-    val.SetResponseCodeIfUndef(http.StatusInternalServerError)
+// the client that is represented by the provided job.
+func writeError(job Job, err error) {
+    job.SetResponseCodeIfUndef(http.StatusInternalServerError)
     log.Println("Error:", err.Error())
-    http.Error(val.getResponseWriter(), 
-        err.Error(), val.getResponseCode())
-    val.close()
+    http.Error(job.getResponseWriter(), 
+        err.Error(), job.getResponseCode())
+    job.close()
 }
 
 // writeWrongInput is used to write error message back to the 
 // client, when a writer is provided with a wrong input type.
-func writeWrongInput(val Value, template string) {
-    err := errors.New(fmt.Sprintf(template, val.GetResult()))
-    writeError(val, err)
+func writeWrongInput(job Job, template string) {
+    err := errors.New(fmt.Sprintf(template, job.GetResult()))
+    writeError(job, err)
 }
 
 //-------------------- Output Writers ---------------------------
 
 // Writer is the end of the pipeline which writes results back to
-// the clients for all values that it reads from its input 
-// channel.
-type Writer func (in <-chan Value)
+// the clients for all jobs that it reads from its input channel.
+type Writer func (in <-chan Job)
 
 // WriterFunc is used to create custom writers using the 
 // MakeWriter function. It should set headers and convert the 
-// provided value into a slice of bytes or return an error in 
+// provided job into a slice of bytes or return an error in 
 // case it is provided with a wrong input.
-type WriterFunc func (val Value) ([]byte, error)
+type WriterFunc func (job Job) ([]byte, error)
 
 // MakeWriter generates a Writer using the provided WriterFunc.
 func MakeWriter(writerFunc WriterFunc) Writer {
-    return func (in <-chan Value) {
-        for val := range in {
-            resp, err := writerFunc(val)
+    return func (in <-chan Job) {
+        for job := range in {
+            resp, err := writerFunc(job)
 
             if (err == nil) {
                 // Write the response
-                val.SetResponseCodeIfUndef(http.StatusOK)
-                val.writeHeader()
-                val.write(resp)
-                val.close()
+                job.SetResponseCodeIfUndef(http.StatusOK)
+                job.writeHeader()
+                job.write(resp)
+                job.close()
             } else {
-                writeError(val, err)
+                writeError(job, err)
             }
         }       
     }
 }
 
 // ErrorWriter is a writer used for writing error responses. It 
-// expects an error object in the result field of input values. 
-func ErrorWriter(in <-chan Value) {
+// expects an error object in the result field of input jobs. 
+func ErrorWriter(in <-chan Job) {
     errorTemplate := "Passed in %t to ErrorWriter."
-    for val := range in {
-        err, ok := val.GetResult().(error)
+    for job := range in {
+        err, ok := job.GetResult().(error)
         if (!ok) {
-            val.SetResponseCode(http.StatusInternalServerError)
-            writeWrongInput(val, errorTemplate)
+            job.SetResponseCode(http.StatusInternalServerError)
+            writeWrongInput(job, errorTemplate)
         } else {
-            writeError(val, err)
+            writeError(job, err)
         }
         
     }
 }
 
 // StringWriter is a writer used for writing string responses. It 
-// expects a string in the result field of input values.  
-func StringWriter(in <-chan Value) {
+// expects a string in the result field of input jobs.  
+func StringWriter(in <-chan Job) {
     errorTemplate := "Passed in %t to StringWriter."
-    for val := range in {
-        s, ok := val.GetResult().(string)
+    for job := range in {
+        s, ok := job.GetResult().(string)
         if (!ok) {
-            writeWrongInput(val, errorTemplate)
+            writeWrongInput(job, errorTemplate)
         } else {
-            val.SetResponseCodeIfUndef(http.StatusOK)
-        	val.writeHeader()
-            val.write([]byte(s))
-            val.close()
+            job.SetResponseCodeIfUndef(http.StatusOK)
+        	job.writeHeader()
+            job.write([]byte(s))
+            job.close()
         }   
     }
 }
 
 // JsonWriter is a writer used for writing JSON responses. It 
-// expects any object in the result field of input values that 
+// expects any object in the result field of input jobs that 
 // can be converted to a JSON string using the json module.
-func JsonWriter(in <-chan Value) {
-    for val := range in {
-        js, err := json.Marshal(val.GetResult())
+func JsonWriter(in <-chan Job) {
+    for job := range in {
+        js, err := json.Marshal(job.GetResult())
         if err != nil {
-            writeError(val, err)
+            writeError(job, err)
         } else {
-            val.SetHeader("Content-Type", "application/json")
-            val.SetResponseCodeIfUndef(http.StatusOK)
-            val.writeHeader()
-            val.write(js)
-            val.close()
+            job.SetHeader("Content-Type", "application/json")
+            job.SetResponseCodeIfUndef(http.StatusOK)
+            job.writeHeader()
+            job.write(js)
+            job.close()
         }
     }
 }
 
 // GzipWriter is a writer used for writing responses compressed 
 // using Gzip compression. It expects an io.ReadCloser object in 
-// the result field of input values.
-func GzipWriter(in <-chan Value) {
+// the result field of input jobs.
+func GzipWriter(in <-chan Job) {
     errorTemplate := "Passed in %t to GzipWriter."
-	for val := range in {
-		reader, ok := val.GetResult().(io.ReadCloser)
+	for job := range in {
+		reader, ok := job.GetResult().(io.ReadCloser)
 		if (!ok) {
-			writeWrongInput(val, errorTemplate)
+			writeWrongInput(job, errorTemplate)
 			continue
 		}
 
-        val.SetHeader("Content-Encoding", "gzip")
-        val.SetHeader("Content-Type", "application/x-gzip")
-        val.SetResponseCodeIfUndef(http.StatusOK)
-        val.writeHeader()
+        job.SetHeader("Content-Encoding", "gzip")
+        job.SetHeader("Content-Type", "application/x-gzip")
+        job.SetResponseCodeIfUndef(http.StatusOK)
+        job.writeHeader()
 		
-		gzipWriter := gzip.NewWriter(val.getResponseWriter())
+		gzipWriter := gzip.NewWriter(job.getResponseWriter())
 		io.Copy(gzipWriter, reader)
 		gzipWriter.Close()
 		reader.Close()
-		val.close()
+		job.close()
 	}
 }
 
 // GenericWriter is a writer used for writing generic responses.
 // It expects an io.ReadCloser object in the result field of 
-// input values.
-func GenericWriter(in <-chan Value) {
+// input jobs.
+func GenericWriter(in <-chan Job) {
     errorTemplate := "Passed in %t to GenericWriter."
-	for val := range in {
-		reader, ok := val.GetResult().(io.ReadCloser)
+	for job := range in {
+		reader, ok := job.GetResult().(io.ReadCloser)
 		if (!ok) {
-			writeWrongInput(val, errorTemplate)
+			writeWrongInput(job, errorTemplate)
 			continue
 		}
-		val.SetResponseCodeIfUndef(http.StatusOK)
-        val.writeHeader()
-		io.Copy(val.getResponseWriter(), reader)
+		job.SetResponseCodeIfUndef(http.StatusOK)
+        job.writeHeader()
+		io.Copy(job.getResponseWriter(), reader)
 		reader.Close()
-		val.close()
+		job.close()
 	}
 }
 
 // ResponseWriter is a writer used for writing generic responses
 // that were obtained from another server. It expects a
-// mpserver.Response object in the result field of input values.
-func ResponseWriter(in <-chan Value) {
+// mpserver.Response object in the result field of input jobs.
+func ResponseWriter(in <-chan Job) {
     errorTemplate := "Passed in %t to ResponseWriter."
-    for val := range in {
-        resp, ok := val.GetResult().(Response)
+    for job := range in {
+        resp, ok := job.GetResult().(Response)
         if (!ok) {
-            writeWrongInput(val, errorTemplate)
+            writeWrongInput(job, errorTemplate)
             continue
         }
         // Set Headers
-        header := val.getResponseWriter().Header()
+        header := job.getResponseWriter().Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
         }
 
-        val.SetResponseCodeIfUndef(resp.ResponseCode)
-        val.writeHeader()
-        val.write(resp.Body)
-        val.close()
+        job.SetResponseCodeIfUndef(resp.ResponseCode)
+        job.writeHeader()
+        job.write(resp.Body)
+        job.close()
     }
 }
 
 // HttpResponseWriter is a writer used for writing generic 
 // responses that were obtained from another server. It expects a
-// http.Response object in the result field of input values.
-func HttpResponseWriter(in <-chan Value) {
+// http.Response object in the result field of input jobs.
+func HttpResponseWriter(in <-chan Job) {
     errorTemplate := "Passed in %t to HttpResponseWriter."
-    for val := range in {
-        resp, ok := val.GetResult().(*http.Response)
+    for job := range in {
+        resp, ok := job.GetResult().(*http.Response)
         if (!ok) {
-            writeWrongInput(val, errorTemplate)
+            writeWrongInput(job, errorTemplate)
             continue
         }
         // Set Headers
-        header := val.getResponseWriter().Header()
+        header := job.getResponseWriter().Header()
         for key, value := range resp.Header {
             header.Set(key, strings.Join(value, ""))
         }
-        val.writeHeader()
+        job.writeHeader()
 
         func() {
             defer resp.Body.Close()
-            io.Copy(val.getResponseWriter(), resp.Body)
-            val.close()
+            io.Copy(job.getResponseWriter(), resp.Body)
+            job.close()
         } ()
     }
 }

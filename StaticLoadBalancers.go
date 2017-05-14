@@ -10,11 +10,11 @@ type startFunc func(chan bool)
 type shutdownFunc func([](chan bool))
 
 // staticLoadBalance starts nWorkers instances of workers using
-// the startWorker function. It the forwards values from the 
+// the startWorker function. It the forwards jobs from the 
 // channel in to the channel toWorkers, while the channel in is
 // open. When in is closed, the function shutdowns the workers
 // by calling the shutdown function.
-func staticLoadBalance(in <-chan Value, toWorkers chan<- Value,
+func staticLoadBalance(in <-chan Job, toWorkers chan<- Job,
                        startWorker startFunc, 
                        shutdown shutdownFunc, nWorkers int) {
     // Start the workers.
@@ -23,10 +23,10 @@ func staticLoadBalance(in <-chan Value, toWorkers chan<- Value,
         shutdownChans[i] = make(chan bool, 1)
         go startWorker(shutdownChans[i])
     }
-    // Forward incoming values to the worker while the input 
+    // Forward incoming jobs to the worker while the input 
     // channel is open.
-    for val := range in {
-        toWorkers <- val
+    for job := range in {
+        toWorkers <- job
     }
     // Shutdown the workers.
     shutdown(shutdownChans)
@@ -36,13 +36,13 @@ func staticLoadBalance(in <-chan Value, toWorkers chan<- Value,
 // is represented by a component. 
 //
 // When the returned function is called it behaves as follows.
-// It starts the worker and then forwards the values from the 
+// It starts the worker and then forwards the jobs from the 
 // channel in to the worker and waits for the result from the 
 // worker, which it then sends to the out channel. When a signal 
 // is sent on the end channel the worker is shutdown and the 
 // function terminates.
-func startComponent(worker Component, in <-chan Value, 
-                    out chan<- Value) startFunc {
+func startComponent(worker Component, in <-chan Job, 
+                    out chan<- Job) startFunc {
     return  func(end chan bool) {
         // Start the worker
         toComponent := GetChan()
@@ -52,8 +52,8 @@ func startComponent(worker Component, in <-chan Value,
         done := false
         for !done {
             select {
-                case val := <- in: {
-                    toComponent <- val
+                case job := <- in: {
+                    toComponent <- job
                     res := <- fromComponent
                     out <- res
                 }
@@ -72,14 +72,14 @@ func startComponent(worker Component, in <-chan Value,
 // shutdownComponents returns shutdownFunc that shutdowns an 
 // array of workers that have been started with the function
 // returned by the startComponent function.
-func shutdownComponents(out chan<- Value) shutdownFunc {
+func shutdownComponents(out chan<- Job) shutdownFunc {
     return func (shutdownChans [](chan bool)) {
         // Shut down the workers
         for _, schan := range shutdownChans {
             schan <- true
-            // The second write is done only after
-            // the worker reads the first value, so the worker is
-            // not processing a value then.
+            // The second write is done only after the worker 
+            // reads the first value, so the worker is not 
+            // processing a value then.
             schan <- true
         }
         // All workers have now terminated, so I can close the 
@@ -92,11 +92,11 @@ func shutdownComponents(out chan<- Value) shutdownFunc {
 // is represented by a writer. 
 //
 // When the returned function is called it behaves as follows.
-// It starts the worker and then forwards the values from the 
+// It starts the worker and then forwards the jobs from the 
 // channel in to the worker. When a signal is sent on the end 
 // channel the worker is shutdown and the function terminates.
 func startWriter(writer Writer, 
-                 toWorkers <-chan Value) startFunc {
+                 toWorkers <-chan Job) startFunc {
     return  func(end chan bool) {
         toWriter:= GetChan()
         go writer(toWriter)
@@ -104,8 +104,8 @@ func startWriter(writer Writer,
         done := false
         for !done {
             select {
-                case val := <- toWorkers: {
-                    toWriter <- val
+                case job := <- toWorkers: {
+                    toWriter <- job
                 }
                 case <- end: {
                     // Closing the channel to the Writer 
@@ -134,7 +134,7 @@ func shutdownWriters(shutdownChans [](chan bool)) {
 // of the returned component is closed.
 func StaticLoadBalancer(worker Component, 
                         nWorkers int) Component {
-    return func (in <-chan Value, out chan<- Value) {
+    return func (in <-chan Job, out chan<- Job) {
         toWorkers := GetChan()
         staticLoadBalance(in, toWorkers, 
             startComponent(worker, toWorkers, out), 
@@ -148,7 +148,7 @@ func StaticLoadBalancer(worker Component,
 // of the returned writer is closed.
 func StaticLoadBalancerWriter(worker Writer, 
                               nWorkers int) Writer {
-    return func (in <-chan Value) {
+    return func (in <-chan Job) {
         toWorkers := GetChan()
         staticLoadBalance(in, toWorkers, 
             startWriter(worker, toWorkers), 

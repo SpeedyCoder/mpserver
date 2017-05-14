@@ -5,28 +5,28 @@ import "strings"
 import "mpserver"
 
 // Definition of Action makers
-func addActionMakerFunc(val mpserver.Value) {
-    q := val.GetRequest().URL.Query()
+func addActionMakerFunc(job mpserver.Job) {
+    q := job.GetRequest().URL.Query()
     items, ok := q["item"]
     if (ok && len(items) > 0) {
         items = strings.Split(items[0], ",")
     }
-    val.SetResult(AddAction{items})
+    job.SetResult(AddAction{items})
 }
 
-func rmvActionMakerFunc(val mpserver.Value) {
-    q := val.GetRequest().URL.Query()
+func rmvActionMakerFunc(job mpserver.Job) {
+    q := job.GetRequest().URL.Query()
     items, ok := q["item"]
     if (ok && len(items) > 0) {
-        val.SetResult(RemoveAction{items[0]})
+        job.SetResult(RemoveAction{items[0]})
     } else {
-        val.SetResult(
+        job.SetResult(
             errors.New("removeActionMaker: Item not provided."))
     } 
 }
 
-func buyActionMakerFunc(val mpserver.Value) {
-    val.SetResult(BuyAction{})
+func buyActionMakerFunc(job mpserver.Job) {
+    job.SetResult(BuyAction{})
 }
 
 var addActionMaker = mpserver.MakeComponent(addActionMakerFunc)

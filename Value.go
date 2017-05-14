@@ -5,9 +5,10 @@ import (
     "golang.org/x/net/websocket"
 )
 
-// Value is an interface that represents the type of messages 
-// that are passed between the components of the network. 
-type Value interface {
+// Job is an interface that represents the type of messages 
+// that are passed between the components of the network. It 
+// stores the client request and the result computed so far.
+type Job interface {
     // GetRequest returns a pointer to the http request made by 
     // the client 
     GetRequest() *http.Request
@@ -38,7 +39,7 @@ type Value interface {
     close()
 }
 
-type valueStruct struct {
+type jobStruct struct {
     request *http.Request
     result interface{}
 
@@ -48,48 +49,48 @@ type valueStruct struct {
     done chan<- bool
 }
 
-func (val valueStruct) GetRequest() *http.Request {
-    return val.request
+func (job jobStruct) GetRequest() *http.Request {
+    return job.request
 }
 
-func (val valueStruct) GetResult() interface{} {
-    return val.result
+func (job jobStruct) GetResult() interface{} {
+    return job.result
 }
 
-func (val *valueStruct) SetResult(newResult interface{}) {
-    val.result = newResult
+func (job *jobStruct) SetResult(newResult interface{}) {
+    job.result = newResult
 }
 
-func (val *valueStruct) SetResponseCode(responseCode int) {
-    val.responseCode = responseCode;
+func (job *jobStruct) SetResponseCode(responseCode int) {
+    job.responseCode = responseCode;
 }
 
-func (val *valueStruct) SetResponseCodeIfUndef(responseCode int) {
-    if (val.responseCode == UndefinedRespCode) {
-        val.responseCode = responseCode;
+func (job *jobStruct) SetResponseCodeIfUndef(responseCode int) {
+    if (job.responseCode == UndefinedRespCode) {
+        job.responseCode = responseCode;
     }
 }
 
-func (val valueStruct) SetHeader(key, value string) {
-    val.responseWriter.Header().Set(key, value)
+func (job jobStruct) SetHeader(key, value string) {
+    job.responseWriter.Header().Set(key, value)
 }
 
-func (val valueStruct) getResponseWriter() http.ResponseWriter {
-    return val.responseWriter
+func (job jobStruct) getResponseWriter() http.ResponseWriter {
+    return job.responseWriter
 }
 
-func (val valueStruct) getResponseCode() int {
-    return val.responseCode
+func (job jobStruct) getResponseCode() int {
+    return job.responseCode
 }
 
-func (val valueStruct) writeHeader() {
-    val.responseWriter.WriteHeader(val.responseCode);
+func (job jobStruct) writeHeader() {
+    job.responseWriter.WriteHeader(job.responseCode);
 }
 
-func (val valueStruct) write(body []byte) {
-    val.responseWriter.Write(body)
+func (job jobStruct) write(body []byte) {
+    job.responseWriter.Write(body)
 }
 
-func (val valueStruct) close() {
-    val.done <- true;
+func (job jobStruct) close() {
+    job.done <- true;
 }

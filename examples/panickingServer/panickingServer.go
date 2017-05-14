@@ -2,15 +2,15 @@ package main
 import "mpserver"
 
 
-func panickingComponent(in <-chan mpserver.Value, 
-                        out chan<- mpserver.Value) {
+func panickingComponent(in <-chan mpserver.Job, 
+                        out chan<- mpserver.Job) {
     i := 0
-    for val := range in {
-        val.SetResult("Hello World!")
+    for job := range in {
+        job.SetResult("Hello World!")
         if i >= 2 {
             panic("There were more than 2 requests.")
         }
-        out <- val
+        out <- job
         i++
     }
     close(out)

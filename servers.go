@@ -10,7 +10,7 @@ import (
 // strips the provided prefix from the requested file paths. 
 // The returned writer uses other components internally.
 func FileServerWriter(dir, prefix string) Writer {
-    return func (in <-chan Value) {
+    return func (in <-chan Job) {
         // Construct the channels
         toFileComp := GetChan()
         out := GetChan()

@@ -38,24 +38,24 @@ func requestToString(r *http.Request) string {
 }
 
 // CacheComponent generates a component that caches the generated
-// result for all input values. That is if a request that the 
-// component haven't seen been before arrives, it forwards it to 
-// the worker and stores the result. If a previously seen request
-// arrives the component just uses the stored result. The values
-// expire after the specified time. Then the result needs to be
-// computed again.
+// result for all input jobs. That is if a job containing a 
+// request that the component haven't seen been before arrives, 
+// it forwards it to the worker and stores the result. If a 
+// previously seen request arrives the component just uses the 
+// stored result. The values expire after the specified time. 
+// Then the result needs to be computed again.
 func CacheComponent(cache Storage, worker Component, 
 					expiration time.Duration) Component {
-	return func (in <-chan Value, out chan<- Value) {
+	return func (in <-chan Job, out chan<- Job) {
 		toWorker := GetChan()
 		fromWorker := GetChan()
 		// Start the worker.
 		go worker(toWorker, fromWorker)
 
 		// Compute result and store it in the storage object.
-		var computeAndStore = func (key string, val Value, 
+		var computeAndStore = func (key string, job Job, 
 									now time.Time) {
-			toWorker <- val
+			toWorker <- job
             res := <- fromWorker
             // Store the result in the cache.
             cache.Set(key, StorageValue{
@@ -63,10 +63,10 @@ func CacheComponent(cache Storage, worker Component,
             out <- res
 		}
 
-	    for val := range in {
+	    for job := range in {
 	    	// Check if the HTTP method used is cachable.
-	    	if (isCachable(val.GetRequest().Method)) {
-	    		key := requestToString(val.GetRequest())
+	    	if (isCachable(job.GetRequest().Method)) {
+	    		key := requestToString(job.GetRequest())
 		        storageValue, in := cache.Get(key)
 		        now := time.Now()
 
@@ -76,21 +76,21 @@ func CacheComponent(cache Storage, worker Component,
 		            if (storageValue.Time.After(now)) {
 		            	// The cached value hasn't expired yet,
 		            	// so we can use it.
-		            	val.SetResult(storageValue.Value)
-		            	out <- val
+		            	job.SetResult(storageValue.Value)
+		            	out <- job
 		            } else {
 		            	// The cached value has expired, so we 
 		            	// need to compute the result again.
-		            	computeAndStore(key, val, now)
+		            	computeAndStore(key, job, now)
 		            }
 		        } else {
 		        	// The result for this request is not in 
 		        	// the cache.
-		            computeAndStore(key, val, now)
+		            computeAndStore(key, job, now)
 		        }
 	    	} else {
 	    		// Method is not cachable.
-	    		toWorker <- val
+	    		toWorker <- job
 	    		res := <- fromWorker
 	    		out <- res
 	    	}

@@ -11,7 +11,7 @@ var InitialState = ShoppingCart{nil, false}
 
 func actionWriter(actionMaker mpserver.Component, 
                   storage mpserver.Storage) mpserver.Writer {
-    return func (in <-chan mpserver.Value) {
+    return func (in <-chan mpserver.Job) {
         // Define session component
         seshComp := mpserver.SessionManager(
                 storage, InitialState, SessionExpiration)

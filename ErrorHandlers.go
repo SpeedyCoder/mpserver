@@ -7,19 +7,19 @@ import (
 )
 
 // ErrorPasser returns a component that forwards to the worker 
-// only the values that don't contain an error object in the 
-// result field. Error values are just passed further down the 
-// network.
+// only the jobs that don't contain an error object in the 
+// result field. Jobs with error result are just passed further 
+// down the network.
 func ErrorPasser(worker Component) Component {
-    return func (in <-chan Value, out chan<- Value) {
+    return func (in <-chan Job, out chan<- Job) {
         toComponent := GetChan()
         go worker(toComponent, out)
 
-        for val := range in {
-            if _, isErr := val.GetResult().(error); isErr {
-                out <- val
+        for job := range in {
+            if _, isErr := job.GetResult().(error); isErr {
+                out <- job
             } else {
-                toComponent <- val
+                toComponent <- job
             }
         }
         // Close the channel to the worker and the worker 
@@ -29,12 +29,12 @@ func ErrorPasser(worker Component) Component {
 }
 
 // PannicHandler takes a worker component, which can cause panic.
-// If that happens the component writes an error to the value 
-// that caused the panic, outputs it and then restarts the 
-// worker.
+// If that happens the component writes an error to the result 
+// field of the job that caused the panic, outputs it and then 
+// restarts the worker.
 func PannicHandler(worker Component) Component {
     var phComp Component
-    phComp = func (in <-chan Value, out chan<- Value) {
+    phComp = func (in <-chan Job, out chan<- Job) {
         toComponent := GetChan()
         fromComponent := GetChan()
         shutDown := make(chan bool)
@@ -50,41 +50,41 @@ func PannicHandler(worker Component) Component {
             }
         }()
         
-        // Goroutine that forwards incoming values to worker and
+        // Goroutine that forwards incoming jobs to worker and
         // then collects the result and sends it on the output 
         // channel. If the component panics while processing a 
-        // value this goroutine sends an error on the output 
+        // job this goroutine sends an error on the output 
         // channel.
         go func () {
             done := false
-            var val Value
+            var job Job
             var inOpen bool
             for !done {
                 select {
-                    case val, inOpen = <- in: {
+                    case job, inOpen = <- in: {
                         if !inOpen {
                             // Normal shut down.
                             done = true; continue
                         }
                     }
                     case <- shutDown: {
-                        // Then component crashed when it wasn't 
-                        // processing a value.
+                        // The component crashed when it wasn't 
+                        // processing a job.
                         done = true; continue
                     }
                 }
-                toComponent <- val
+                toComponent <- job
                 if res, ok  := <- fromComponent; ok {
                     out <- res
                 } else {
                     // Worker panicked, so we need to report
                     // an error.
                     done = true
-                    val.SetResult(
+                    job.SetResult(
                         errors.New("Component crashed."))
-                    val.SetResponseCode(
+                    job.SetResponseCode(
                         http.StatusInternalServerError)
-                    out <- val
+                    out <- job
                 }
                 
             }

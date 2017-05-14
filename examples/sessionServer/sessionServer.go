@@ -11,7 +11,7 @@ type Session struct {
     limit int
 }
 
-func (s Session) Next(val mpserver.Value) (mpserver.State, error) {
+func (s Session) Next(job mpserver.Job) (mpserver.State, error) {
     return Session{s.step+1, s.limit}, nil
 }
 

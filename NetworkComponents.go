@@ -8,9 +8,9 @@ import (
 
 // NetworkComponent generates a component that uses the provided
 // client to perform http.Request, that is taken from the 
-// result field of the input values. The generated component
+// result field of the input jobs. The generated component
 // writes the obtained http.Response or an error to the result 
-// field of the value before outputting it. Components further
+// field of the job before outputting it. Components further
 // down the network are responsible for closing the body of the
 // response.
 // 
@@ -19,24 +19,24 @@ import (
 func NetworkComponent(client *http.Client) Component {
 	inputError := errors.New(
 		"No request provided to Network Component.")
-	return func (in <-chan Value, out chan<- Value) {
-		for val := range in {
-			req, ok := val.GetResult().(*http.Request)
+	return func (in <-chan Job, out chan<- Job) {
+		for job := range in {
+			req, ok := job.GetResult().(*http.Request)
 			if !ok {
-				val.SetResult(inputError)
-				out <- val
+				job.SetResult(inputError)
+				out <- job
 				continue
 			}
 			// Perform the request using the client.
 			resp, err := client.Do(req)
 			if err != nil {
 				// Request wasn't successful.
-				val.SetResult(err)
+				job.SetResult(err)
 			} else {
 				// Request was successful.
-				val.SetResult(resp)
+				job.SetResult(resp)
 			}
-			out <- val
+			out <- job
 		}
 		close(out)
 	}
@@ -53,13 +53,13 @@ func readResponse(resp *http.Response) ([]byte, error) {
 
 
 // RequestRewriter returns a component that modifies the request 
-// in the request field of input values with the provided host 
-// and scheme and then stores it in the result field of the value
+// in the request field of input jobs with the provided host 
+// and scheme and then stores it in the result field of the job
 // before outputting it.
 func RequestRewriter(scheme, host string) Component {
-	return func (in <-chan Value, out chan<- Value) {
-		for val := range in {
-			request := val.GetRequest()
+	return func (in <-chan Job, out chan<- Job) {
+		for job := range in {
+			request := job.GetRequest()
 			// Overwrite the scheme and host.
 			request.URL.Scheme = scheme
 			request.URL.Host = host
@@ -68,8 +68,8 @@ func RequestRewriter(scheme, host string) Component {
 			// make perform the Request again.
 			request.RequestURI = ""
 			request.Host = ""
-			val.SetResult(request)
-			out <- val
+			job.SetResult(request)
+			out <- job
 		}
 		close(out)
 	}
@@ -85,36 +85,36 @@ type Response struct {
 
 // ResponseReader is a component that reads the body of the 
 // provided http.Response that is taken from the result field of 
-// an input value. Then it creates a Response object using the 
+// an input job. Then it creates a Response object using the 
 // data that was read and writes it to the result field of the 
-// value before outputting it.
-func ResponseReader(in <-chan Value, out chan<- Value) {
+// job before outputting it.
+func ResponseReader(in <-chan Job, out chan<- Job) {
 	inputError := errors.New(
 		"No http response provided to ResponseReader.")
-	for val := range in {
-		resp, ok := val.GetResult().(*http.Response)
+	for job := range in {
+		resp, ok := job.GetResult().(*http.Response)
 		if !ok {
-			val.SetResult(inputError)
-			out <- val
+			job.SetResult(inputError)
+			out <- job
 			continue
 		}
 
 		body, err := readResponse(resp)
 		if err != nil {
-			val.SetResult(err)
+			job.SetResult(err)
 		} else {
-			val.SetResponseCode(resp.StatusCode)
-			val.SetResult(Response{resp.Header, resp.StatusCode, body})
+			job.SetResponseCode(resp.StatusCode)
+			job.SetResult(Response{resp.Header, resp.StatusCode, body})
 		}
-		out <- val
+		out <- job
 
 	}
 	close(out)
 }
 
 // ProxyComponent returns a component that forwards all requests
-// in the request field of all input values to the provided host 
-// using the specified scheme and client. The output values  
+// in the request field of all input jobs to the provided host 
+// using the specified scheme and client. The output jobs  
 // contain the corresponding Response object in the result field.
 func ProxyComponent(scheme, host string, 
 					client *http.Client) Component {

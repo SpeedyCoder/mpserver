@@ -7,9 +7,9 @@ import (
 
 func main() {
 	worker := mpserver.MakeComponent(
-		func (val mpserver.Value) {
+		func (job mpserver.Job) {
 			time.Sleep(time.Second*5)
-			val.SetResult("Hello World!")
+			job.SetResult("Hello World!")
 	})
 
 	lb := mpserver.DynamicLoadBalancer(

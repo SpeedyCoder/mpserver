@@ -12,7 +12,7 @@ func main() {
     compressed := mpserver.GetChan()
     errChan := mpserver.GetChan()
     routerOut := mpserver.ToOutChans(
-        [](chan mpserver.Value){errChan, compressed})
+        [](chan mpserver.Job){errChan, compressed})
     uncompressed := mpserver.GetChan()
 
     mpserver.Listen("/", in, nil)   // Listener
@@ -33,14 +33,14 @@ func main() {
     mpserver.ListenAndServe(":3000", nil) // Start the server
 }
 
-// Condition to test whether the provided value contains an error 
+// Condition to test whether the provided job contains an error 
 // in the result field
-func isError(val mpserver.Value) bool {
-    _, isErr := val.GetResult().(error)
+func isError(job mpserver.Job) bool {
+    _, isErr := job.GetResult().(error)
     return isErr
 }
 // Condition to test whether the path of the requested file ends 
 // with .go
-func isGoFile(val mpserver.Value) bool {
-    return strings.HasSuffix(val.GetRequest().URL.Path, ".go")
+func isGoFile(job mpserver.Job) bool {
+    return strings.HasSuffix(job.GetRequest().URL.Path, ".go")
 }

@@ -3,26 +3,26 @@ package mpserver
 import "reflect"
 
 // Condition is a type that represents conditions that are used
-// for splitting. It is a function the takes a Value and returns
-// a boolean. It shouldn't change the provided value.
-type Condition func (val Value) bool
+// for splitting. It is a function the takes a job and returns
+// a boolean. It shouldn't change the provided job.
+type Condition func (val Job) bool
 
-// ToOutChans converts a slice of type chan Value to a slice of
-// of type []chan<- Value. That is it creates a slice that 
+// ToOutChans converts a slice of type chan Job to a slice of
+// of type []chan<- Job. That is it creates a slice that 
 // contains pointers to the writing end of the provided channels.
-func ToOutChans(chans [](chan Value)) []chan<- Value {
-    res := make([]chan<- Value, len(chans))
+func ToOutChans(chans [](chan Job)) []chan<- Job {
+    res := make([]chan<- Job, len(chans))
     for i, ch := range chans {
         res[i] = ch
     }
     return res
 }
 
-// ToInChans converts a slice of type chan Value to a slice of
-// of type []<-chan Value. That is it creates a slice that 
+// ToInChans converts a slice of type chan Job to a slice of
+// of type []<-chan Job. That is it creates a slice that 
 // contains pointers to the reading end of the provided channels.
-func ToInChans(chans [](chan Value)) []<-chan Value {
-    res := make([]<-chan Value, len(chans))
+func ToInChans(chans [](chan Job)) []<-chan Job {
+    res := make([]<-chan Job, len(chans))
     for i, ch := range chans {
         res[i] = ch
     }
@@ -32,29 +32,29 @@ func ToInChans(chans [](chan Value)) []<-chan Value {
 // Router takes an input channel, default output channel, a 
 // slice of output channels  and a slice of conditions. The 
 // number of output channels and the number of conditions should 
-// be the same. For every input value the Router evaluates the 
+// be the same. For every input job the Router evaluates the 
 // conditions from first to last. When a condition returns true
-// the value is written to a corresponding output channel and the 
-// processing of the current value terminates. If all conditions 
-// return false then the value is written to the default output 
+// the job is written to a corresponding output channel and the 
+// processing of the current job terminates. If all conditions 
+// return false then the job is written to the default output 
 // channel.
-func Router(in <-chan Value, defOut chan<- Value, 
-              outs []chan<- Value, conds []Condition) {
+func Router(in <-chan Job, defOut chan<- Job, 
+              outs []chan<- Job, conds []Condition) {
     if len(outs) != len(conds) {
         panic("Number of channels and conditions is not equal.")
     }
 
-    for val := range in {
+    for job := range in {
         sent := false
         for i, cond := range conds {
-            if cond(val) {
-                outs[i] <- val; sent = true
+            if cond(job) {
+                outs[i] <- job; sent = true
                 break
             }
         }
 
         if !sent {
-            defOut <- val
+            defOut <- job
         }
     }
 
@@ -63,28 +63,28 @@ func Router(in <-chan Value, defOut chan<- Value,
     }
 }
 
-// ErrorRouter reads values from its input channel and sends
-// all values that have an error in the result field to the 
-// error channel. It sends all other values to the default output
+// ErrorRouter reads jobs from its input channel and sends
+// all jobs that have an error in the result field to the 
+// error channel. It sends all other jobs to the default output
 // channel.
-func ErrorRouter(in <-chan Value, defOut chan<- Value, 
-                   errChan chan<- Value) {
-    for val := range in {
-        if _, ok := val.GetResult().(error); ok {
-            errChan <- val
+func ErrorRouter(in <-chan Job, defOut chan<- Job, 
+                   errChan chan<- Job) {
+    for job := range in {
+        if _, ok := job.GetResult().(error); ok {
+            errChan <- job
         } else {
-            defOut <- val
+            defOut <- job
         }
     }
     close(defOut)
     close(errChan)
 }
 
-// Collector reads input values from all input channels and 
-// forwards them to its output channel. It closes the output 
-// channel and terminates only when all of the input channels
-// have been closed.
-func Collector(ins []<-chan Value, out chan<- Value) {
+// Collector reads jobs from all input channels and forwards them
+// to its output channel. It closes the output channel and 
+// terminates only when all of the input channels have been 
+// closed.
+func Collector(ins []<-chan Job, out chan<- Job) {
     cases := make([]reflect.SelectCase, len(ins))
     for i := 0; i < len(ins); i++ {
         cases[i] = reflect.SelectCase{
@@ -96,8 +96,8 @@ func Collector(ins []<-chan Value, out chan<- Value) {
     for !done {
         index, value, ok := reflect.Select(cases)
         if (ok) {
-            val := value.Interface().(Value)
-            out <- val
+            job := value.Interface().(Job)
+            out <- job
         } else {
             cases = append(cases[:index], cases[index+1:]...)
             if len(cases) == 0 {

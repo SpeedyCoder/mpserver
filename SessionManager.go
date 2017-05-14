@@ -39,7 +39,7 @@ func GenerateRandomString(s int) (string, error) {
 type State interface {
     // Next returns the next State of the session for the given 
     // user or an error if next State cannot be generated.
-    Next(val Value) (State, error)
+    Next(job Job) (State, error)
 
     // Terminal returns a boolean that indicates whether this 
     // State is a terminal state.
@@ -52,47 +52,47 @@ type State interface {
 }
 
 // startNewSession is a helper function that starts a new session
-// for the given value. It generates a new session id and the 
+// for the given job. It generates a new session id and the 
 // current state of the session from the initial state. The 
 // mapping from the generated state is stored in the storage 
 // object and the result of the call to the Result function on
-// the current state is stored in the result field of the value,
+// the current state is stored in the result field of the job,
 // before it is sent to the out channel.
-func startNewSession(val Value, initial State, 
-    seshExp time.Duration, storage Storage, out chan<- Value) {
+func startNewSession(job Job, initial State, 
+    seshExp time.Duration, storage Storage, out chan<- Job) {
     id, err := GenerateRandomString(32)
     if (err != nil) {
         // The random generator failed.
-        val.SetResult(errors.New("Session-Id generation failed"))
-        out <- val
+        job.SetResult(errors.New("Session-Id generation failed"))
+        out <- job
         return
     }
 
     // Generate the current state.
-    state, err := initial.Next(val)
+    state, err := initial.Next(job)
     if (err != nil) {
-        val.SetResult(err)
-        out <- val
+        job.SetResult(err)
+        out <- job
         return
     }
 
     // Store the mapping from the id to the current state.
     storage.Set(id, StorageValue{state, time.Now().Add(seshExp)})
-    val.SetResult(state.Result())
-    val.SetHeader("Session-Id", id)
-    out <- val
+    job.SetResult(state.Result())
+    job.SetHeader("Session-Id", id)
+    out <- job
 }
 
 // SessionManager returns a component that performs session
 // management.
 func SessionManager(storage Storage, initial State, 
                     seshExp time.Duration) Component {
-    return func (in <-chan Value, out chan<- Value) {
-        for val := range in {
-            id := val.GetRequest().Header.Get("Session-Id")
+    return func (in <-chan Job, out chan<- Job) {
+        for job := range in {
+            id := job.GetRequest().Header.Get("Session-Id")
             if (id == ""){
                 // No Session-Id was provided.
-                startNewSession(val, initial, seshExp, storage, out)
+                startNewSession(job, initial, seshExp, storage, out)
                 continue
             }
             storageValue, in := storage.Get(id)
@@ -100,7 +100,7 @@ func SessionManager(storage Storage, initial State,
                 // Session-Id is not in the storage, hence it is 
                 // either invalid or it expired and was removed 
                 // from the storage.
-                startNewSession(val, initial, seshExp, storage, out)
+                startNewSession(job, initial, seshExp, storage, out)
                 continue
             }
 
@@ -108,11 +108,11 @@ func SessionManager(storage Storage, initial State,
             if (storageValue.Time.After(now)) {
                 // Session hasn't expired yet.
                 state, _ := storageValue.Value.(State)
-                next, err := state.Next(val)
+                next, err := state.Next(job)
                 if (err != nil) {
                     // Can't generate the next state.
-                    val.SetResult(err)
-                    out <- val
+                    job.SetResult(err)
+                    out <- job
                     continue
                 }
                 if (next.Terminal()) {
@@ -125,16 +125,16 @@ func SessionManager(storage Storage, initial State,
                     storageValue.Time = time.Now().Add(seshExp)
                     storageValue.Value = next
                     storage.Set(id, storageValue)
-                    val.SetHeader("Session-Id", id)
+                    job.SetHeader("Session-Id", id)
                 }
 
-                val.SetResult(next.Result())
-                out <- val
+                job.SetResult(next.Result())
+                out <- job
             } else {
                 // Session expired, so try to start a new session
                 // for this user.
                 storage.Remove(id)
-                startNewSession(val, initial, seshExp, storage, out)
+                startNewSession(job, initial, seshExp, storage, out)
             }
         }
         close(out)
