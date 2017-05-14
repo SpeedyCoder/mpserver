@@ -9,8 +9,8 @@ type ShoppingCart struct {
 }
 
 // Definition of methods of the State interface
-func (s ShoppingCart) Next(
-    job mpserver.Job) (mpserver.State, error) {
+func (s ShoppingCart) Next(job mpserver.Job) (
+                                         mpserver.State, error) {
     a, ok := job.GetResult().(Action)
     if (!ok) {
         return nil, errors.New("No action provided")

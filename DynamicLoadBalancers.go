@@ -96,7 +96,7 @@ func DynamicLoadBalancer(component Component, maxWorkers int,
 // any new jobs for removeTimeout provided there is more than
 // one worker.
 func DynamicLoadBalancerWriter(writer Writer, maxWorkers int,
-                      addTimeout, removeTimeout time.Duration) Writer {
+                addTimeout, removeTimeout time.Duration) Writer {
     return func (in <-chan Job) {
         toWorkers := GetChan()
 

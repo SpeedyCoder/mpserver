@@ -104,7 +104,8 @@ func ResponseReader(in <-chan Job, out chan<- Job) {
 			job.SetResult(err)
 		} else {
 			job.SetResponseCode(resp.StatusCode)
-			job.SetResult(Response{resp.Header, resp.StatusCode, body})
+			job.SetResult(
+				Response{resp.Header, resp.StatusCode, body})
 		}
 		out <- job
 

@@ -90,12 +90,12 @@ Figure \ref{fig:shoppingCartImpl} below shows the implementation of the
 methods of the \texttt{State} interface for the \texttt{ShoppingCart} type.
 \begin{figure}[h]
 \begin{lstlisting}
-func (s ShoppingCart) Next(val Value) (State, error) {
-    a, ok := val.GetResult().(Action)
+func (s ShoppingCart) Next(job mpserver.Job) (
+                                         mpserver.State, error) {
+    a, ok := job.GetResult().(Action)
     if (!ok) {
         return nil, errors.New("No action provided")
     }
-
     return a.performAction(s)
 }
 func (s ShoppingCart) Result() interface{} {
@@ -119,13 +119,13 @@ is the implementation of the component that is used to generate
 the \texttt{addActions}.
 \begin{figure}[h]
 \begin{lstlisting}
-func addActionMakerFunc(val Value) {
-    q := val.GetRequest().URL.Query()
+func addActionMakerFunc(job mpserver.Job) {
+    q := job.GetRequest().URL.Query()
     items, ok := q["item"]
     if (ok && len(items) > 0) {
         items = strings.Split(items[0], ",")
     }
-    val.SetResult(AddAction{items})
+    job.SetResult(AddAction{items})
 }
 var addActionMaker = MakeComponent(addActionMakerFunc) 
 \end{lstlisting}
@@ -141,8 +141,9 @@ and similarly for the other two actions. The output of the action maker
 will be connected to the session management component, that is wrapped in
 \texttt{ErrorPasser}, so that we don't process invalid requests.
 Finally the output from the session manager goes to the \texttt{ErrorRouter}
-which sends all non-error values to the \texttt{JsonWriter} and error
-values to the \texttt{ErrorWriter}. 
+which sends all \texttt{jobs} with non-error results to the 
+\texttt{JsonWriter} and \texttt{jobs} with error results to the 
+\texttt{ErrorWriter}. 
 
 We can share the session manager, the router and the writers for all three actions. 
 However, this will make it difficult to load balance individual parts

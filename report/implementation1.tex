@@ -2,49 +2,49 @@
 \label{sec:impl}
 In this Chapter I present basic elements of the \texttt{mpserver} toolkit
 and how to work with them. The most important parts are the primitive types:
-\texttt{Value}, \texttt{Component} and \texttt{Writer}.
+\texttt{Job}, \texttt{Component} and \texttt{Writer}.
 
-\subsection{Values}
-\texttt{Value} is an interface that represents the type of messages that are
+\subsection{Jobs}
+\texttt{Job} is an interface that represents the type of messages that are
 passed between the components of the network. Its definition is shown
-in Figure \ref{fig:Value} below.
+in Figure \ref{fig:Job} below.
 
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-type Value interface {
+type Job interface {
     //Public methods
     GetRequest() *http.Request
     GetResult() interface{}
-    SetResult(interface{})
-    SetResponseCode(int)
-    SetResponseCodeIfUndef(int)
-    SetHeader(string, string)
+    SetResult(value interface{})
+    SetResponseCode(respCode int)
+    SetResponseCodeIfUndef(respCode int)
+    SetHeader(key string, value string)
 
     // Private methods
     getResponseWriter() http.ResponseWriter
     getResponseCode() int
     writeHeader()
-    write([]byte)
+    write(body []byte)
     close()
 }
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of the type \texttt{Value}.}
-\label{fig:Value}
+\caption[scale=1.0]{Declaration of the type \texttt{Job}.}
+\label{fig:Job}
 \end{figure}
 
 Note that in Go only types, functions, constants and variables whose name
 starts with a capital letter are exported from a package. Hence, anyone
-using the package can only use the first 6 methods of the \texttt{Value}
+using the package can only use the first 6 methods of the \texttt{Job}
 interface.
 
 The interface is implemented by a pointer to a private struct type shown in 
-Figure \ref{fig:value}.
+Figure \ref{fig:jobStruct}.
 \newpage
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
-type value struct {
+type jobStruct struct {
     request *http.Request
     result interface{}
 
@@ -53,9 +53,9 @@ type value struct {
     done chan<- bool
 }
 \end{lstlisting}
-\caption[scale=1.0]{Declaration of a private type that implements the Value 
-interface.}
-\label{fig:value}
+\caption[scale=1.0]{Declaration of a private type that implements the 
+\texttt{Job} interface.}
+\label{fig:jobStruct}
 \end{figure}
 Here:
 \begin{itemize}
@@ -95,7 +95,7 @@ Here:
 Note that all methods related to writing the response back to the client
 are private to the package. This is to ensure correct behavior, as otherwise
 these methods could be accessed by users of the package in any part of the 
-network, what could lead to panic.
+network, what could lead to panic (exceptions).
 
 \subsection{Components}
 This section introduces the \texttt{Component} type and then shows how we can simply
@@ -105,19 +105,20 @@ of a component generator that implements simple load balancing among
 multiple components.
 
 \subsubsection{The Component type}
-Component is a generic part of the pipeline with an input and an output channel.
-It processes the values provided on input channel and outputs the results
-on the output channel. The type \texttt{Component} is defined as follows:
+Component is a generic part of the pipeline with an input and 
+an output channel. It reads \texttt{jobs} from its input channel, 
+processes them and writes the updated \texttt{jobs} to the output 
+channel. The type \texttt{Component} is defined as follows:
 \begin{lstlisting}
 type Component func (in <-chan Value, out chan<- Value)
 \end{lstlisting}
 Every component should satisfy the following conditions:
 \begin{itemize}
-    \item When run a component should eventually read all values that are
+    \item When run a component should eventually read all \texttt{jobs} that are
           written to its input channel.
 
-    \item Every value that a component reads from its input channel
-          should be written to its output channel after the value was processed
+    \item Every \texttt{job} that a component reads from its input channel
+          should be written to its output channel after the \texttt{job} was processed
           and possibly modified. This ensures that every request gets a response.
 
     \item A component can terminate only when its input channel is closed. 
@@ -125,30 +126,30 @@ Every component should satisfy the following conditions:
           This ensures termination of any components further down the network.
 
     \item Component can only close its output channel and it can only do so
-    	    after its input channel have been closed. It should never attempt
+    	  after its input channel have been closed. It should never attempt
           to close the input channel as this will likely result in a panic.
 \end{itemize}
 
 \subsubsection{Making Components}
 To simplify the construction of components, so that they adhere to 
 the above specification the package provides a helper function that 
-constructs a component using a function that takes a \texttt{Value} object 
-and processes it. The \texttt{Value} can be modified by the function as it is 
+constructs a component using a function that takes a \texttt{Job} object 
+and processes it. The object can be modified by the function as it is 
 implemented by a pointer type. The function has the following signature:
 \begin{lstlisting}
-type ComponentFunc func (val Value)
+type ComponentFunc func (job Job)
 \end{lstlisting}
-This represents a transition function that is applied to input values
-to produce output values.
+This represents a transition function that is applied to input \texttt{jobs}
+to produce output \texttt{jobs}.
 The implementation of the described component generator is shown in 
 Figure \ref{fig:MakeComponent} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
 func MakeComponent(f ComponentFunc) Component {
-    return func (in <-chan Value, out chan<- Value) {
-        for val := range in {
-            f(val); out <- val
+    return func (in <-chan Job, out chan<- Job) {
+        for job := range in {
+            f(job); out <- job
         }
         close(out)
     }
@@ -158,25 +159,26 @@ func MakeComponent(f ComponentFunc) Component {
 \label{fig:MakeComponent}
 \end{figure}
 
-Here the for loop reads values from the input channel and assigns them
-to the variable \texttt{val} while the input channel is open. Then the 
-the function \texttt{f} is applied to this value and finally the value is outputted.
-Afterwards, the component waits for another value. When the input channel
+Here the for loop reads \texttt{jobs} from the input channel and assigns them
+to the variable \texttt{job} while the input channel is open. Then the 
+the function \texttt{f} is applied to this \texttt{job} and finally 
+the \texttt{job} is outputted.
+Afterwards, the component waits for another \texttt{job}. When the input channel
 is closed the loop terminates. Afterwards, the component closes its output channel
 and terminates.
 
 \subsubsection{Constant Component}
 Constant Component is a simple component generator that takes a value \texttt{c}
 of any type and returns a component that writes \texttt{c} to the result field of 
-all input values and then outputs them. It's definition using the 
+all input \texttt{jobs} and then outputs them. It's definition using the 
 \texttt{MakeComponent} generator is shown in Figure 
 \ref{fig:ConstantComponent} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
 func ConstantComponent(c interface{}) Component {
-    return MakeComponent(func (val Value) {
-        val.SetResult(c)
+    return MakeComponent(func (job Job) {
+        job.SetResult(c)
     })
 }
 \end{lstlisting}
@@ -207,7 +209,7 @@ $n$ instances of the worker component.
 The case with $n=3$ in a simple pipeline is shown in Figure \ref{fig:slbEx} below. 
 In order to support clean shutdown of the combined component, the load balancer uses 
 wrappers (U shaped components in the diagram) around workers and a component that 
-forwards incoming values to the workers. When input channel of the forwarding
+forwards incoming \texttt{jobs} to the workers. When input channel of the forwarding
 component is closed it sends a signal to the component wrappers on shut 
 down channels (dashed arrows in the diagram). The wrappers then close
 the channels to the workers, which will force the workers to terminate.
@@ -305,23 +307,23 @@ pipeline. Then I present a way how to create custom writers.
 Writer is the end of the pipeline which writes results back to the client.
 The type \texttt{Writer} is defined as follows:
 \begin{lstlisting}
-type Writer func (in <-chan Value)
+type Writer func (in <-chan Job)
 \end{lstlisting}
 It is a function with only an input channel.
 Every writer satisfies the following specification.
 \begin{itemize}
-    \item When run a writer eventually reads all values that are written 
+    \item When run a writer eventually reads all \texttt{jobs} that are written 
           to its input channel.
 
-	\item For every value that is input any writer behaves as follows. 
-        It firstly checks if the result field contains the expected type. 
-        If that is the case, it first writes the headers and then
-        the body of the response using the \texttt{writeHeader} and
-        \texttt{write} methods of the value respectively. 
-        Afterwards it closes the connection for the value and using 
-        the \texttt{close} method. If the value in the result 
-        field has an incorrect type, the writer writes an appropriate 
-        error message to the client and closes the connection for the value. 
+	\item For every \texttt{job} that is  read from the input channel a writer 
+          behaves as follows. It firstly checks if the result field 
+          contains the expected type. If that is the case, it first 
+          writes the headers and then the body of the response using 
+          the \texttt{writeHeader} and \texttt{write} methods of the \texttt{job} respectively. Afterwards it closes the connection for the \texttt{job} 
+          using the \texttt{close} method. If the value in the result 
+          field has an incorrect type, the writer writes an appropriate 
+          error message to the client and closes the connection for the 
+          \texttt{job}. 
 
 	\item The writer terminates when its input channel is closed.
 \end{itemize}
@@ -329,20 +331,20 @@ The package provides writers for writing string, json, file, error and many
 other types of responses. There is also a writer generator for static
 load balancing similar to the one for components. It's implementation
 is significantly simpler as we don't have to forward the processed
-values further down the network. Note that components
+\texttt{jobs} further down the network. Note that components
 combined with writers appear like a single writer. Hence, we can use the
 load balancers for writers to manage a more complex part the network.
 
 \subsubsection{Making Writers}
-As noted before the methods for writing responses from \texttt{Values}
+As noted before the methods for writing responses from \texttt{jobs}
 back to the client cannot be used outside of the package. To allow
 for construction of custom writers the package provides writer generator
 component similar to the \texttt{MakeComponent} function. It uses 
 functions with the following signature to generate the writers.
 \begin{lstlisting}
-type WriterFunc func (val Value) ([]byte, error)
+type WriterFunc func (job Job) ([]byte, error)
 \end{lstlisting}
-This function should set headers and convert the provided value into 
+This function should set headers and convert the provided \texttt{job} into 
 a slice\footnote{``Slice is a dynamically-sized, flexible view into the elements 
 of an array.''\cite{tour}} of bytes or return an error in case it 
 is provided with a 
@@ -352,18 +354,18 @@ in Figure \ref{fig:MakeWriter} below.
 \centering
 \begin{lstlisting}
 func MakeWriter(writerFunc WriterFunc) Writer {
-    return func (in <-chan Value) {
-        for val := range in {
-            resp, err := writerFunc(val)
+    return func (in <-chan Job) {
+        for job := range in {
+            resp, err := writerFunc(job)
 
             if (err == nil) {
                 // Write the response
-                val.SetResponseCodeIfUndef(http.StatusOK)
-                val.writeHeader()
-                val.write(resp)
-                val.close()
+                job.SetResponseCodeIfUndef(http.StatusOK)
+                job.writeHeader()
+                job.write(resp)
+                job.close()
             } else {
-                writeError(val, err)
+                writeError(job, err)
             }
         }       
     }
@@ -373,7 +375,7 @@ func MakeWriter(writerFunc WriterFunc) Writer {
 \label{fig:MakeWriter}
 \end{figure}
 
-The generated writer runs the provided \texttt{writerFunc} for every value 
+The generated writer runs the provided \texttt{writerFunc} for every \texttt{job} 
 that is inputted. If the function returns an error it writes the error 
 back to the client using the \texttt{writeError}\footnote{See Appendix 
 \ref{sec:writer.go} for the implementation.} function. Otherwise, it 
@@ -382,45 +384,45 @@ closes the connection. (The \texttt{writeError} does this for the error
 results).
 
 \subsection{Router and Collector}
-In this section I introduce a way to split a stream of incoming values into
-multiple streams of values that go into different parts of the network
+In this section I introduce a way to split a stream of incoming \texttt{jobs} into
+multiple streams of \texttt{jobs} that go into different parts of the network
 using very flexible rules for routing. Then I present a way how to
 safely combine multiple streams into one.
 
 \subsubsection{Conditions}
 Condition type is defined as follows:
 \begin{lstlisting}
-type Condition func (val Value) bool
+type Condition func (job Job) bool
 \end{lstlisting}
-It is a just function that takes a value and returns a boolean.
-The function shouldn't change the provided value.
+It is a just function that takes a \texttt{job} and returns a boolean.
+The function shouldn't change the provided \texttt{jobs}.
 
 \subsubsection{Router}
 Conditions are used in Router, which is a component with the 
 following signature:
 \begin{lstlisting}
-func Router(in <-chan Value, defOut chan<- Value, 
-			  outs []chan<- Value, conds []Condition)
+func Router(in <-chan Job, defOut chan<- Job, 
+            outs []chan<- Job, conds []Condition)
 \end{lstlisting}
 It takes an input channel, default output channel, a slice of output channels 
 and a slice of conditions.
 The number of output channels and the number of conditions should be the same.
-For every input value the Router evaluates the conditions from first to last.
-When a condition returns \texttt{true} the value is written to a 
+For every input \texttt{job} the Router evaluates the conditions from first to last.
+When a condition returns \texttt{true} the \texttt{job} is written to a 
 corresponding output channel 
-and the processing of the current value terminates. If all conditions 
-return \texttt{false} then the value is written to the default output channel.
+and the processing of the current \texttt{job} terminates. If all conditions 
+return \texttt{false} then the \texttt{job} is written to the default output channel.
 
 \subsubsection{Error Router}
 The package also implements a special router that redirects error messages
 to a special error channel and sends all other messages to the default output 
-channel. This is used to avoid sending error values to 
+channel. This is used to avoid sending \texttt{jobs} that hold errors to 
 any other type of writer than the error writer. If we allowed this, then
-all errors will only show that a particular writer got a wrong input.
+all response errors will only show that a particular writer got a wrong input.
 The signature of the \texttt{ErrorRouter} function is shown below.
 \begin{lstlisting}
-func ErrorRouter(in <-chan Value, defOut chan<- Value, 
-                                    errChan chan<- Value)
+func ErrorRouter(in <-chan Job, defOut chan<- Job, 
+                                errChan chan<- Job)
 \end{lstlisting}
 
 \subsubsection{Collector}
@@ -428,7 +430,7 @@ Collector is a component whose behavior is the opposite of the behavior
 of a router. It gets multiple input channels
 and forwards their outputs to a single output channel. Now as channels
 in go are many-to-many we could just use a single channel to which
-multiple components would output their values. 
+multiple components would output the \texttt{jobs}. 
 
 However, when we shutdown
 one of the components, this component will close the output channel
@@ -439,7 +441,7 @@ described above. It is acceptable to just use a single channel instead of
 the collector component, if we don't intend to shut down the network.
 The type signature of the \texttt{Collector} is show below.
 \begin{lstlisting}
-func Collector(ins []<-chan Value, out chan<- Value)
+func Collector(ins []<-chan Job, out chan<- Job)
 \end{lstlisting}
 
 

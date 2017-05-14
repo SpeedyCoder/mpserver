@@ -5,7 +5,7 @@ import "reflect"
 // Condition is a type that represents conditions that are used
 // for splitting. It is a function the takes a job and returns
 // a boolean. It shouldn't change the provided job.
-type Condition func (val Job) bool
+type Condition func (job Job) bool
 
 // ToOutChans converts a slice of type chan Job to a slice of
 // of type []chan<- Job. That is it creates a slice that 
@@ -39,7 +39,7 @@ func ToInChans(chans [](chan Job)) []<-chan Job {
 // return false then the job is written to the default output 
 // channel.
 func Router(in <-chan Job, defOut chan<- Job, 
-              outs []chan<- Job, conds []Condition) {
+            outs []chan<- Job, conds []Condition) {
     if len(outs) != len(conds) {
         panic("Number of channels and conditions is not equal.")
     }

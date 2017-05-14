@@ -70,9 +70,9 @@ By default the channel type exposes both reading and writing end of the
 channel. Hence, we can view it as a bidirectional channel. 
 However, we can restrict the access to only one of its ends using the following:
 \begin{lstlisting}
-channel := make(chan Value, 10)
-in := (<-chan Value)(channel)
-out := (chan<- Value)(channel)
+channel := make(chan int, 10)
+in := (<-chan int)(channel)
+out := (chan<- int)(channel)
 \end{lstlisting}
 Here, we define 3 variables. \texttt{channel} variable refers to the 
 channel itself, \texttt{in} refers to the reading end of the channel

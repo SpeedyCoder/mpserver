@@ -92,7 +92,8 @@ func SessionManager(storage Storage, initial State,
             id := job.GetRequest().Header.Get("Session-Id")
             if (id == ""){
                 // No Session-Id was provided.
-                startNewSession(job, initial, seshExp, storage, out)
+                startNewSession(
+                    job, initial, seshExp, storage, out)
                 continue
             }
             storageValue, in := storage.Get(id)
@@ -100,7 +101,8 @@ func SessionManager(storage Storage, initial State,
                 // Session-Id is not in the storage, hence it is 
                 // either invalid or it expired and was removed 
                 // from the storage.
-                startNewSession(job, initial, seshExp, storage, out)
+                startNewSession(
+                    job, initial, seshExp, storage, out)
                 continue
             }
 
@@ -134,7 +136,8 @@ func SessionManager(storage Storage, initial State,
                 // Session expired, so try to start a new session
                 // for this user.
                 storage.Remove(id)
-                startNewSession(job, initial, seshExp, storage, out)
+                startNewSession(
+                    job, initial, seshExp, storage, out)
             }
         }
         close(out)

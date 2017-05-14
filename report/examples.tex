@@ -49,7 +49,7 @@ and \texttt{FileComponent}.
 The \texttt{PathMaker} firstly strips a given
 prefix from the requested path and then prepends a provided directory name to 
 the result. The \texttt{FileComponent} tries to open a file at a path 
-provided in the result field of the incoming value. Other modifications
+provided in the result field of the input \texttt{job}. Other modifications
 are the addition of the \texttt{ErrorWriter} and the channel going to it from
 the \texttt{Router}.
 This path is used when a non existent file is requested by the client.

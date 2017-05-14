@@ -23,7 +23,7 @@ tools for load balancing mitigate this problem.
 
 However, as one would expect even then the performance of the web-server
 is worse than just using the standard library. This is due to overheads
-for the usage of channels, creating the \texttt{Value} objects
+for the usage of channels, creating the \texttt{Job} objects
 and switching between different goroutines.
 
 On the other hand the toolkit provides a lot of functionality over the
@@ -34,17 +34,17 @@ penalty is acceptable, then my toolkit might be the preferred alternative.
 
 \subsection{Future Work}
 To make the toolkit production-ready I would perform more testing of all
-components, implement more components and write a throughout documentation
+components, implement more components and improve my documentation
 of the toolkit. 
 
 One might want to implement a version of the \texttt{Storage}
 that uses an SQL database or a component that accesses a database and 
 returns the requested data. As noted before, other strategies 
-for load balancing can be implemented.
+for load balancing can be implemented. 
 They can possibly be abstracted into their own type, so that the
-load manager can be parameterized based on our needs.  
+load manager can be parameterized based on our needs.
 
 The library is very general and extensible. Hence, if we wanted to support 
 other protocols such as webSocket we can easily implement a different 
-type of value and associated components and writers in similar fashion.
+type of \texttt{job} and associated components and writers in similar fashion.
 

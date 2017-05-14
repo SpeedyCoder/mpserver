@@ -97,8 +97,6 @@ func StorageCleaner(storage Storage, shutDown <-chan bool,
 		for _, key := range storage.Keys() {
 			storageValue, _ := storage.Get(key)
 			if (storageValue.Time.Before(time.Now())) {
-				// Cache can be updated at this point, so the following
-				// Remove can remove an entry, which hasn't expired yet
 				storage.CompareAndRemove(key, storageValue)
 			}
 		}

@@ -1,9 +1,6 @@
 package mpserver
-
-import (
-	"net/http"
-    "time"
-)
+import "net/http"
+import "time"
 
 // FileServerWriter returns a writer, that represents a simple 
 // file server that serves files from the directory dir and  
