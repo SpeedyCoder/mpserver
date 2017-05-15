@@ -5,7 +5,7 @@ it makes implementing a server very easy. If you can construct a data-flow diagr
 representing the conversion of a request into a response, then this diagram
 can be directly translated into a program.
 
-In this Chapter I introduce a few example web-servers and their conceptual
+This Chapter introduces several example web-servers and their conceptual
 design using the proposed architecture. I also introduce a wrapper 
 solution used for caching and load balancing.
 Finally I compare these designs to the set up of equivalent Apache servers.
@@ -13,7 +13,7 @@ Finally I compare these designs to the set up of equivalent Apache servers.
 \subsection{Hello World!}
 \label{sec:helloWorld}
 The simplest example is a Hello world! server. This server replies with a 
-Hello world! message to all requests and can be represented by the diagram
+Hello world! message to all requests and is represented by the diagram
 in Figure \ref{fig:helloWorld}.
 
 \begin{figure}[h]
@@ -39,7 +39,7 @@ used as a response to its output channel.
 The \texttt{String Writer} writes the text response back to the client.
 
 This is a good example of the basic components of the suggested framework.
-We can call the three main parts the \texttt{Listener}, \texttt{Component} 
+We call the three main parts the \texttt{Listener}, \texttt{Component} 
 and \texttt{Writer}, where
 the \texttt{Listener} catches the incoming requests and feeds them into the network,
 the \texttt{Component} processes them and the \texttt{Writer} writes the generated result 
@@ -50,7 +50,7 @@ is the end of the server pipeline.
 \label{sec:fileServer}
 Architecture of a simple file server follows the architecture of the Hello world!
 server introduced above. It consists of a \texttt{Listener}, which catches the requests,
-\texttt{File Getter}, what is a function that gets the requested file (that is it
+\texttt{File Getter}, what is a function that gets the requested file (it
 constructs the absolute path to the requested file and loads it into the memory) 
 and finally there is a \texttt{File Writer}, which
 writes the file to the client. The architecture is shown in Figure \ref{fig:fileServer}.
@@ -192,8 +192,8 @@ See Figure \ref{fig:loadBalancing} below.
 \end{figure}
 
 \subsection{Comparison to Apache server configuration}
-As noted before configuring an Apache server can prove to be quite difficult.
-Below in Figure \ref{fig:apache} is shown a part of a simple file server
+As previously noted, configuring an Apache server can prove to be quite difficult.
+Figure \ref{fig:apache} shows a part of a simple file server
 configuration.
 \begin{figure}[h]
 \centering
@@ -209,7 +209,7 @@ Alias /project /path/to/project/
     AddOutputFilter DEFLATE py
 </Directory>
 \end{lstlisting}
-\caption[scale=1.0]{Part of Apache configuration file for a file server.}
+\caption[scale=1.0]{Part of an Apache configuration file for a file server.}
 \label{fig:apache}
 \end{figure}
 

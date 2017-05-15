@@ -18,7 +18,7 @@ with different types of requests using different single purpose components.
 
 The main advantages of the proposed architecture are that it is easy to understand
 and configure a server. A conceptual design of response generation from a request translates 
-directly into a server architecture. That is a data flow diagram 
+directly into a server architecture. In other words, a data flow diagram 
 representing a transformation
 of a request into a response can be directly translated into program code.
 Due to the compositional nature of this design its also very easy to reuse code
@@ -144,24 +144,23 @@ using the toolkit. Their behaviors are explained in later chapters.
 \end{figure}
 
 \subsection{Related work}
-Similar work has been done by James Whitehead II in \cite{whitehead}.
-However, his approach is rather different than the approach used 
-here. He uses reader-writer pairs for communication between
+Similar work has been done by James Whitehead II \cite{whitehead}.
+He uses reader-writer pairs for communication between
 two different components in the network. These act like channels, but
 have to be constructed for each pair of communicating components
 for all requests.
 In order to construct these readers and writers a connection object is 
 passed through the network.
 I believe this indirect approach introduces unnecessary overhead and 
-makes it more difficult to understand how the toolkit works.
+makes it more difficult to understand how the toolkit operates.
 More significantly it also restricts inter-component communication 
 to a stream of bytes.
 
 \subsection{Report overview}
-In this Chapter I introduced the motivation of the project, its main
-aim, the architecture of the proposed toolkit and I reviewed work done
-on similar problems. In Chapter \ref{sec:background}
-I present the necessary background for the project.
+This Chapter introduced the motivation of the project, its main
+aim, the architecture of the proposed toolkit and reviewed work done
+on similar problems. Chapter \ref{sec:background}
+presents the necessary background for the project.
 
 In Chapter \ref{sec:arch} I analyze the design of a few simple servers
 in the suggested framework. Chapter \ref{sec:impl} describes the basic parts of 

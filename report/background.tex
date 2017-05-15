@@ -10,16 +10,16 @@ Passing Concurrency Paradigm.
 
 \subsubsection{Channels}
 Channel is a FIFO queue of pending messages. It can be accessed by two
-primitive operations: send and receive. To start communication
+primitive operations; send and receive. To start communication
 a process sends a value to the channel. Another process acquires the message
 by receiving from the channel. Sending a message can be asynchronous (nonblocking)
 or synchronous (blocking). \cite[293]{book:foundations}
 
 \subsubsection{Message Passing Concurrency}
 Message Passing Concurrency is a style of Concurrent Programming, in which
-processes communicate using only channels. That is channel communication is 
+processes communicate using only channels. The channel communication is 
 the only way any two processes can communicate and synchronize. 
-Hence this style does not 
+Hence, this style does not 
 suffer any problems that arise from using shared memory for communication 
 and synchronization by multiple concurrent processes.
 
@@ -29,7 +29,7 @@ to native code and are linked with a small runtime environment that performs
 automatic memory management and scheduling for lightweight processes called 
 goroutines.'' \cite[2]{whitehead} Its main advantage is 
 that it has concurrent constructs built natively into it,
-and this is why it was chosen as implementation language 
+and this is why it was chosen as the implementation language 
 for this project.
 In this section I introduce the main concurrency constructs that are
 present in the language, its type system and exception handling. Other 
@@ -38,7 +38,7 @@ features of the language are explained as they are used.
 \subsubsection{Goroutines}
 ``A goroutine is a cross between a lightweight thread and a coroutine
 managed by the Go runtime.'' \cite[2]{whitehead} Goroutines are multiplexed
-on a set of threads, when a goroutine blocks another goroutine is scheduled
+on a set of threads; when a goroutine blocks, another goroutine is scheduled
 on the same thread. 
 
 What makes goroutines powerful is that they are very cheap to create and 
@@ -57,8 +57,8 @@ function will be evaluated in a new goroutine and that goroutine will
 terminate when the function terminates \cite{GoDocumentation}.
 
 \subsubsection{Channels}
-Channels in go are many-to-many. That is multiple goroutines can
-read from and write to a single channel. Channels are statically typed and
+Channels in go are many-to-many. That is, multiple goroutines can
+read from, and write to, a single channel. Channels are statically typed and
 dynamically allocated using \texttt{make} function. This function takes 
 two arguments: the type of the channel and the size of its buffer.
 A channel with buffer size 0 implements a synchronous channel, whereas 
@@ -66,7 +66,7 @@ channels with buffers implement asynchronous channels, as reads
 are only blocked when the buffer is empty and writes are only blocked
 when the buffer is full.
 
-By default the channel type exposes both reading and writing end of the
+By default the channel type exposes both the reading and writing ends of the
 channel. Hence, we can view it as a bidirectional channel. 
 However, we can restrict the access to only one of its ends using the following:
 \begin{lstlisting}
@@ -82,7 +82,7 @@ short form of variable declaration with assignment and an implicit type.
 
 \subsubsection{Objects methods and Interfaces}
 Go doesn't have classes and inheritance as Object Oriented Languages 
-such as Java do. It instead allows programmers to define named types
+such as Java or C++ do. It instead allows programmers to define named types
 and methods on these types. This is illustrated in the example shown in 
 Figure \ref{fig:counterObj}, which defines a simple counter object.
 Note that the operations are defined on a pointer to a \texttt{Counter}
@@ -124,7 +124,7 @@ type CounterInterface interface {
 \end{figure}
 
 \subsubsection{Panic and Recover}
-Go doesn't support standard form of exceptions as are found in Java or
+Go doesn't support standard form of exceptions like those found in Java or
 C++. It instead implements \texttt{panic} and \texttt{recover} methods, 
 which are very similar to Java's \texttt{throw} and \texttt{catch}.
 \texttt{panic} can be called explicitly or it can be a result of 

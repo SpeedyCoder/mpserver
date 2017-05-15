@@ -22,12 +22,12 @@ also gives programmers control over how much resources are used for
 different tasks. 
 
 However, the performance of servers implemented in the toolkit can be 
-very bad if they are not configured properly. This is because when using a simple
+very poor if they are not configured properly. This is because when using a simple
 pipeline without any load balancing all requests must go through all parts
-of the server one by one, and this limits the throughput. The provided
+of the server one by one, limiting the throughput. The provided
 tools for load balancing mitigate this problem.
 
-As one would expect even then the performance of the web-server
+As one would expect the performance of the web-server
 is worse than just using the standard library. This is due to overheads
 for the usage of channels, creating the \texttt{Job} objects
 and switching between different goroutines.

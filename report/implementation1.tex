@@ -1,6 +1,6 @@
 \section{Implementation}
 \label{sec:impl}
-In this Chapter I present basic elements of the \texttt{mpserver} toolkit
+This Chapter presents basic elements of the \texttt{mpserver} toolkit
 and how to work with them. The most important parts are the primitive types:
 \texttt{Job}, \texttt{Component} and \texttt{Writer}.
 
@@ -160,10 +160,10 @@ func MakeComponent(f ComponentFunc) Component {
 \end{figure}
 
 Here the for loop reads \texttt{jobs} from the input channel and assigns them
-to the variable \texttt{job} while the input channel is open. Then the 
-the function \texttt{f} is applied to this \texttt{job} and finally 
+to the variable \texttt{job} while the input channel is open. Next, the 
+the function~\texttt{f} is applied to this \texttt{job} and finally 
 the \texttt{job} is outputted.
-Afterwards, the component waits for another \texttt{job}. When the input channel
+Then, the component waits for another \texttt{job}. When the input channel
 is closed the loop terminates. Afterwards, the component closes its output channel
 and terminates.
 
@@ -172,7 +172,7 @@ Constant Component is a simple component generator that takes a value \texttt{c}
 of any type and returns a component that writes \texttt{c} to the result field of 
 all input \texttt{jobs} and then outputs them. It's definition using the 
 \texttt{MakeComponent} generator is shown in Figure 
-\ref{fig:ConstantComponent} below.
+\ref{fig:ConstantComponent}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -189,13 +189,13 @@ func ConstantComponent(c interface{}) Component {
 \subsubsection{Linking components}
 The library also provides a component generator \texttt{LinkComponents} that takes 
 any number of components and returns a component that behaves as their 
-linear combination. That is as a pipeline constructed from these components 
+linear combination. A pipeline is constructed from these components 
 in the order in which they are provided. Its signature is shown below.
 \begin{lstlisting}
 func LinkComponents(components ...Component) Component
 \end{lstlisting}
 The subcomponents are linked and run when the combined component is run. 
-The last of the provided components is run in the goroutine in which
+The last of the provided components is run in the same goroutine in which
 the combined component was run.
 
 \subsubsection{Simple Load Balancing}
@@ -297,13 +297,13 @@ This combined component allows multiple requests to be processed by the worker
 components at the same time and this in turn allows faster requests to 
 overtake slower requests in the pipeline. The worker component can represent
 a simple computation done locally or they can connect to other servers
-and perform expensive computation there. More advanced version of load 
+and perform expensive computation there. A more advanced version of a load 
 balancing component is introduced in the next chapter.
 
 \newpage
 \subsection{Writers}
 In this section I introduce the \texttt{Writer} type, which acts as the end of the 
-pipeline. Then I present a way how to create custom writers.
+pipeline. Afterwards, I present a way how to create custom writers.
 \subsubsection{Writer type}
 Writer is the end of the pipeline which writes results back to the client.
 The type \texttt{Writer} is defined as follows:
@@ -395,7 +395,7 @@ Condition type is defined as follows:
 \begin{lstlisting}
 type Condition func (job Job) bool
 \end{lstlisting}
-It is a just function that takes a \texttt{job} and returns a boolean.
+It is a function that takes a \texttt{job} and returns a boolean.
 The function shouldn't change the provided \texttt{job}.
 
 \subsubsection{Router}
@@ -440,7 +440,7 @@ to it. Now, \texttt{Collector} only closes its output channel, when
 all of its input channels have been closed, thus avoiding the problem 
 described above. It is acceptable to just use a single channel instead of
 the collector component, if we don't intend to shut down the network.
-The type signature of the \texttt{Collector} is show below.
+The type signature of the \texttt{Collector} is shown below.
 \begin{lstlisting}
 func Collector(ins []<-chan Job, out chan<- Job)
 \end{lstlisting}

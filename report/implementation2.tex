@@ -1,6 +1,6 @@
 \section{Advanced component generators}
 \label{sec:impl2}
-In this section I introduce more advanced component generators for caching,
+In this Chapter I introduce more advanced component generators for caching,
 session management, load balancing, network communication and error handling.
 
 \subsection{Storing data}
@@ -59,8 +59,8 @@ and use any component that uses the storage the same way as before.
 This makes the components that use the storage highly configurable.
 
 \subsubsection{Removing expired values}
-In order to free up space used by expired values, the package implements
-\texttt{StorageCleaner} function that does exactly that. Its type signature
+In order to free up space used by expired values, the package implements the
+\texttt{StorageCleaner} function which does exactly that. Its type signature
 is shown below:
 \begin{lstlisting}
 func StorageCleaner(storage Storage, shutDown <-chan bool, 
@@ -82,6 +82,8 @@ signature:
 func CacheComponent(cache Storage, worker Component, 
                     expiration time.Duration) Component
 \end{lstlisting}
+
+\newpage
 The returned component behaves as follows:
 \begin{itemize}
   \item When an input \texttt{job} holds a request that the component 
@@ -128,8 +130,8 @@ The expected behavior of the member functions is as follows:
           generated.
 	\item The \texttt{Terminal} function indicates whether the current 
           state is a terminal state.
-	\item The \texttt{Result} function returns the result that possibly 
-          after further processing should be returned to the client.
+	\item The \texttt{Result} function returns the result, that possibly 
+          after further processing, should be returned to the client.
 \end{itemize}
 
 \subsubsection{Session Manager}
@@ -142,7 +144,6 @@ func SessionManager(store Storage, initial State,
 Its arguments are a \texttt{storage} object to be used, an \texttt{initial} 
 state for each session and a session expiration time.
 The returned component behaves as a session manager. 
-Its behavior is described below.
 
 The component stores a mapping from session ids to the current state of the session
 in the \texttt{storage} object.
@@ -185,7 +186,7 @@ The initial number of workers is 1.
 For every input \texttt{job}, the generated component behaves as follows:
 \begin{itemize}
 	\item It tries to send the \texttt{job} to the workers, if this is not
-          successful, before the \texttt{addTimeout}, then the component 
+          successful before the \texttt{addTimeout}, then the component 
           creates a new worker if the current number of workers is smaller 
           than \texttt{maxWorkers}. Then the component tries to send the 
           \texttt{job} to the workers again. This will be successful in 
@@ -196,7 +197,7 @@ For every input \texttt{job}, the generated component behaves as follows:
 
 	\item If there are no incoming \texttt{jobs} for duration equal to the 
           \texttt{removeTimeout}, then the component shuts down one 
-          of the workers, if there is more than one worker.
+          of the workers if there is more than one worker.
 
 	\item When the input channel of the component is closed, then 
           the load balancer shuts down all of the workers and afterwards 
@@ -332,14 +333,14 @@ Note that this approach to building the \texttt{ProxyComponent} exploits
 the benefits of the compositional approach. That is we create simple
 components each performing a single operation. These can be easily
 reused in different scenarios. We can replace parts of the pipeline 
-to meet our requirements. If for example we wanted to produce different
+to meet our requirements. If, for example, we wanted to produce different
 types of requests, we could replace the \texttt{RequestRewriter} with
 a custom component. In case we were only interested in the headers of
 the response we could replace the \texttt{ResponseReader} with another 
 custom component and so on.
 
 \subsubsection{Request Rewriter}
-Request Rewriter is the first part of in the pipeline of the 
+Request Rewriter is the first part in the pipeline of the 
 \texttt{ProxyComponent}. It is implemented as a component generator with the 
 following signature:
 \begin{lstlisting}
@@ -352,15 +353,15 @@ updates the request made by the client that is stored in every input
 request in the result field of the given \texttt{job} and outputs it.
 
 \subsubsection{Network Component}
-Network Component is the second part of in the pipeline of the 
+Network Component is the second part in the pipeline of the 
 \texttt{ProxyComponent}. It is implemented as a component generator 
 with the following signature:
 \begin{lstlisting}
 func NetworkComponent(client *http.Client) Component
 \end{lstlisting}
 It takes a single parameter, which is an http client.
-The generated component for each input \texttt{job} makes an http request,
-that is taken from the result field of the \texttt{job}, using the 
+The generated component for each input \texttt{job} makes an http request 
+taken from the result field of the \texttt{job} using the 
 provided http client.
 If there is no request in the result field or the request fails, then
 the component writes an appropriate \texttt{error} to the result field of the
@@ -417,8 +418,8 @@ It holds the headers, repose code and body of an http response.
 The difference between
 this definition and the definition in the default \texttt{http} package is that
 the body of my \texttt{Response} is a slice of bytes. 
-That is the body have already been
-read and the connection to the server has been closed. This is useful
+That is the body has already been
+read and the connection to the server closed. This is useful
 in the case of a proxy server, as we can cache these objects and reuse
 them. This is not possible with the default response type,
 as its body can be only read once.

@@ -38,6 +38,7 @@ type Action interface {
 a shopping cart.}
 \label{fig:action}
 \end{figure}
+
 That is any action must implement the \texttt{performAction} method, which takes
 a \texttt{ShoppingCart} object and tries to perform its operation on it. If
 it succeeds then it returns the updated object and \texttt{nil} pointer for the
@@ -139,7 +140,7 @@ requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
 and similarly for the other two actions. The output of each action maker
 will be connected to the \texttt{SessionManager}, that is wrapped in
 \texttt{ErrorPasser}, so that we don't process invalid requests.
-Finally the output from the session manager will go to the \texttt{ErrorRouter}
+Finally, the output from the session manager will go to the \texttt{ErrorRouter}
 which sends all \texttt{jobs} with non-error results to the 
 \texttt{JsonWriter} and \texttt{jobs} with error results to the 
 \texttt{ErrorWriter}. 
@@ -209,8 +210,8 @@ Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} is omitted for clarity
 
 We will make each part of the network into a separate writer as in
 the Proxy Server example to be able to use the \texttt{DynamicLoadBalancer}.
-The code for making this writer is shown in figure \ref{fig:shoppingWriter}.
-Here, we provide action maker and the shared storage object for the session manager 
+The code for making this writer is shown in Figure \ref{fig:shoppingWriter}.
+Here, we provide the action maker and shared storage object for the session manager 
 as arguments of the function.
 
 \begin{figure}[h]
