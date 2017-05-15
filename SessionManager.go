@@ -87,6 +87,7 @@ func startNewSession(job Job, initial State,
 // management.
 func SessionManager(storage Storage, initial State, 
                     seshExp time.Duration) Component {
+    noExpiration := seshExp <= 0
     return func (in <-chan Job, out chan<- Job) {
         for job := range in {
             id := job.GetRequest().Header.Get("Session-Id")
@@ -107,8 +108,9 @@ func SessionManager(storage Storage, initial State,
             }
 
             now := time.Now()
-            if (storageValue.Time.After(now)) {
-                // Session hasn't expired yet.
+            if (noExpiration || storageValue.Time.After(now)) {
+                // Session hasn't expired yet or sessions don't 
+                // expire.
                 state, _ := storageValue.Value.(State)
                 next, err := state.Next(job)
                 if (err != nil) {

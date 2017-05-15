@@ -2,7 +2,7 @@
 \label{sec:shopping}
 In this Chapter I show how to build a web server that
 maintains a shopping cart for a simple shopping web site. The whole 
-code for this example is shown in Appendix A.
+code for this example is shown in Appendix \ref{sec:shopping.go}.
 
 \subsection{Shopping cart}
 Shopping cart is represented by the struct type showed in Figure 
@@ -77,7 +77,7 @@ func (a AddAction) performAction(s ShoppingCart) (State, error) {
     return s, nil
 }
 \end{lstlisting}
-\caption[scale=1.0]{\texttt{performAction} implementation for \texttt{addAction}.}
+\caption[scale=1.0]{\texttt{performAction} implementation for \texttt{AddAction}.}
 \label{fig:addAction}
 \end{figure}
 
@@ -133,25 +133,24 @@ var addActionMaker = MakeComponent(addActionMakerFunc)
 \label{fig:addActionMaker}
 \end{figure}
 
-\newpage
 \subsection{Plugging it together}
 We use different URL paths to perform different actions. We route the 
 requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
-and similarly for the other two actions. The output of the action maker
-will be connected to the session management component, that is wrapped in
+and similarly for the other two actions. The output of each action maker
+will be connected to the \texttt{SessionManager}, that is wrapped in
 \texttt{ErrorPasser}, so that we don't process invalid requests.
-Finally the output from the session manager goes to the \texttt{ErrorRouter}
+Finally the output from the session manager will go to the \texttt{ErrorRouter}
 which sends all \texttt{jobs} with non-error results to the 
 \texttt{JsonWriter} and \texttt{jobs} with error results to the 
 \texttt{ErrorWriter}. 
 
-We can share the session manager, the router and the writers for all three actions. 
+We could share the \texttt{SessionManager}, the router and the writers for all three actions. 
 However, this will make it difficult to load balance individual parts
 of the network. Hence, each action maker should be connected to their
-own load manager and this to its own router and writers. The overall 
-design for the add action
-is show in diagram of Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} 
-is omitted for clarity.
+own session manager and this to its own router and writers. For the 
+server to function properly the session managers have to share a 
+\texttt{Storage} object. The overall design of the server is shown in 
+Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} is omitted for clarity. 
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
@@ -162,27 +161,58 @@ is omitted for clarity.
     \node [component, right of=manager, node distance=3cm] (splitter) {Error Router};
     \node [writer, right of=splitter, node distance=3cm, yshift=1cm] (writer) {JSON Writer};
     \node [writer, below of=writer] (ewriter) {Error Writer};
+
+    \node [listener, below of=listener, node distance=4cm] (listener2) {/remove};
+    \node [component, right of=listener2, node distance=3cm] (maker2) {Remove Action Maker};
+    \node [component, right of=maker2, node distance=3cm] (manager2) {Session Manager};
+    \node [component, right of=manager2, node distance=3cm] (splitter2) {Error Router};
+    \node [writer, right of=splitter2, node distance=3cm, yshift=1cm] (writer2) {JSON Writer};
+    \node [writer, below of=writer2] (ewriter2) {Error Writer};
+
+    \node [listener, below of=listener2, node distance=4cm] (listener3) {/buy};
+    \node [component, right of=listener3, node distance=3cm] (maker3) {Buy Action Maker};
+    \node [component, right of=maker3, node distance=3cm] (manager3) {Session Manager};
+    \node [component, right of=manager3, node distance=3cm] (splitter3) {Error Router};
+    \node [writer, right of=splitter3, node distance=3cm, yshift=1cm] (writer3) {JSON Writer};
+    \node [writer, below of=writer3] (ewriter3) {Error Writer};
+
+    \node [draw, ellipse, text centered, text width=5em, above of=manager, 
+           xshift=1.5cm, fill=gray!12, node distance=1.5cm] (storage) {Storage};
     
     % Edges
+    \path [draw, line width=0.46mm, color=gray] ($(manager.east) + (0,0.4)$) -| (storage);
+    \path [draw, line width=0.46mm, color=gray] ($(manager2.east) + (0,0.4)$) -| (storage);
+    \path [draw, line width=0.46mm, color=gray] ($(manager3.east) + (0,0.4)$) -| (storage);
+
     \path [line] (listener) -- (maker);
     \path [line] (maker) -- (manager);
     \path [line] (manager) -- (splitter);
     \path [line] (splitter) |- (writer);
     \path [line] (splitter) |- (ewriter);
 
+    \path [line] (listener2) -- (maker2);
+    \path [line] (maker2) -- (manager2);
+    \path [line] (manager2) -- (splitter2);
+    \path [line] (splitter2) |- (writer2);
+    \path [line] (splitter2) |- (ewriter2);
+
+    \path [line] (listener3) -- (maker3);
+    \path [line] (maker3) -- (manager3);
+    \path [line] (manager3) -- (splitter3);
+    \path [line] (splitter3) |- (writer3);
+    \path [line] (splitter3) |- (ewriter3);
 
 \end{tikzpicture}
-\caption[scale=1.0]{Part of shopping server architecture.}
+\caption[scale=1.0]{Shopping server architecture.}
 \label{fig:shoppingDesign}
 \end{figure}
 
 We will make each part of the network into a separate writer as in
 the Proxy Server example to be able to use the \texttt{DynamicLoadBalancer}.
 The code for making this writer is shown in figure \ref{fig:shoppingWriter}.
-Here, we provide action maker and storage for the session manager 
+Here, we provide action maker and the shared storage object for the session manager 
 as arguments of the function.
 
-\newpage
 \begin{figure}[h]
 \lstinputlisting[firstline=12,lastline=35]{../examples/shoppingServer/shoppingServer.go} 
 \caption[scale=1.0]{Implementation of the writer that represents the whole
@@ -190,13 +220,14 @@ pipeline for one action.}
 \label{fig:shoppingWriter}
 \end{figure}
 
-The benefit of the chosen architecture that resources for the add, remove
+The benefit of the chosen architecture is that resources for the add, remove
 and buy actions are allocated independently. That is, if there is lot of 
 people adding items to their shopping cart, there can be more instances
 of the combined writer for the add action and fewer instances for the
 other two actions. The code for running the whole server is shown
 in Figure \ref{fig:ShoppingCode}.
-\begin{figure}[h]
+
+\begin{figure}
 \lstinputlisting[firstline=37,lastline=72]{../examples/shoppingServer/shoppingServer.go} 
 \caption[scale=1.0]{Implementation of the Shopping Server.}
 \label{fig:ShoppingCode}

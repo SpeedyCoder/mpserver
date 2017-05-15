@@ -50,7 +50,7 @@ func Listen(url string, out chan<- Job, mux *http.ServeMux) {
     }
 }
 
-// ListenAndServe call the ListenAndServe method of the default
+// ListenAndServe calls the ListenAndServe method of the default
 // http package with the provided handler if the handler is not 
 // nil. It otherwise uses the DefaultServeMux.
 func ListenAndServe(addr string, handler http.Handler) error {

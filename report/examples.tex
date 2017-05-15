@@ -6,7 +6,7 @@ a file server and a proxy server in the \texttt{mpserver} toolkit.
 \subsection{Hello world! server}
 Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
 server described in section \ref{sec:helloWorld}. Figure \ref{fig:helloWorld2}
-shows the same diagram as Figure \ref{fig:helloWorld}, but with
+shows the same diagram as is shown in Figure \ref{fig:helloWorld}, but with
 added channel names that are the same as the names used in the code.
 
 \begin{figure}[h]
@@ -103,11 +103,16 @@ A simple proxy server can be represented by a diagram shown in Figure
     \node [component, right of=proxy, node distance=3cm] (splitter) {Error Router};
     \node [writer, right of=splitter, node distance=3cm] (rwriter) {Response Writer};
     \node [writer, below of=rwriter] (ewriter) {Error Writer};
+    
+    \node [draw, densely dotted, inner sep=0.5em, fit=(splitter) (rwriter) (ewriter)] (container) {};
+    \node [above of=container, node distance=2.3cm]{Writers};
+
     % Edges
     \path [line] (listener) -- (proxy);
     \path [line] (proxy) -- (splitter);
     \path [line] (splitter) -- (rwriter);
     \path [line] (splitter) |- (ewriter);
+
 \end{tikzpicture}
 \caption[scale=1.0]{Simple proxy server.}
 \label{fig:proxyServer}
@@ -117,7 +122,8 @@ Now to increase throughput of this server I propose wrapping the Proxy
 Component in a Static Load Balancer. However, now the number of writers
 will be the limiting factor, so I propose to wrap both writers and 
 the router in Static Load Balancer for Writers. In order to be able 
-to do this I create a joint writer that internally runs all of the writers.
+to do this I create a joint writer that internally runs the router and
+the writers as is indicated in the diagram of the Figure \ref{fig:proxyServer}.
 The implementation is shown below in figure \ref{fig:ProxyWriters}.
 \begin{figure}[h]
 \lstinputlisting[firstline=12,lastline=18]{../examples/proxyServer/proxyServer.go}  
@@ -151,7 +157,8 @@ Balancer. The code for running this server is shown in Figure
 \end{figure}
 
 This server will be able to process about 200 requests at once efficiently
-at maximal capacity. The whole implementation is shown in Appendix A.
+at maximal capacity provided the computer on which it is run has enough resources.
+The whole implementation is shown in Appendix \ref{sec:proxyServer.go}.
 
 \subsection{Summary}
 In this chapter I presented implementations of 3 progressively more 

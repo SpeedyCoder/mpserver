@@ -80,7 +80,7 @@ component generator \texttt{CacheComponent}, which has the following type
 signature:
 \begin{lstlisting}
 func CacheComponent(cache Storage, worker Component, 
-            expiration time.Duration) Component
+                    expiration time.Duration) Component
 \end{lstlisting}
 The returned component behaves as follows:
 \begin{itemize}
@@ -133,11 +133,11 @@ The expected behavior of the member functions is as follows:
 \end{itemize}
 
 \subsubsection{Session Manager}
-\texttt{SessionManager} is a component generator that performs the 
-management of sessions for individual users. It has the following signature:
+\texttt{SessionManager} is a component generator that returns a component
+which performs management of sessions for individual users. It has the following signature:
 \begin{lstlisting}
 func SessionManager(store Storage, initial State, 
-                seshExp time.Duration) Component
+                    seshExp time.Duration) Component
 \end{lstlisting}
 Its arguments are a \texttt{storage} object to be used, an \texttt{initial} 
 state for each session and a session expiration time.
@@ -163,11 +163,13 @@ When a session reaches a terminal state, the session id is removed from the map
 and the final result is output.
 The states in the mapping are timestamped. Timestamps are updated every time
 the state for a session is updated. When a client tries to access an expired
-session a new session for this client is started.
+session a new session for this client is started. If the session expiration
+time is 0 then the sessions never expire.
 
 % More hype
-The abstraction using states allows the users of the package to implement the
-logic for the session, independently of the session management part.
+Note that the abstraction using states allows the users of the 
+package to implement the logic for the session, independently of 
+the session management part.
 
 \subsection{Dynamic Load Balancing}
 To support load balancing based on the current traffic the toolkit implements
@@ -236,7 +238,6 @@ can be described as follows:
     % Nodes
     \node[component, fill=gray!12, text width=1.5em] (passer) {};
     \node[component, right of=passer] (worker) {Worker};
-    \node[above of=worker, node distance=1.5cm, xshift=-0.7cm](name){ErrorPasser};
     \node[text width=2em, right of=worker] (right) {};
     \node[below of=worker, node distance=1.2cm] (lineh) {};
     \node[left of=passer] (left) {};
@@ -250,7 +251,8 @@ can be described as follows:
     \path[draw] (passer.south) |- (lineh.east);
     \path[draw] (lineh.east) -| (right.west);
     \node[draw, densely dotted, inner sep=1em,
-          fit=(passer) (worker) (lineh)] {};
+          fit=(passer) (worker) (lineh)] (epasser) {};
+    \node[above of=epasser, node distance=1.75cm](name){ErrorPasser};
 \end{tikzpicture}
 \caption[scale=1.0]{Inner design of the component generated with
   \texttt{ErrorPasser}.}
@@ -259,9 +261,9 @@ can be described as follows:
 
 \subsubsection{Panic handling}
 If we use a component which might cause panic (that is if it can 
-throw an exception), this could crash the whole. 
+throw an exception), this could crash the whole server. 
 Hence, the package provides the 
-\texttt{PanicHandler}. The signature of this wrapper is shown 
+\texttt{PanicHandler} component generator, whose signature is shown 
 below.
 \begin{lstlisting}
 func PanicHandler(worker Component) Component
@@ -269,17 +271,18 @@ func PanicHandler(worker Component) Component
 It takes a component that can cause panic and returns a component that 
 behaves as follows:
 \begin{itemize}
-	\item It passes every input \texttt{job} to the worker, gets the result 
-          from it and then passes the result further down the pipeline.
+	\item It passes every input \texttt{job} to the worker, gets the processed 
+        \texttt{job} from it and then passes this \texttt{job} further down
+        the pipeline.
 
 	\item In case the worker crashes, that is it causes panic, the component 
-          writes an error as a result for the \texttt{job} that caused the crash 
-          and then restarts the worker.
+        writes an error as a result for the \texttt{job} that caused the crash 
+        and then restarts the worker.
 
 	\item The component can itself cause a panic if the worker closes its 
-          input channel, or if it closes its output channel before its input 
-          channel is closed. That is if the worker violates the contract
-          for components.
+        input channel, or if it closes its output channel before its input 
+        channel is closed. That is if the worker violates the contract
+        for components.
 \end{itemize}
 
 \newpage
@@ -293,7 +296,7 @@ two perform rewriting of the http requests and reading of the http
 responses.
 
 \subsubsection{Proxy Component}
-In order to implements a proxy server one might want to use
+In order to implement a proxy server one might want to use
 a component that forwards the incoming requests to another server
 and then reads and outputs the responses. The operation that this
 component needs to perform can be divided into three sub-operations: 
@@ -344,9 +347,9 @@ func RequestRewriter(scheme, host string) Component
 \end{lstlisting}
 It takes string parameters scheme (e.g. http) and host (e.g. www.google.com) 
 and returns a component that performs the rewriting. This component
-updates the request made by the client with the given scheme and path
-in each input \texttt{job}. It then stores the request in the result 
-field of the given \texttt{job} and outputs it.
+updates the request made by the client that is stored in every input 
+\texttt{job} with the given scheme and path. It then stores the 
+request in the result field of the given \texttt{job} and outputs it.
 
 \subsubsection{Network Component}
 Network Component is the second part of in the pipeline of the 
@@ -357,9 +360,13 @@ func NetworkComponent(client *http.Client) Component
 \end{lstlisting}
 It takes a single parameter, which is an http client.
 The generated component for each input \texttt{job} makes an http request,
-taken from the Result field of the \texttt{job}, using the provided http client.
+that is taken from the result field of the \texttt{job}, using the 
+provided http client.
 If there is no request in the result field or the request fails, then
-the component returns an appropriate error. 
+the component writes an appropriate \texttt{error} to the result field of the
+\texttt{job} and outputs it. If the request is successful then 
+the component writes the returned \texttt{http Response} to the 
+result field of the \texttt{job} before outputting it.
 
 The behavior of the generated component is described in 
 Figure \ref{fig:networkComp} below. This component is usually used
@@ -422,7 +429,8 @@ If that is the case,
 then it reads the response and transfers it to \texttt{mpsever Response} 
 type, which it
 then writes to the result field and outputs the \texttt{job}. If no response
-is provided, then the component outputs an appropriate error. 
+is provided, then the component writes an appropriate error to the
+\texttt{job} before outputting it.
 
 This is the last part in the pipeline of the \texttt{ProxyComponent}.
 To use this component after the \texttt{NetworkComponent}, 

@@ -110,7 +110,7 @@ an output channel. It reads \texttt{jobs} from its input channel,
 processes them and writes the updated \texttt{jobs} to the output 
 channel. The type \texttt{Component} is defined as follows:
 \begin{lstlisting}
-type Component func (in <-chan Value, out chan<- Value)
+type Component func (in <-chan Job, out chan<- Job)
 \end{lstlisting}
 Every component should satisfy the following conditions:
 \begin{itemize}
@@ -209,7 +209,8 @@ $n$ instances of the worker component.
 The case with $n=3$ in a simple pipeline is shown in Figure \ref{fig:slbEx} below. 
 In order to support clean shutdown of the combined component, the load balancer uses 
 wrappers (U shaped components in the diagram) around workers and a component that 
-forwards incoming \texttt{jobs} to the workers. When input channel of the forwarding
+forwards incoming \texttt{jobs} to the workers. When the input channel of the 
+forwarding
 component is closed it sends a signal to the component wrappers on shut 
 down channels (dashed arrows in the diagram). The wrappers then close
 the channels to the workers, which will force the workers to terminate.
@@ -231,7 +232,6 @@ and then the termination signal propagates further down the network.
     \node [component, above of=passer2] (worker2) {Worker};
     \node [component, below of=passer1] (worker3) {Worker};
     \node [workerWidth, UHeight, below of=worker3] (passer3) {};
-    \node [above of=worker2, node distance=1.3cm, xshift=-0.8cm] {Simple Load Balancer};
 
     % Left
     \node [UWidth, workerHeight, left of=worker1, node distance=2cm] (left1) {};
@@ -286,7 +286,8 @@ and then the termination signal propagates further down the network.
     \path [line] (right1) -- (writer);
     \path [draw] (right2) -| ($ (right1) !.3! (writer) $);
     \path [draw] (right3) -| ($ (right1) !.3! (writer) $);
-    \node[xshift=0.5em, draw, densely dotted, minimum width=18em, inner sep=0.5em,fit=(right2) (right3) (lleft2) (lleft3) (passer3)] {};
+    \node[xshift=0.5em, draw, densely dotted, minimum width=18em, inner sep=0.5em,fit=(right2) (right3) (lleft2) (lleft3) (passer3)] (balancer) {};
+    \node [above of=balancer, node distance=4.8cm] {Simple Load Balancer};
 \end{tikzpicture}
 \caption[scale=1.0]{Simple server example showing usage of \texttt{StaticLoadBalancer}.}
 \label{fig:slbEx}
@@ -371,7 +372,7 @@ func MakeWriter(writerFunc WriterFunc) Writer {
     }
 }
 \end{lstlisting}
-\caption[scale=1.0]{Implementation of writer generator.}
+\caption[scale=1.0]{Implementation of the writer generator.}
 \label{fig:MakeWriter}
 \end{figure}
 
@@ -395,7 +396,7 @@ Condition type is defined as follows:
 type Condition func (job Job) bool
 \end{lstlisting}
 It is a just function that takes a \texttt{job} and returns a boolean.
-The function shouldn't change the provided \texttt{jobs}.
+The function shouldn't change the provided \texttt{job}.
 
 \subsubsection{Router}
 Conditions are used in Router, which is a component with the 

@@ -1,6 +1,6 @@
 \section{Introduction}
 In this first chapter I introduce the motivation behind this project and 
-an overview of my design. I also review related work done on similar
+give an overview of my design. I also review related work done on similar
 problems and give a brief summary of this report. 
 
 \subsection{Motivation}
@@ -44,9 +44,104 @@ To implement this architecture I have constructed a package in the go programmin
 language called \texttt{mpserver}, that allows the construction of such web servers.
 It uses the built in \texttt{http} package to handle the details of
 the HTTP \cite{http} protocol. The toolkit itself concentrates on the 
-structure of the web-server.
+structure of the web-server. Figures \ref{fig:exampleServer1} and 
+\ref{fig:exampleServer2} below show designs of two servers and their parts
+using the toolkit. Their behaviors are explained in later chapters.
 
-% TODO: insert some figures representing servers of various complexities
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [component, right of=listener, node distance=3cm] (getter) {File Getter};
+    \node [component, right of=getter, node distance=3cm] (splitter) {Router};
+    \node [writer, right of=splitter, node distance=3cm] (fwriter) {File Writer};
+    \node [writer, above of=fwriter] (gwriter) {Gzip Writer};
+    % Edges
+    \path [line] (listener) -- (getter);
+    \path [line] (getter) -- (splitter);
+    \path [line] (splitter) -- (fwriter);
+    \path [line] (splitter) |- node[condition, cross]{} (gwriter);
+\end{tikzpicture}
+\caption[scale=1.0]{File server with compression.}
+\label{fig:exampleServer1}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 1.5cm, auto,
+    workerWidth/.style={text width=5em, text centered},
+    workerHeight/.style={minimum height=4em},
+    UWidth/.style={minimum width=0.6cm},
+    UHeight/.style={minimum height=0.6cm}
+    ]
+    % Nodes
+    \node [component] (worker1) {Worker};
+    \node [workerWidth, UHeight, below of=worker1] (passer1) {};
+    \node [workerWidth, UHeight, above of=worker1] (passer2) {};
+    \node [component, above of=passer2] (worker2) {Worker};
+    \node [component, below of=passer1] (worker3) {Worker};
+    \node [workerWidth, UHeight, below of=worker3] (passer3) {};
+
+    % Left
+    \node [UWidth, workerHeight, left of=worker1, node distance=2cm] (left1) {};
+    \node [UWidth, workerHeight, left of=worker2, node distance=2cm] (left2) {};
+    \node [UWidth, workerHeight, left of=worker3, node distance=2cm] (left3) {};
+
+    \node [UWidth, workerHeight, left of=left1, node distance=1.5cm] (lleft1) {};
+    \node [UWidth, workerHeight, left of=left2, node distance=1.5cm] (lleft2) {};
+    \node [UWidth, workerHeight, left of=left3, node distance=1.5cm] (lleft3) {};
+
+    \draw[fill=gray!12] (lleft2.north west) -- (lleft2.west |- passer3.south) --
+          (lleft2.east |- passer3.south) -- (lleft2.north east) --
+          cycle;
+
+    % Right
+    \node [UWidth, workerHeight, right of=worker1, node distance=2cm] (right1) {};
+    \node [UWidth, workerHeight, right of=worker2, node distance=2cm] (right2) {};
+    \node [UWidth, workerHeight, right of=worker3, node distance=2cm] (right3) {};
+
+    \draw[fill=gray!12] (left1.north west) -- (left1.west |- passer1.south) -- 
+          (right1.east |- passer1.south) -- (right1.north east) -- 
+          (right1.north west) -- (right1.west |- passer1.north) -- 
+          (left1.east |- passer1.north) -- (left1.north east) -- cycle;
+    \draw[fill=gray!12] (left2.north west) -- (left2.west |- passer2.south) -- 
+          (right2.east |- passer2.south) -- (right2.north east) -- 
+          (right2.north west) -- (right2.west |- passer2.north) -- 
+          (left2.east |- passer2.north) -- (left2.north east) -- cycle;
+    \draw[fill=gray!12] (left3.north west) -- (left3.west |- passer3.south) -- 
+          (right3.east |- passer3.south) -- (right3.north east) -- 
+          (right3.north west) -- (right3.west |- passer3.north) -- 
+          (left3.east |- passer3.north) -- (left3.north east) -- cycle;
+
+    \node [listener, left of=left1, node distance=4cm] (listener) {Listener};
+    \node [writer, right of=right1, node distance=3cm] (writer) {Writer};
+    % Edges
+    \path [line] (listener) -- (lleft1);
+    \path [line] (lleft1) -- (left1);
+    \path [line] ($ (lleft1) !.4! (left1) $) |- (left2);
+    \path [line] ($ (lleft1) !.4! (left1) $) |- (left3);
+
+    \path [line, dashed,transform canvas={shift={(0,-0.5)}}] (lleft1) -- (left1);
+    \path [line, dashed,transform canvas={shift={(0,-0.5)}}] (lleft2) -- (left2);
+    \path [line, dashed,transform canvas={shift={(0,-0.5)}}] (lleft3) -- (left3);
+
+    \path [line] (left1) -- (worker1);
+    \path [line] (left2) -- (worker2);
+    \path [line] (left3) -- (worker3);
+
+    \path [line] (worker1) -- (right1);
+    \path [line] (worker2) -- (right2);
+    \path [line] (worker3) -- (right3);
+    \path [line] (right1) -- (writer);
+    \path [draw] (right2) -| ($ (right1) !.3! (writer) $);
+    \path [draw] (right3) -| ($ (right1) !.3! (writer) $);
+    \node[xshift=0.5em, draw, densely dotted, minimum width=18em, inner sep=0.5em,fit=(right2) (right3) (lleft2) (lleft3) (passer3)] (balancer) {};
+    \node [above of=balancer, node distance=4.8cm] {Simple Load Balancer};
+\end{tikzpicture}
+\caption[scale=1.0]{Simple server example showing usage of \texttt{StaticLoadBalancer}.}
+\label{fig:exampleServer2}
+\end{figure}
 
 \subsection{Related work}
 Similar work has been done by James Whitehead II in \cite{whitehead}.

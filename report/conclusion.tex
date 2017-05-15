@@ -15,13 +15,19 @@ functional and simple to use.
 % TODO: talk about testing
 
 \subsection{Critical analysis}
-As noted above the toolkit is functional and easy to use, but its performance
-can be very bad if not configured properly. This is because when using a simple
+As noted above the toolkit is easy to use due the fact that response 
+generation diagrams translate directly to program code. The components
+in the toolkit are very general and highly configurable. The toolkit
+also gives programmers control over how much resources are used for 
+different tasks. 
+
+However, the performance of servers implemented in the toolkit can be 
+very bad if they are not configured properly. This is because when using a simple
 pipeline without any load balancing all requests must go through all parts
 of the server one by one, and this limits the throughput. The provided
 tools for load balancing mitigate this problem.
 
-However, as one would expect even then the performance of the web-server
+As one would expect even then the performance of the web-server
 is worse than just using the standard library. This is due to overheads
 for the usage of channels, creating the \texttt{Job} objects
 and switching between different goroutines.
