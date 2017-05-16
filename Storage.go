@@ -1,7 +1,7 @@
 package mpserver
 
 import (
-	"github.com/orcaman/concurrent-map"
+	"github.com/SpeedyCoder/concurrent-map"
 	"time"
 )
 

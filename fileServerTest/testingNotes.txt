@@ -12,3 +12,5 @@ and recompile
 
 Default setting:
 ulimit -n 256
+
+httperf --server localhost --port 8080 --uri /go/testFile.txt --num-conns 60000 --rate 250 --timeout 1
