@@ -16,8 +16,8 @@ the component that uses it.
 \subsubsection{Storage Values}
 Most of the components need to remove old values when they are no longer
 valid or relevant. Hence, the package stores timestamped values. 
-This values are represented by the struct type shown in Figure 
-\ref{fig:StorageValue} below. There \texttt{Time} represents the time 
+This values are represented by the struct type shown in 
+Figure~\ref{fig:StorageValue} below. There \texttt{Time} represents the time 
 when the value becomes invalid and \texttt{Value} the value that is being
 stored, which can be of any type.
 \begin{figure}[h]
@@ -34,7 +34,7 @@ type StorageValue struct {
 
 \subsubsection{Storage}
 \texttt{Storage} is an interface representing thread safe mapping from string keys
-to \texttt{StorageValues}. Its definition is shown in Figure \ref{fig:Storage} below.
+to \texttt{StorageValues}. Its definition is shown in Figure~\ref{fig:Storage} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -110,7 +110,7 @@ type of session.
 \subsubsection{States}
 \label{sec:state}
 To implement the logic of the session the toolkit uses \texttt{State}
-interface, whose definition is shown in Figure \ref{fig:State}.
+interface, whose definition is shown in Figure~\ref{fig:State}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -221,8 +221,8 @@ to bypass a component. The signature of this wrapper is shown below.
 \begin{lstlisting}
 func ErrorPasser(worker Component) Component
 \end{lstlisting}
-The inner design of the generated component is shown in Figure 
-\ref{fig:errPasserDiag}. The behavior of the generated component 
+The inner design of the generated component is shown in 
+Figure~\ref{fig:errPasserDiag}. The behavior of the generated component 
 can be described as follows:
 \begin{itemize}
 	\item For every input \texttt{job} it checks whether its result field 
@@ -308,7 +308,7 @@ three separate components. These are \texttt{RequestRewriter},
 
 Now the proxy component is just a linear combination of these three
 sub-components. Its implementation using the \texttt{LinkComponents}
-function is shown in Figure \ref{fig:ProxyComp} below. 
+function is shown in Figure~\ref{fig:ProxyComp} below. 
 The sub-components are described in the
 following sections. Note that all sub-components are wrapped
 in an \texttt{ErrorPasser} to avoid doing unnecessary work 
@@ -370,7 +370,7 @@ the component writes the returned \texttt{http Response} to the
 result field of the \texttt{job} before outputting it.
 
 The behavior of the generated component is described in 
-Figure \ref{fig:networkComp} below. This component is usually used
+Figure~\ref{fig:networkComp} below. This component is usually used
 to delegate tasks to other servers. In the case of a proxy server
 it delegates all of the work to the other server, but in other scenarios
 it can delegate only some tasks or their parts.
@@ -400,7 +400,7 @@ of the load managers.
 \newpage
 \subsubsection{Response Reader}
 The \texttt{Response} type of the \texttt{mpserver} package is defined as
-a struct that is shown in Figure \ref{fig:Response}.
+a struct that is shown in Figure~\ref{fig:Response}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}

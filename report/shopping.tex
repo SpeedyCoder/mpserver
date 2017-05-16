@@ -2,11 +2,11 @@
 \label{sec:shopping}
 In this Chapter I show how to build a web server that
 maintains a shopping cart for a simple shopping web site. The whole 
-code for this example is shown in Appendix \ref{sec:shopping.go}.
+code for this example is shown in Appendix~\ref{sec:shopping.go}.
 
 \subsection{Shopping cart}
-Shopping cart is represented by the struct type showed in Figure 
-\ref{fig:shoppingCart} below.
+Shopping cart is represented by the struct type showed in 
+Figure~\ref{fig:shoppingCart} below.
 \begin{figure}[h]
 \begin{lstlisting}
 type ShoppingCart struct {
@@ -27,7 +27,7 @@ for the purposes of this example.
 
 \subsection{Actions}
 To represent actions that a user can take I used the interface show in 
-Figure \ref{fig:action}.
+Figure~\ref{fig:action}.
 \begin{figure}[h]
 \begin{lstlisting}
 type Action interface {
@@ -62,7 +62,7 @@ type BuyAction struct {}
 \label{fig:actions}
 \end{figure}
 
-Now Figure \ref{fig:addAction} shows the implementation of the \texttt{performAction}
+Now Figure~\ref{fig:addAction} shows the implementation of the \texttt{performAction}
 method for the \texttt{addAction}. This action creates the map object if 
 necessary and then adds the contents of the items array in the \texttt{AddAction}
 object to the items map in the \texttt{shoppingCart}.
@@ -84,10 +84,10 @@ func (a AddAction) performAction(s ShoppingCart) (State, error) {
 
 \subsection{Implementing State interface}
 Now we want the \texttt{ShoppingCart} type to implement the \texttt{State} 
-interface defined in section
-\ref{sec:state}, so that it can be used by the session manager component.
+interface defined in section~\ref{sec:state}, 
+so that it can be used by the session manager component.
 This component will maintain one \texttt{ShoppingCart} object for each user.
-Figure \ref{fig:shoppingCartImpl} below shows the implementation of the 
+Figure~\ref{fig:shoppingCartImpl} below shows the implementation of the 
 methods of the \texttt{State} interface for the \texttt{ShoppingCart} type.
 \begin{figure}[h]
 \begin{lstlisting}
@@ -151,7 +151,7 @@ of the network. Hence, each action maker should be connected to their
 own session manager and this to its own router and writers. For the 
 server to function properly the session managers have to share a 
 \texttt{Storage} object. The overall design of the server is shown in 
-Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} is omitted for clarity. 
+Figure~\ref{fig:shoppingDesign}. The \texttt{ErrorPasser} is omitted for clarity. 
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
@@ -210,7 +210,7 @@ Figure \ref{fig:shoppingDesign}. The \texttt{ErrorPasser} is omitted for clarity
 
 We will make each part of the network into a separate writer as in
 the Proxy Server example to be able to use the \texttt{DynamicLoadBalancer}.
-The code for making this writer is shown in Figure \ref{fig:shoppingWriter}.
+The code for making this writer is shown in Figure~\ref{fig:shoppingWriter}.
 Here, we provide the action maker and shared storage object for the session manager 
 as arguments of the function.
 
@@ -226,7 +226,7 @@ and buy actions are allocated independently. That is, if there is lot of
 people adding items to their shopping cart, there can be more instances
 of the combined writer for the add action and fewer instances for the
 other two actions. The code for running the whole server is shown
-in Figure \ref{fig:ShoppingCode}.
+in Figure~\ref{fig:ShoppingCode}.
 
 \begin{figure}
 \lstinputlisting[firstline=37,lastline=72]{../examples/shoppingServer/shoppingServer.go} 

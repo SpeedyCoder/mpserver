@@ -14,7 +14,7 @@ Finally I compare these designs to the set up of equivalent Apache servers.
 \label{sec:helloWorld}
 The simplest example is a Hello world! server. This server replies with a 
 Hello world! message to all requests and is represented by the diagram
-in Figure \ref{fig:helloWorld}.
+in Figure~\ref{fig:helloWorld}.
 
 \begin{figure}[h]
 \centering
@@ -53,7 +53,8 @@ server introduced above. It consists of a \texttt{Listener}, which catches the r
 \texttt{File Getter}, what is a function that gets the requested file (it
 constructs the absolute path to the requested file and loads it into the memory) 
 and finally there is a \texttt{File Writer}, which
-writes the file to the client. The architecture is shown in Figure \ref{fig:fileServer}.
+writes the file to the client. The architecture is shown in 
+Figure~\ref{fig:fileServer}.
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
@@ -73,7 +74,7 @@ If we want to compress some subset of files, we can just add a \texttt{Router}
 that sends files that are supposed to be compressed to a \texttt{Gzip Writer}, which
 compresses the file and writes the result to the client. The rest of the files
 will be passed to the standard \texttt{File Writer}. This architecture is shown in
-Figure \ref{fig:fileServer2}. The circular gate in the diagram represents 
+Figure~\ref{fig:fileServer2}. The circular gate in the diagram represents 
 the condition that must be satisfied in order to send the files
 to the \texttt{Gzip Writer}. The gate is absent on the channel that goes to
 the \texttt{File Writer} to indicate that all requests that doesn't
@@ -104,7 +105,7 @@ and that we want to cache its output.
 Using the proposed architecture we can just wrap the worker in a caching layer.
 That is we only run the worker component if we don't have the result
 in the cache, otherwise we just return the stored result. 
-This design is shown in Figure \ref{fig:caching}.
+This design is shown in Figure~\ref{fig:caching}.
 
 \begin{figure}[h]
 \centering
@@ -151,7 +152,7 @@ have to be only adding components locally.
 If we use channels over network then
 we can connect to other servers and distribute the workload among them.
 Hence we can start or shut down other servers based on the current traffic.
-See Figure \ref{fig:loadBalancing} below.
+See Figure~\ref{fig:loadBalancing} below.
 
 \begin{figure}[h]
 \centering
@@ -193,7 +194,7 @@ See Figure \ref{fig:loadBalancing} below.
 
 \subsection{Comparison to Apache server configuration}
 As previously noted, configuring an Apache server can prove to be quite difficult.
-Figure \ref{fig:apache} shows a part of a simple file server
+Figure~\ref{fig:apache} shows a part of a simple file server
 configuration.
 \begin{figure}[h]
 \centering
@@ -229,7 +230,7 @@ At first this does not look like a difficult configuration. However,
 one might argue that it is not as clear as the architecture proposed above,
 as we are mixing different aspects of the server configuration in one place.
 The main issue is that configuring more complex servers gets much more 
-difficult very quickly. Furthermore if we want to serve dynamic content
+difficult very quickly. Furthermore, if we want to serve dynamic content
 we might need to use scripts written in other languages.
 
 \subsection{Summary}

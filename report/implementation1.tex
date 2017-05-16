@@ -7,7 +7,7 @@ and how to work with them. The most important parts are the primitive types:
 \subsection{Jobs}
 \texttt{Job} is an interface that represents the type of messages that are
 passed between the components of the network. Its definition is shown
-in Figure \ref{fig:Job} below.
+in Figure~\ref{fig:Job} below.
 
 \begin{figure}[h]
 \centering
@@ -39,7 +39,7 @@ using the package can only use the first 6 methods of the \texttt{Job}
 interface.
 
 The interface is implemented by a pointer to a private struct type shown in 
-Figure \ref{fig:jobStruct}.
+Figure~\ref{fig:jobStruct}.
 \newpage
 \begin{figure}[h]
 \centering
@@ -142,7 +142,7 @@ type ComponentFunc func (job Job)
 This represents a transition function that is applied to input \texttt{jobs}
 to produce output \texttt{jobs}.
 The implementation of the described component generator is shown in 
-Figure \ref{fig:MakeComponent} below.
+Figure~\ref{fig:MakeComponent} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -171,8 +171,7 @@ and terminates.
 Constant Component is a simple component generator that takes a value \texttt{c}
 of any type and returns a component that writes \texttt{c} to the result field of 
 all input \texttt{jobs} and then outputs them. It's definition using the 
-\texttt{MakeComponent} generator is shown in Figure 
-\ref{fig:ConstantComponent}.
+\texttt{MakeComponent} generator is shown in Figure~\ref{fig:ConstantComponent}.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}
@@ -206,7 +205,7 @@ Note that this is possible as channels in go are many-to-many.
 component and number $n$ and returns a component that when run starts 
 $n$ instances of the worker component. 
 
-The case with $n=3$ in a simple pipeline is shown in Figure \ref{fig:slbEx} below. 
+The case with $n=3$ in a simple pipeline is shown in Figure~\ref{fig:slbEx} below. 
 In order to support clean shutdown of the combined component, the load balancer uses 
 wrappers (U shaped components in the diagram) around workers and a component that 
 forwards incoming \texttt{jobs} to the workers. When the input channel of the 
@@ -347,10 +346,10 @@ type WriterFunc func (job Job) ([]byte, error)
 \end{lstlisting}
 This function should set headers and convert the provided \texttt{job} into 
 a slice\footnote{``Slice is a dynamically-sized, flexible view into the elements 
-of an array.''\cite{tour}} of bytes or return an error in case it 
+of an array.''~\cite{tour}} of bytes or return an error in case it 
 is provided with a 
 wrong input. The implementation of the writer generator itself is shown
-in Figure \ref{fig:MakeWriter} below.
+in Figure~\ref{fig:MakeWriter} below.
 \begin{figure}[h]
 \centering
 \begin{lstlisting}

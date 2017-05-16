@@ -43,9 +43,10 @@ as a network of pipelines that transform requests into responses.
 To implement this architecture I have constructed a package in the go programming 
 language called \texttt{mpserver}, that allows the construction of such web servers.
 It uses the built in \texttt{http} package to handle the details of
-the HTTP \cite{http} protocol. The toolkit itself concentrates on the 
-structure of the web-server. Figures \ref{fig:exampleServer1} and 
-\ref{fig:exampleServer2} below show designs of two servers and their parts
+the HTTP~\cite{http} protocol. The toolkit itself concentrates on the 
+structure of the web-server. 
+Figures~\ref{fig:exampleServer1}~and~\ref{fig:exampleServer2} 
+below show designs of two servers and their parts
 using the toolkit. Their behaviors are explained in later chapters.
 
 \begin{figure}[h]
@@ -144,7 +145,7 @@ using the toolkit. Their behaviors are explained in later chapters.
 \end{figure}
 
 \subsection{Related work}
-Similar work has been done by James Whitehead II \cite{whitehead}.
+Similar work has been done by James Whitehead~II~\cite{whitehead}.
 He uses reader-writer pairs for communication between
 two different components in the network. These act like channels, but
 have to be constructed for each pair of communicating components
@@ -159,21 +160,21 @@ to a stream of bytes.
 \subsection{Report overview}
 This Chapter introduced the motivation of the project, its main
 aim, the architecture of the proposed toolkit and reviewed work done
-on similar problems. Chapter \ref{sec:background}
+on similar problems. Chapter~\ref{sec:background}
 presents the necessary background for the project.
 
-In Chapter \ref{sec:arch} I analyze the design of a few simple servers
-in the suggested framework. Chapter \ref{sec:impl} describes the basic parts of 
-my implementation of the proposed toolkit. Chapter \ref{sec:impl2} then builds
+In Chapter~\ref{sec:arch} I analyze the design of a few simple servers
+in the suggested framework. Chapter~\ref{sec:impl} describes the basic parts of 
+my implementation of the proposed toolkit. Chapter~\ref{sec:impl2} then builds
 on this and introduces more advanced features of the implementation.
 
-Afterwards in Chapter \ref{sec:examples} I present
-implementations of servers described in Chapter \ref{sec:arch} in my framework.
-In Chapter \ref{sec:shopping} I perform a case study of building
+Afterwards in Chapter~\ref{sec:examples} I present
+implementations of servers described in Chapter~\ref{sec:arch} in my framework.
+In Chapter~\ref{sec:shopping} I perform a case study of building
 a part of a simple shopping server using my toolkit.
 
-In chapter \ref{sec:test} I present results of performance tests of equivalent 
-servers implemented in my framework, in pure go, using toolkit by James Whitehead II
-\cite{whitehead} and using Apache framework. Finally in chapter 
-\ref{sec:conclusion} I summarize the results and achievements of this 
-project and present ideas for future work.
+In Chapter~\ref{sec:test} I present results of performance tests of equivalent 
+servers implemented in my framework, in pure go, using toolkit by 
+James Whitehead~II~\cite{whitehead} and using Apache framework. 
+Finally in Chapter~\ref{sec:conclusion} I summarize the results and 
+achievements of this project and present ideas for future work.

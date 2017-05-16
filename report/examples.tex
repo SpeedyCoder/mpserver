@@ -4,9 +4,9 @@ This chapter presents the implementations of a Hello World! server,
 a file server and a proxy server in the \texttt{mpserver} toolkit.
 
 \subsection{Hello world! server}
-Figure \ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
-server described in section \ref{sec:helloWorld}. Figure \ref{fig:helloWorld2}
-shows the same diagram as is shown in Figure \ref{fig:helloWorld}, but with
+Figure~\ref{fig:HelloWorldImpl} shows the Implementation of the Hello World!
+server described in Section~\ref{sec:helloWorld}. Figure~\ref{fig:helloWorld2}
+shows the same diagram as is shown in Figure~\ref{fig:helloWorld}, but with
 added channel names that are the same as the names used in the code.
 
 \begin{figure}[h]
@@ -40,9 +40,9 @@ directly into program code.
 
 \newpage
 \subsection{File server}
-Figure \ref{fig:FileServerImpl} shows the implementation of a simple 
+Figure~\ref{fig:FileServerImpl} shows the implementation of a simple 
 file server that compresses all `.go' files. It is almost a direct translation
-of the diagram shown in Figure \ref{fig:fileServer2} in section \ref{sec:fileServer}.
+of the diagram shown in Figure~\ref{fig:fileServer2} in Section~\ref{sec:fileServer}.
 However, here the File Getter is composed of two parts, which are \texttt{PathMaker}
 and \texttt{FileComponent}.
 
@@ -57,7 +57,7 @@ This path is used when a non existent file is requested by the client.
 Otherwise `.go' files are sent to the \texttt{GzipWriter} and all other files to 
 the standard \texttt{FileWriter}.
 The diagram that represents this server is shown in 
-Figure \ref{fig:fileServer3}. Note that the diagram translates directly 
+Figure~\ref{fig:fileServer3}. Note that the diagram translates directly 
 to program code again.
 
 \begin{figure}[h]
@@ -92,8 +92,8 @@ to program code again.
 
 \newpage
 \subsection{Proxy server}
-A simple proxy server can be represented by a diagram shown in Figure
-\ref{fig:proxyServer} below.
+A simple proxy server can be represented by a diagram shown in 
+Figure~\ref{fig:proxyServer} below.
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance = 2cm, auto]
@@ -123,8 +123,8 @@ Component in a Static Load Balancer. However, now the number of writers
 will be the limiting factor, so I propose to wrap both writers and 
 the router in Static Load Balancer for Writers. In order to be able 
 to do this I create a joint writer that internally runs the router and
-the writers as is indicated in the diagram of the Figure \ref{fig:proxyServer}.
-The implementation is shown below in figure \ref{fig:ProxyWriters}.
+the writers as is indicated in the diagram of the Figure~\ref{fig:proxyServer}.
+The implementation is shown below in Figure~\ref{fig:ProxyWriters}.
 \begin{figure}[h]
 \lstinputlisting[firstline=12,lastline=18]{../examples/proxyServer/proxyServer.go}  
 \caption[scale=1.0]{Implementation of the joint writer for the Proxy Server.}
@@ -134,7 +134,7 @@ The implementation is shown below in figure \ref{fig:ProxyWriters}.
 To avoid doing the same request repeatedly I propose
 wrapping the Proxy Component again, but now in a Caching layer. The 
 implementation of the server described so far as a single writer is shown
-below in Figure \ref{fig:ProxyWriter}.
+below in Figure~\ref{fig:ProxyWriter}.
 \begin{figure}[h]
 \lstinputlisting[firstline=20,lastline=35]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the writer representing the Proxy Server.}
@@ -148,8 +148,8 @@ time then they also finish at approximately the same if the server wasn't
 doing any work when the requests arrived.
 To increase this number dynamically based on current traffic I propose
 to wrap the writer that represents the whole server in a Dynamic Load
-Balancer. The code for running this server is shown in Figure 
-\ref{fig:ProxyServerImpl}.
+Balancer. The code for running this server is shown in 
+Figure~\ref{fig:ProxyServerImpl}.
 \begin{figure}[h]
 \lstinputlisting[firstline=37,lastline=50]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the the Proxy Server.}
@@ -158,7 +158,7 @@ Balancer. The code for running this server is shown in Figure
 
 This server will be able to process about 200 requests at once efficiently
 at maximal capacity provided the computer on which it is run has enough resources.
-The whole implementation is shown in Appendix \ref{sec:proxyServer.go}.
+The whole implementation is shown in Appendix~\ref{sec:proxyServer.go}.
 
 \subsection{Summary}
 In this chapter I presented implementations of 3 progressively more 
