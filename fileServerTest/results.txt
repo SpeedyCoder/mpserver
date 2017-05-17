@@ -1,0 +1,5 @@
+rate | go  | webpipes (erlang) | mpserver | times in [ms]
+50   | 2.6 | 2.6      		   | 2.7	  |
+
+
+webpipes proc chain wasn't working

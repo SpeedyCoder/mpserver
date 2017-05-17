@@ -5,12 +5,9 @@ import (
     "net/http"
     "mpserver"
     "github.com/jnwhiteh/webpipes"
-    "runtime"
 )
 
 func main() {
-	runtime.GOMAXPROCS(2)
-	log.Println("Using 2 cores.")
 	dir := "fileServerTest"
 	useGo := flag.Bool(
 		"go", false, "use plain go implementation")

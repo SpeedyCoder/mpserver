@@ -14,3 +14,8 @@ Default setting:
 ulimit -n 256
 
 httperf --server localhost --port 8080 --uri /go/testFile.txt --num-conns 60000 --rate 250 --timeout 1
+
+ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -numconns 10 -manual 192.168.8.82:1717
+
+sudo firewall-cmd --permanent --add-port=1718/tcp
+sudo firewall-cmd --reload
