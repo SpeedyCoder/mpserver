@@ -30,7 +30,7 @@ func main() {
 	if (*useMPS) {
 		log.Println("Using mpserver implementation.")
 		mux.Handle("/mpserver/", 
-			mpserver.BalancedFileServer(dir, "/mpserver", 4))
+			mpserver.SBalancedFileServer(dir, "/mpserver", 4))
 	}
 	if (*useWB) {
 		log.Println("Using webpipes implementation.")
