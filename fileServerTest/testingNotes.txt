@@ -34,6 +34,6 @@ sudo firewall-cmd --reload
 httperf --server 192.168.8.81 --port 8080 --uri /go/testFile.txt --rate 300 --num-conns 48000 --timeout 1 --hog
 
 
-localhost:80/apache/testFile.txt
-
 ahpclient -server 192.168.8.81 -port 80 -url /apache/testFile.txt -timeout 1 -connrate 100 -requests 1 -skipheader -duration 160 -increment 100 -repeat 8 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718
+
+ahpclient -server 192.168.8.81 -port 80 -url /apache/testFile.txt -timeout 1 -connrate 100 -requests 1 -skipheader -duration 1 -increment 100 -repeat 1 -manual 192.168.8.82:1717

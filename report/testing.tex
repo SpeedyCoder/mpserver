@@ -12,10 +12,17 @@ To compare the performance of the four server architectures, I
 implemented a simple file server in all of them. Their performance 
 was tested on serving a 4KB static file. The code for the servers 
 that were implemented in Go is shown in Appendix~\ref{sec:testing.go}. To generate 
-the load I used \texttt{httperf} tool~\cite{httperf}. This setup
-is inspired by the one used in~\cite{whitehead}.
+the load I used \texttt{httperf} tool~\cite{httperf}. To distribute 
+the testing among multiple machines I used slightly modified version
+of the \texttt{autohttperf} tool~\cite{whitehead}.
+This setup is inspired by the one used in~\cite{whitehead}.
 
-% TODO: describe computers used ...
+The server was run on a virtual machine with quad core processor and 
+8GB of RAM. The machine was running CentOS Linux release 7.3.1611 (Core)
+with Linux kernel 3.10.0.
+I used 3 client machines with the same specification as the server machine, 
+except that they had only 4GB of RAM. The version of Go on the machines was
+1.6.3 linux/amd64. The version of Apache server used was 2.4.6 (CentOS).
 
 \subsection{Results}
 

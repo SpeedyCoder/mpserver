@@ -52,6 +52,20 @@ func SBalancedFileServer(dir, prefix string,
     return Handler(in)
 }
 
+// SBalancedFileServer creates a file server and returns an 
+// http.Handler object that feeds the incoming requests to this 
+// server.
+func LBalancedFileServer(dir, prefix string) http.Handler{
+    ins := make([]chan Job, 4)
+    writer := FileServerWriter(dir, prefix)
+    for i := 0; i < 4; i++ {
+        ins[i] = GetChan()
+        go writer(ins[i])
+    }
+
+    return HandlerTo4(ToOutChans(ins))
+}
+
 // SimpleFileServer creates a file server and returns an 
 // http.Handler object that feeds the incoming requests to this 
 // server.
