@@ -48,7 +48,7 @@ is the end of the server pipeline.
 
 \subsection{File Server}
 \label{sec:fileServer}
-Architecture of a simple file server follows the architecture of the Hello world!
+The architecture of a simple file server follows the architecture of the Hello world!
 server introduced above. It consists of a \texttt{Listener}, which catches the requests,
 \texttt{File Getter}, what is a function that gets the requested file (it
 constructs the absolute path to the requested file and loads it into the memory) 
@@ -77,7 +77,7 @@ will be passed to the standard \texttt{File Writer}. This architecture is shown 
 Figure~\ref{fig:fileServer2}. The circular gate in the diagram represents 
 the condition that must be satisfied in order to send the files
 to the \texttt{Gzip Writer}. The gate is absent on the channel that goes to
-the \texttt{File Writer} to indicate that all requests that doesn't
+the \texttt{File Writer} to indicate that all requests that don't
 satisfy the condition are sent to the \texttt{File Writer}.
 
 \begin{figure}[h]
@@ -145,11 +145,11 @@ ready first. When the load in a given part of the pipeline decreases,
 we can shut down the created components.
 
 The benefit of the proposed architecture is that, we can do these adjustments
-in runtime.
+at runtime.
 That is, based on current number of requests going through a certain part of 
 the network we can decide to add or remove parts of the pipeline. This does not
 have to be only adding components locally.
-If we use channels over network then
+If we use channels over the network then
 we can connect to other servers and distribute the workload among them.
 Hence we can start or shut down other servers based on the current traffic.
 See Figure~\ref{fig:loadBalancing} below.
@@ -216,7 +216,7 @@ Alias /project /path/to/project/
 
 The first line in the above configuration specifies that accessing URL 
 path "/project" should point to the "/path/to/project/" directory.
-Lines 3 to 10 specify who and how can access this directory.
+Lines 3 to 10 specify who can access this directory and how.
 The option \texttt{Options Indexes} indicates that if a client tries
 to access a directory, then the server should list its contents.
 

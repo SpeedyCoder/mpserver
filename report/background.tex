@@ -1,7 +1,7 @@
 \section{Background}
 \label{sec:background}
 In this Chapter I explain the basics of message passing concurrency and 
-the basics of the go programming language, which was used to implement 
+the basics of the Go programming language, which was used to implement 
 the proposed toolkit.
 
 \subsection{Introduction to Message passing Concurrency}
@@ -23,7 +23,7 @@ Hence, this style does not
 suffer any problems that arise from using shared memory for communication 
 and synchronization by multiple concurrent processes.
 
-\subsection{Introduction to go}
+\subsection{Introduction to Go}
 ``Go is a statically-typed programming language. Programs are compiled 
 to native code and are linked with a small runtime environment that performs 
 automatic memory management and scheduling for lightweight processes called 
@@ -57,9 +57,9 @@ function will be evaluated in a new goroutine and that goroutine will
 terminate when the function terminates~\cite{GoDocumentation}.
 
 \subsubsection{Channels}
-Channels in go are many-to-many. That is, multiple goroutines can
+Channels in Go are many-to-many. That is, multiple goroutines can
 read from, and write to, a single channel. Channels are statically typed and
-dynamically allocated using \texttt{make} function. This function takes 
+dynamically allocated using the \texttt{make} function. This function takes 
 two arguments: the type of the channel and the size of its buffer.
 A channel with buffer size 0 implements a synchronous channel, whereas 
 channels with buffers implement asynchronous channels, as reads
@@ -103,7 +103,7 @@ func (c *Counter) getCount() int {return c.count}
 \label{fig:counterObj}
 \end{figure}
 
-To specify behavior of types go provides interfaces. An interface
+To specify behavior of types Go provides interfaces. An interface
 specifies methods that a type must implement in order to satisfy it.
 ``Interfaces are satisfied implicitly. That is a type implements 
 an interface by implementing its methods.''~\cite{tour}
@@ -150,7 +150,7 @@ a goroutine panics when \texttt{panic} is called.
 
 \subsection{Summary}
 In this chapter I introduced the basics of the message passing concurrency
-paradigm and the go programming language. In the next chapter I 
+paradigm and the Go programming language. In the next chapter I 
 analyze conceptual design of a few example servers in the proposed
 architecture.
 

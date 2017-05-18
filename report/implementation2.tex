@@ -12,11 +12,12 @@ This section introduces an interface that specifies methods that an
 object must implement, in order to be used as a data storage. This 
 separates the problem of managing the data storage from the logic of
 the component that uses it.
+% TODO: say that this is separation of concerns design principle and State patern fo the states?
 
 \subsubsection{Storage Values}
 Most of the components need to remove old values when they are no longer
 valid or relevant. Hence, the package stores timestamped values. 
-This values are represented by the struct type shown in 
+These values are represented by the struct type shown in 
 Figure~\ref{fig:StorageValue} below. There \texttt{Time} represents the time 
 when the value becomes invalid and \texttt{Value} the value that is being
 stored, which can be of any type.
@@ -147,9 +148,9 @@ The returned component behaves as a session manager.
 
 The component stores a mapping from session ids to the current state of the session
 in the \texttt{storage} object.
-Every new request gets assigned a unique session id. Then a current state
+Every new request gets assigned a unique session Id. Then a current state
 of the session is generated from the initial state using the provided
-\texttt{job}. Afterwards a mapping from the generated id to the current state
+\texttt{job}. Afterwards a mapping from the generated Id to the current state
 is stored. The result of the call to the \texttt{Result} function on the
 current state is then sent down the pipeline and response for the client 
 is generated from it.
@@ -160,7 +161,7 @@ state for the session and computes the next state for it based on the provided
 The mapping is then updated with the new state and the result from the new state
 is passed down the pipeline.
 
-When a session reaches a terminal state, the session id is removed from the map
+When a session reaches a terminal state, the session Id is removed from the map
 and the final result is output.
 The states in the mapping are timestamped. Timestamps are updated every time
 the state for a session is updated. When a client tries to access an expired
@@ -228,7 +229,7 @@ can be described as follows:
 	\item For every input \texttt{job} it checks whether its result field 
           contains an error and if that is the cases it just outputs the 
           \texttt{job}.
-	\item If the result filed of the input \texttt{job} doesn't contain 
+	\item If the result field of the input \texttt{job} doesn't contain 
           an error, then the component passes the \texttt{job} to the worker, 
           which after processing it passes it further down the pipeline.
 \end{itemize}
@@ -353,7 +354,7 @@ updates the request made by the client that is stored in every input
 request in the result field of the given \texttt{job} and outputs it.
 
 \subsubsection{Network Component}
-Network Component is the second part in the pipeline of the 
+The Network Component is the second part in the pipeline of the 
 \texttt{ProxyComponent}. It is implemented as a component generator 
 with the following signature:
 \begin{lstlisting}

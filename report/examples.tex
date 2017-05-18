@@ -52,7 +52,7 @@ the result. The \texttt{FileComponent} tries to open a file at a path
 provided in the result field of the input \texttt{job}. Other modifications
 are the addition of the \texttt{ErrorWriter} and the channel going to it from
 the \texttt{Router}.
-This path is used when a non existent file is requested by the client.
+This path is used when a non-existent file is requested by the client.
 
 Otherwise `.go' files are sent to the \texttt{GzipWriter} and all other files to 
 the standard \texttt{FileWriter}.
@@ -167,3 +167,61 @@ can be increased in the same way as shown for the Proxy Server. The
 next section analyzes how to build part of a shopping server.
 
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance = 1.5cm, auto,
+    workerWidth/.style={text width=5em, text centered},
+    workerHeight/.style={minimum height=4em},
+    UWidth/.style={minimum width=0.6cm},
+    UHeight/.style={minimum height=0.6cm}]
+    % Nodes
+    \node [listener] (listener) {Listener};
+    \node [workerHeight, right of=listener] (leftc) {};
+    \node [workerHeight, right of=leftc, node distance=0.5cm] (leftb) {};
+    \node [component, text width=6em, right of=leftb, node distance=2cm] (proxy) {Proxy Component};
+    \node [below of=proxy] (balance) {Load Balancer};
+    \node [below of=balance, node distance=0.9cm] (cache) {Cache};
+
+    \node [workerHeight, right of=proxy, node distance=2cm] (rightb) {};
+    \node [workerHeight, right of=rightb, node distance=0.5cm] (rightc) {};
+
+    \node [workerHeight, right of=rightc, node distance=0.5cm] (balancer) {};
+
+    \node [component, right of=balancer, node distance=2cm] (splitter) {Error Router};
+    \node [writer, right of=splitter, node distance=3cm] (rwriter) {Response Writer};
+    \node [writer, below of=rwriter, node distance=2cm] (ewriter) {Error Writer};
+    
+    \node [draw, densely dotted, inner sep=0.5em, fit=(splitter) (rwriter) (ewriter)] (container) {};
+    \node [above of=container, node distance=2.3cm](writers){Writers};
+    \node [below of=writers, node distance=4.8cm] (load) {Load Balancer};
+
+    \draw (leftb.north west) -- (leftb.west |- balance.south) -- (rightb.east |- 
+          balance.south) -- (rightb.north east) -- (rightb.north west) -- 
+          (rightb.west |- balance.north) -- (leftb.east |- balance.north) -- 
+          (leftb.north east) -- cycle;
+
+    \draw (leftc.north west) -- (leftc.west |- cache.south) -- (rightc.east |- 
+          cache.south) -- (rightc.north east) -- (rightc.north west) -- 
+          (rightc.west |- cache.north) -- (leftc.east |- cache.north) -- 
+          (leftc.north east) -- cycle;
+
+    \draw (balancer.north west) -- (balancer.west |- load.south) -- 
+          (ewriter.east |- load.south) -- (ewriter.east |- load.north) --
+          (balancer.east |- load.north) -- (balancer.north east) -- cycle;
+
+    % Edges
+    \path [line] (listener) -- (leftc);
+    \path [line] (leftc) -- (leftb);
+    \path [line] (leftb) -- (proxy);
+    \path [line] (proxy) -- (rightb);
+    \path [line] (rightb) -- (rightc);
+    \path [line] (rightc) -- (balancer);
+
+    \path [line] (balancer) -- (splitter);
+    \path [line] (splitter) -- (rwriter);
+    \path [line] (splitter) |- (ewriter);
+
+\end{tikzpicture}
+\caption[scale=1.0]{Simple proxy server.}
+\label{fig:proxyServer}
+\end{figure}

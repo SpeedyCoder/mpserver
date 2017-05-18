@@ -22,11 +22,11 @@ Here, \texttt{items} is
 a mapping that represents the contents of the cart. It stores the names
 of the items and their count. \texttt{bought} indicates whether the items
 were purchased. In a real life scenario one might choose to use 
-a list of ids rather than a map, but using a map keeps things simple
+a list of Ids rather than a map, but using a map keeps things simple
 for the purposes of this example.
 
 \subsection{Actions}
-To represent actions that a user can take I used the interface show in 
+To represent actions that a user can take I used the interface shown in 
 Figure~\ref{fig:action}.
 \begin{figure}[h]
 \begin{lstlisting}
@@ -138,8 +138,8 @@ var addActionMaker = MakeComponent(addActionMakerFunc)
 We use different URL paths to perform different actions. We route the 
 requests with paths starting with \texttt{/add} to the \texttt{addActionMaker}
 and similarly for the other two actions. The output of each action maker
-will be connected to the \texttt{SessionManager}, that is wrapped in
-\texttt{ErrorPasser}, so that we don't process invalid requests.
+will be connected to the \texttt{SessionManager}, which is wrapped in
+\texttt{ErrorPasser} so that we don't process invalid requests.
 Finally, the output from the session manager will go to the \texttt{ErrorRouter}
 which sends all \texttt{jobs} with non-error results to the 
 \texttt{JsonWriter} and \texttt{jobs} with error results to the 

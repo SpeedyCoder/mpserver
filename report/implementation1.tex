@@ -13,7 +13,7 @@ in Figure~\ref{fig:Job} below.
 \centering
 \begin{lstlisting}
 type Job interface {
-    //Public methods
+    // Public methods
     GetRequest() *http.Request
     GetResult() interface{}
     SetResult(value interface{})
@@ -81,26 +81,26 @@ Here:
 
   \item \texttt{responseWriter} is an object that writes the response back 
         to the client. Again only \texttt{Writers} use this field. They
-        can retrieve it using \texttt{getResponseWriter} method. 
+        can retrieve it using the \texttt{getResponseWriter} method. 
         Alternatively, they can use the \texttt{write\-Header}
         and \texttt{write} methods to access the field indirectly.
         These methods write the headers and 
         the body of the response to the client respectively.
 
-  \item \texttt{done} is a signaling channel. Signal is sent on this channel,
-		after the response is written at the end of the pipeline using the 
+  \item \texttt{done} is a signaling channel. A signal is sent on this channel,
+		    after the response is written at the end of the pipeline using the 
         \texttt{close} method. This allows the connection to the client to 
         be closed after the result is written.
 \end{itemize}
 Note that all methods related to writing the response back to the client
 are private to the package. This is to ensure correct behavior, as otherwise
 these methods could be accessed by users of the package in any part of the 
-network, what could lead to panic (exceptions).
+network, which could lead to panic (exceptions).
 
 \subsection{Components}
 This section introduces the \texttt{Component} type and then shows how we can simply
-create components. Afterwards it presents a way how multiple components can
-be combined to form a linear pipeline. The sections ends with a description
+create components. Afterwards it presents a way to combine multiple components
+to form a linear pipeline. The sections ends with a description
 of a component generator that implements simple load balancing among
 multiple components.
 
@@ -302,7 +302,7 @@ balancing component is introduced in the next chapter.
 \newpage
 \subsection{Writers}
 In this section I introduce the \texttt{Writer} type, which acts as the end of the 
-pipeline. Afterwards, I present a way how to create custom writers.
+pipeline. Afterwards, I present how to create custom writers.
 \subsubsection{Writer type}
 Writer is the end of the pipeline which writes results back to the client.
 The type \texttt{Writer} is defined as follows:
@@ -316,7 +316,7 @@ Every writer satisfies the following specification.
           to its input channel.
 
 	\item For every \texttt{job} that is  read from the input channel a writer 
-          behaves as follows. It firstly checks if the result field 
+          behaves as follows. It first checks if the result field 
           contains the expected type. If that is the case, it first 
           writes the headers and then the body of the response using 
           the \texttt{writeHeader} and \texttt{write} methods of the \texttt{job} respectively. Afterwards it closes the connection for the \texttt{job} 
@@ -327,9 +327,9 @@ Every writer satisfies the following specification.
 
 	\item The writer terminates when its input channel is closed.
 \end{itemize}
-The package provides writers for writing string, json, file, error and many
+The package provides writers for writing string, JSON, file, error and many
 other types of responses. There is also a writer generator for static
-load balancing similar to the one for components. It's implementation
+load balancing similar to the one for components. Its implementation
 is significantly simpler as we don't have to forward the processed
 \texttt{jobs} further down the network. Note that components
 combined with writers appear like a single writer. Hence, we can use the
@@ -429,12 +429,12 @@ func ErrorRouter(in <-chan Job, defOut chan<- Job,
 Collector is a component whose behavior is the opposite of the behavior 
 of a router. It gets multiple input channels
 and forwards their outputs to a single output channel. Now as channels
-in go are many-to-many we could just use a single channel to which
+in Go are many-to-many we could just use a single channel to which
 multiple components would output the \texttt{jobs}. 
 
 However, when we shutdown
 one of the components, this component will close the output channel
-what will cause panic next time one of the other components tries to write
+which will cause panic next time one of the other components tries to write
 to it. Now, \texttt{Collector} only closes its output channel, when
 all of its input channels have been closed, thus avoiding the problem 
 described above. It is acceptable to just use a single channel instead of
@@ -447,6 +447,6 @@ func Collector(ins []<-chan Job, out chan<- Job)
 
 \subsection{Summary}
 In this Chapter I introduced the basic elements of the toolkit. This 
-is enough to implement some simple serves. The next section introduces
+is enough to implement some simple servers. The next section introduces
 more advanced components that allow more complex behaviors.
 

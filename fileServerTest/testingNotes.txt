@@ -15,7 +15,18 @@ ulimit -n 256
 
 httperf --server localhost --port 8080 --uri /go/testFile.txt --num-conns 60000 --rate 250 --timeout 1
 
-ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -numconns 10 -manual 192.168.8.82:1717
+ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -timeout 1 -connrate 660 -requests 1 -skipheader -duration 160 -increment 120 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718 192.168.8.84:1717 192.168.8.84:1718
+
+ahpclient -server 192.168.8.81 -port 8080 -url /mpserver/testFile.txt -timeout 1 -connrate 100 -requests 1 -skipheader -duration 160 -increment 100 -repeat 9 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718
+
+ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -timeout 1 -connrate 150 -requests 1 -skipheader -duration 200 -manual 192.168.8.84:1717 192.168.8.84:1718
+
+ahpclient -server localhost -port 8080 -url /go/testFile.txt -timeout 1 -connrate 60 -requests 1 -skipheader -duration 10 -manual localhost:1717 
 
 sudo firewall-cmd --permanent --add-port=1718/tcp
 sudo firewall-cmd --reload
+
+
+192.168.8.81:8080/go/testFile.txt
+
+httperf --server 192.168.8.81 --port 8080 --uri /go/testFile.txt --rate 300 --num-conns 48000 --timeout 1 --hog

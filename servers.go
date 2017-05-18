@@ -25,11 +25,11 @@ func FileServerWriter(dir, prefix string) Writer {
     }
 }
 
-// SimpleFileServer creates a file server and returns an 
+// BalancedFileServer creates a file server and returns an 
 // http.Handler object that feeds the incoming requests to this 
 // server.
-func SimpleFileServer(dir, prefix string, 
-                      maxWorkers int) http.Handler{
+func BalancedFileServer(dir, prefix string, 
+                        maxWorkers int) http.Handler{
     in := GetChan()
     writer := FileServerWriter(dir, prefix)
     lb := DynamicLoadBalancerWriter(
@@ -37,4 +37,16 @@ func SimpleFileServer(dir, prefix string,
 
     go lb(in)
 	return Handler(in)
+}
+
+// SimpleFileServer creates a file server and returns an 
+// http.Handler object that feeds the incoming requests to this 
+// server.
+func SimpleFileServer(dir, prefix string, 
+                      maxWorkers int) http.Handler{
+    in := GetChan()
+    writer := FileServerWriter(dir, prefix)
+
+    go writer(in)
+    return Handler(in)
 }
