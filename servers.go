@@ -42,8 +42,7 @@ func BalancedFileServer(dir, prefix string,
 // SimpleFileServer creates a file server and returns an 
 // http.Handler object that feeds the incoming requests to this 
 // server.
-func SimpleFileServer(dir, prefix string, 
-                      maxWorkers int) http.Handler{
+func SimpleFileServer(dir, prefix string) http.Handler{
     in := GetChan()
     writer := FileServerWriter(dir, prefix)
 
