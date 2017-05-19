@@ -31,12 +31,17 @@ of this command.
 \subsection{Results}
 The table in Figure~\ref{results} shows the results of the performance tests.
 It shows the average response times in milliseconds for each server for
-a given number of requests made per second. There are results for
-three different versions of the servers implemented using the \texttt{mpserver}
-toolkit. These versions are as follows:
+a given number of requests made per second. The response time is measured from the 
+moment the last byte of the request was sent to the moment when the first 
+byte of the response was received \cite{httperfdoc}. The table also shows weighted 
+average of the response times for each implementation.
+
+\newpage
+There are results for three different versions of the servers implemented using 
+the \texttt{mpserver} toolkit. These versions are as follows:
 \begin{itemize}
 	\item \texttt{mpserver1} - uses as simple file server as 
-		  described in Section~\ref{sec} without any load balancing
+		  described in Section~\ref{sec:fileServer} without any load balancing
 
 	\item \texttt{mpserver2} - uses static load balancing with 4 instances
 		  of the simple file server writer
@@ -51,18 +56,20 @@ toolkit. These versions are as follows:
 \hline
 Req/s & Go & webpipes & mpserver1 & mpserver2 & mpserver3 & Apache\\
 \hline
-100 & 0.42 & 0.55 & 0.45 & 0.45 & 0.55 & 1.75 \\
+100 & 0.42 & 0.55 & 0.45 & 0.45 & 0.47 & 1.75 \\
 200 & 0.40 & 0.57 & 0.53 & 0.50 & 0.62 & 1.80 \\
-300 & 0.50 & 0.60 & 0.50 & 0.50 & 0.62 & 1.70 \\
-400 & 0.50 & 0.60 & 0.50 & 0.43 & 0.70 & 1.68 \\
-500 & 0.45 & 0.50 & 0.43 & 0.53 & 0.72 & 1.85 \\
-600 & 0.45 & 0.53 & 0.47 & 0.50 & 0.85 & 1.62 \\
-700 & 0.47 & 0.62 & 0.43 & 0.40 & 1.02 & 1.62 \\
-800 & 0.42 & 0.55 & 0.47 & 0.47 & 1.20 & 1.70 \\
+300 & 0.50 & 0.60 & 0.50 & 0.50 & 0.70 & 1.70 \\
+400 & 0.50 & 0.60 & 0.50 & 0.43 & 0.65 & 1.68 \\
+500 & 0.45 & 0.50 & 0.43 & 0.53 & 0.65 & 1.85 \\
+600 & 0.45 & 0.53 & 0.47 & 0.50 & 0.80 & 1.62 \\
+700 & 0.47 & 0.62 & 0.43 & 0.40 & 1.08 & 1.62 \\
+800 & 0.42 & 0.55 & 0.47 & 0.47 & 1.15 & 1.70 \\
+\hline
+avg & 0.45 & 0.56 &	0.47 & 0.47 & 0.87 & 1.70 \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Results table.}
+\caption{Response times of different file server implementations in ms under varying loads.}
 % mpserver1= simple setup
 % mpserver2= static load balancer
 % mpserver3= dynamic load balancer
@@ -70,31 +77,31 @@ Req/s & Go & webpipes & mpserver1 & mpserver2 & mpserver3 & Apache\\
 \label{results}
 \end{figure}
 
-Unexpectedly the Apache server gives the worst results. This is probably due to 
+Unexpectedly the Apache server had the worst response times. This is probably due to 
 overheads for authorization that is not present on the other servers. As one would expect
 the server implemented using plain Go gives the best results out of all the Go
 implementations. 
 
 Then second best are the implementations in the \texttt{mpserver}
 toolkit, that use the simple file server and the file server with static load 
-balancing. Their performance approximately the same as the file server is composed from 
+balancing. Their performance is approximately the same as the file server is composed of 
 4 parts (excluding the listener), so under a high load both implementations 
 have 4 goroutines executing at the same time. The version with static load balancing
 would be probably faster in case we were performing a more expensive operation than serving
-a small static file. Then there could be 4 goroutines executing the expensive
-operation, whereas in the simple case there would be only one goroutine 
+a small static file. In that case there could be 4 goroutines executing the expensive
+operation on the load balanced server, whereas on the simple server there would be only one goroutine 
 executing this operation.
 
 The \texttt{webpipes} toolkit performs slightly worse than the best two
-\texttt{mpserver} implementations. As noted in Section~\ref{sec} this is probably
-due to overhead for creating the readers-writers pairs.
-The version using dynamic load balancing is the slowest one out of the Go implementations, 
-this is most likely due to the fact that the load balancer is almost always ready to perform
-an operation what occupies resources.
+\texttt{mpserver} implementations. As noted in Section~\ref{sec:relaedWork} this is probably
+due to overheads for creating the reader-writer pairs.
+The version using dynamic load balancing is the slowest one out of the Go implementations.
+This is most likely due to the fact that the load balancer is almost always ready to perform
+an operation what consumes resources, that could be otherwise used to serve requests.
 
 \subsection{Summary}
-In this section I presented the setup and results of the performance tests performed.
+In this section I presented the setup and results of the performance tests that were carried out.
 The results for the \texttt{mpserver} toolkit are encouraging, as it is faster than
 the \texttt{webpipes} toolkit and the difference between its performance and the performance
-of the implementation in pure go is negligible. The next section summarizes the achievements 
+of the pure Go implementation is negligible. The next Chapter summarizes the achievements 
 of this project.

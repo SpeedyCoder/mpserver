@@ -12,7 +12,9 @@ toolkit on a handful of simple examples and performed a case study of building
 a more complex server using the toolkit. This showed that the toolkit is
 functional and simple to use. 
 
-% TODO: talk about testing
+Finally, I also performed performance testing of the toolkit and compared
+performance of a file server implemented in the toolkit to the performance
+of file servers implemented in other frameworks.
 
 \subsection{Critical analysis}
 As noted above the toolkit is easy to use due the fact that response 
@@ -22,26 +24,28 @@ also gives programmers control over how many resources are used for
 different tasks. 
 
 However, the performance of servers implemented in the toolkit can be 
-very poor if they are not configured properly. This is because when using a simple
+poor if they are not configured properly. This is because when using a simple
 pipeline without any load balancing all requests must go through all parts
-of the server one by one, limiting the throughput. The provided
-tools for load balancing mitigate this problem.
+of the server one by one, limiting the throughput. This is an issue 
+in case at least one of the components in the pipeline is performing a slow operation.
+The provided tools for load balancing mitigate this problem.
 
-As one would expect the performance of the web-server
+As one would expect the performance of the toolkit
 is worse than just using the standard library. This is due to overheads
 for the usage of channels, creating the \texttt{Job} objects
-and switching between different goroutines.
+and switching between different goroutines. However, the performance
+penalty is very small as was demonstrated by the tests carried out.
 
-On the other hand the toolkit provides a lot of functionality over the
+The toolkit provides a lot of functionality over the
 standard library and makes implementing servers more straight forward. 
 Hence, developing servers using the toolkit should be
-significantly easier and therefore quicker. So, if a small performance
+significantly easier and therefore quicker. So, if this very small performance
 penalty is acceptable, then my toolkit would be the preferred alternative.
 
 \subsection{Future Work}
-To make the toolkit production-ready I would perform more testing of all
-components, implement more components and improve my documentation
-of the toolkit. 
+To make the toolkit production-ready I would perform  more performance 
+tests under even higher loads. I would also thoroughly test the performance of
+every component in the toolkit, implement more components and improve my documentation. 
 
 One might want to implement a version of the \texttt{Storage}
 that uses an SQL database or a component that accesses a database and 

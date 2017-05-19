@@ -11,14 +11,14 @@ func main() {
 	dir := "fileServerTest"
 	useGo := flag.Bool(
 		"go", false, "use plain go implementation")
-	useMPS := flag.Bool(
-		"mpserver", false, "use mpserver implementation")
+	useMPS := flag.Int(
+		"mpserver", 0, "use one of mpserver implementations")
 	useWB := flag.Bool(
 		"webpipes", false, "use webpipes implementation")
 	flag.Parse()
 
-	if (!*useGo && !*useMPS && !*useWB){
-		*useGo = true; *useMPS = true; *useWB = true
+	if (!*useGo && *useMPS == 0 && !*useWB){
+		*useGo = true; *useMPS = 1; *useWB = true
 	}
 
 	mux := http.NewServeMux()
@@ -27,10 +27,29 @@ func main() {
 		mux.Handle("/go/", http.StripPrefix(
 			"/go", http.FileServer(http.Dir(dir))))
 	}
-	if (*useMPS) {
-		log.Println("Using mpserver implementation.")
-		mux.Handle("/mpserver/", 
-			mpserver.LBalancedFileServer(dir, "/mpserver"))
+	if (*useMPS != 0) {
+		log.Printf("Using mpserver implementation %v.", *useMPS)
+		switch *useMPS {
+			case 1: {
+				mux.Handle("/mpserver/", 
+					mpserver.SimpleFileServer(dir, "/mpserver"))
+			}
+			case 2: {
+				mux.Handle("/mpserver/", 
+					mpserver.SBalancedFileServer(
+						dir, "/mpserver", 4))
+			}
+			case 3: {
+				mux.Handle("/mpserver/", 
+					mpserver.DBalancedFileServer(
+						dir, "/mpserver", 4))
+			}
+			default: {
+				log.Fatal(
+					"Allowed values for this flag are 1, 2, 3")
+			}
+		}
+		
 	}
 	if (*useWB) {
 		log.Println("Using webpipes implementation.")
