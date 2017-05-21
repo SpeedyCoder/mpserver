@@ -127,7 +127,7 @@ to do this I create a joint writer that internally runs the router and
 the writers as is indicated in the diagram of the Figure~\ref{fig:proxyServer}.
 The implementation is shown below in Figure~\ref{fig:ProxyWriters}.
 \begin{figure}[h]
-\lstinputlisting[firstline=12,lastline=18]{../examples/proxyServer/proxyServer.go}  
+\lstinputlisting[firstline=14,lastline=20]{../examples/proxyServer/proxyServer.go}  
 \caption[scale=1.0]{Implementation of the joint writer for the Proxy Server.}
 \label{fig:ProxyWriters}
 \end{figure}
@@ -138,7 +138,7 @@ implementation of the server described so far as a single writer is shown
 below in Figure~\ref{fig:ProxyWriter}. The design of a proxy server using 
 these load balancers and cache is shown in Figure~\ref{fig:proxyServer2}.
 \begin{figure}[h]
-\lstinputlisting[firstline=20,lastline=35]{../examples/proxyServer/proxyServer.go} 
+\lstinputlisting[firstline=22,lastline=37]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the writer representing the Proxy Server.}
 \label{fig:ProxyWriter}
 \end{figure}
@@ -212,7 +212,7 @@ to wrap the writer that represents the whole server in a Dynamic Load
 Balancer. The code for running this server is shown in 
 Figure~\ref{fig:ProxyServerImpl}.
 \begin{figure}[h]
-\lstinputlisting[firstline=37,lastline=50]{../examples/proxyServer/proxyServer.go} 
+\lstinputlisting[firstline=39,lastline=52]{../examples/proxyServer/proxyServer.go} 
 \caption[scale=1.0]{Implementation of the the Proxy Server.}
 \label{fig:ProxyServerImpl}
 \end{figure}
@@ -225,4 +225,4 @@ The whole implementation is shown in Appendix~\ref{sec:proxyServer.go}.
 In this Chapter I presented implementations of 3 progressively more 
 complicated example servers. The throughput of the first two servers
 can be increased in the same way as shown for the Proxy Server. The 
-next section analyzes how to build part of a shopping server.
+next Chapter analyzes how to build part of a shopping server.

@@ -11,7 +11,8 @@ in a database etc.).
 This section introduces an interface that specifies methods that an 
 object must implement, in order to be used as a data storage. This 
 separates the problem of managing the data storage from the logic of
-the component that uses it.
+the component that uses it. In other words, it implements the separation 
+of concerns design principle.
 % TODO: say that this is separation of concerns design principle and State patern fo the states?
 
 \subsubsection{Storage Values}
@@ -34,7 +35,7 @@ type StorageValue struct {
 \end{figure}
 
 \subsubsection{Storage}
-\texttt{Storage} is an interface representing thread safe mapping from string keys
+The \texttt{Storage} is an interface representing thread safe mapping from string keys
 to \texttt{StorageValues}. Its definition is shown in Figure~\ref{fig:Storage} below.
 \begin{figure}[h]
 \centering
@@ -89,7 +90,7 @@ The returned component behaves as follows:
 \begin{itemize}
   \item When an input \texttt{job} holds a request that the component 
         hasn't seen before, then the \texttt{job} is passed to the 
-        provided \texttt{worker}. Afterwards the result field of \texttt{job}
+        provided \texttt{worker}. Afterwards the result field of the \texttt{job}
         returned by the \texttt{worker} is stored in the provided 
         \texttt{storage} object.
 
@@ -146,7 +147,7 @@ Its arguments are a \texttt{storage} object to be used, an \texttt{initial}
 state for each session and a session expiration time.
 The returned component behaves as a session manager. 
 
-The component stores a mapping from session ids to the current state of the session
+The component stores a mapping from session Ids to the current state of the session
 in the \texttt{storage} object.
 Every new request gets assigned a unique session Id. Then a current state
 of the session is generated from the initial state using the provided
@@ -443,6 +444,6 @@ the \texttt{ResponseReader} won't have to do any work.
 
 \subsection{Summary}
 In this Chapter I introduced more advanced component wrappers and generators
-and described how to use them. The next chapter shows a few example
+and described how to use them. The next Chapter shows a few example
 servers implemented using my toolkit.
 

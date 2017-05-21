@@ -2,7 +2,7 @@
 \label{sec:test}
 In order to evaluate the performance of the \texttt{mpserver} toolkit we 
 need to compare it against other server architectures.
-This chapter presents the setup and results of the performance tests
+This Chapter presents the setup and results of the performance tests
 that were carried on equivalent servers implemented in the \texttt{mpserver} toolkit,
 in plain Go, in the \texttt{webpipes} toolkit by James Whitehead II~\cite{whitehead} 
 and the Apache framework.
@@ -28,8 +28,11 @@ except that they had only 4GB of RAM. The version of Go on the machines was
 1.6.3 linux/amd64. The version of Apache server used was 2.4.6 (CentOS).
 
 The servers were given all resources on the server machine. 
-As the \texttt{httperf} tool is single threaded, the client machines 
-ran up to 3 instances of this command.
+As the \texttt{httperf} tool is single threaded and consumes 
+all resources of the processor core on which it is run, the client 
+machines ran up to 3 instances of this command (the one remaining 
+core was kept free to allow any other tasks to execute there and to
+be able to access the machine without interfering with the tests).
 
 \subsection{Results}
 \subsubsection{Serving a small text file}
@@ -174,4 +177,4 @@ The results for serving a large image show that the \texttt{mpserver} implementa
 much better with high loads when performing more expensive tasks, than the \texttt{webpipes} and
 pure Go implementations. The performance of any of the Go web-servers was nowhere near as good
 as the performance of the Apache server in the second test. However, as previously noted, this was to 
-be expected as Apache is a mature framework that has become the industry standard.
+be expected as Apache is a mature framework.

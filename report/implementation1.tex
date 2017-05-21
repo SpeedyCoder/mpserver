@@ -168,9 +168,9 @@ is closed the loop terminates. Afterwards, the component closes its output chann
 and terminates.
 
 \subsubsection{Constant Component}
-The Constant Component is a simple component generator that takes a value \texttt{c}
+The Constant Component is a simple component generator that takes a value~\texttt{c}
 of any type and returns a component that writes \texttt{c} to the result field of 
-all input \texttt{jobs} and then outputs them. It's definition using the 
+all input \texttt{jobs} and then outputs them. Its definition using the 
 \texttt{MakeComponent} generator is shown in Figure~\ref{fig:ConstantComponent}.
 \begin{figure}[h]
 \centering
@@ -200,7 +200,7 @@ the combined component was run.
 \subsubsection{Simple Load Balancing}
 To support running the same component with the same input and output 
 channels multiple times the toolkit provides \texttt{StaticLoadBalancer}.
-Note that this is possible as channels in go are many-to-many.
+Note that this is possible as channels in Go are many-to-many.
 \texttt{StaticLoadBalancer} is a component generator that takes a worker 
 component and number $n$ and returns a component that when run starts 
 $n$ instances of the worker component. 
@@ -304,7 +304,7 @@ balancing component is introduced in the next chapter.
 In this section I introduce the \texttt{Writer} type, which acts as the end of the 
 pipeline. Afterwards, I present how to create custom writers.
 \subsubsection{Writer type}
-The Writer is the end of the pipeline which writes results back to the client.
+The Writer is the end of the pipeline that writes results back to the client.
 The type \texttt{Writer} is defined as follows:
 \begin{lstlisting}
 type Writer func (in <-chan Job)
@@ -386,7 +386,7 @@ results).
 \subsection{Router and Collector}
 In this section I introduce a way to split a stream of incoming \texttt{jobs} into
 multiple streams of \texttt{jobs} that go into different parts of the network
-using very flexible rules for routing. Then I present a way how to
+using very flexible rules for routing. Then I present how to
 safely combine multiple streams into one.
 
 \subsubsection{Conditions}
@@ -398,7 +398,7 @@ It is a function that takes a \texttt{job} and returns a boolean.
 The function shouldn't change the provided \texttt{job}.
 
 \subsubsection{Router}
-The Conditions are used in Router, which is a component with the 
+The Conditions are used in a Router, which is a component with the 
 following signature:
 \begin{lstlisting}
 func Router(in <-chan Job, defOut chan<- Job, 
@@ -447,6 +447,6 @@ func Collector(ins []<-chan Job, out chan<- Job)
 
 \subsection{Summary}
 This Chapter introduced the basic elements of the toolkit. This 
-is enough to implement some simple servers. The next section introduces
+is enough to implement some simple servers. The next Chapter introduces
 more advanced components that allow more complex behaviors.
 

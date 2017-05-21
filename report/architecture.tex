@@ -5,8 +5,8 @@ it makes implementing a server very easy. If you can construct a data-flow diagr
 representing the conversion of a request into a response, then this diagram
 can be directly translated into a program.
 
-This Chapter introduces several example web-servers and their conceptual
-design using the proposed architecture. I also introduce a wrapper 
+In this Chapter, I introduce several example web-servers and their conceptual
+designs using the proposed architecture. I also introduce a wrapper 
 solution used for caching and load balancing.
 Finally I compare these designs to the setup of equivalent Apache servers.
 
@@ -192,6 +192,7 @@ See Figure~\ref{fig:loadBalancing} below.
 \label{fig:loadBalancing}
 \end{figure}
 
+\newpage
 \subsection{Comparison to Apache server configuration}
 As previously noted, configuring an Apache server can prove to be quite difficult.
 Figure~\ref{fig:apache} shows a part of a simple file server
@@ -215,7 +216,7 @@ Alias /project /path/to/project/
 \end{figure}
 
 The first line in the above configuration specifies that accessing URL 
-path "/project" should point to the "/path/to/project/" directory.
+path ``/project" should point to the ``/path/to/project/" directory.
 Lines 3 to 10 specify who can access this directory and how.
 The option \texttt{Options Indexes} indicates that if a client tries
 to access a directory, then the server should list its contents.
