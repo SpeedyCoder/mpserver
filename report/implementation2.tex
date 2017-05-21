@@ -1,6 +1,6 @@
 \section{Advanced component generators}
 \label{sec:impl2}
-In this Chapter I introduce more advanced component generators for caching,
+This Chapter introduces more advanced component generators for caching,
 session management, load balancing, network communication and error handling.
 
 \subsection{Storing data}
@@ -136,7 +136,7 @@ The expected behavior of the member functions is as follows:
 \end{itemize}
 
 \subsubsection{Session Manager}
-\texttt{SessionManager} is a component generator that returns a component
+The \texttt{SessionManager} is a component generator that returns a component
 which performs management of sessions for individual users. It has the following signature:
 \begin{lstlisting}
 func SessionManager(store Storage, initial State, 
@@ -341,7 +341,7 @@ the response we could replace the \texttt{ResponseReader} with another
 custom component and so on.
 
 \subsubsection{Request Rewriter}
-Request Rewriter is the first part in the pipeline of the 
+The Request Rewriter is the first part in the pipeline of the 
 \texttt{ProxyComponent}. It is implemented as a component generator with the 
 following signature:
 \begin{lstlisting}
@@ -442,7 +442,7 @@ the \texttt{ResponseReader} won't have to do any work.
 
 
 \subsection{Summary}
-In this chapter I introduced more advanced component wrappers and generators
+In this Chapter I introduced more advanced component wrappers and generators
 and described how to use them. The next chapter shows a few example
 servers implemented using my toolkit.
 

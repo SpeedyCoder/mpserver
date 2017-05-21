@@ -5,7 +5,7 @@ and how to work with them. The most important parts are the primitive types:
 \texttt{Job}, \texttt{Component} and \texttt{Writer}.
 
 \subsection{Jobs}
-\texttt{Job} is an interface that represents the type of messages that are
+The \texttt{Job} is an interface that represents the type of messages that are
 passed between the components of the network. Its definition is shown
 in Figure~\ref{fig:Job} below.
 
@@ -105,7 +105,7 @@ of a component generator that implements simple load balancing among
 multiple components.
 
 \subsubsection{The Component type}
-Component is a generic part of the pipeline with an input and 
+The Component is a generic part of the pipeline with an input and 
 an output channel. It reads \texttt{jobs} from its input channel, 
 processes them and writes the updated \texttt{jobs} to the output 
 channel. The type \texttt{Component} is defined as follows:
@@ -168,7 +168,7 @@ is closed the loop terminates. Afterwards, the component closes its output chann
 and terminates.
 
 \subsubsection{Constant Component}
-Constant Component is a simple component generator that takes a value \texttt{c}
+The Constant Component is a simple component generator that takes a value \texttt{c}
 of any type and returns a component that writes \texttt{c} to the result field of 
 all input \texttt{jobs} and then outputs them. It's definition using the 
 \texttt{MakeComponent} generator is shown in Figure~\ref{fig:ConstantComponent}.
@@ -304,7 +304,7 @@ balancing component is introduced in the next chapter.
 In this section I introduce the \texttt{Writer} type, which acts as the end of the 
 pipeline. Afterwards, I present how to create custom writers.
 \subsubsection{Writer type}
-Writer is the end of the pipeline which writes results back to the client.
+The Writer is the end of the pipeline which writes results back to the client.
 The type \texttt{Writer} is defined as follows:
 \begin{lstlisting}
 type Writer func (in <-chan Job)
@@ -338,7 +338,7 @@ load balancers for writers to manage a more complex part the network.
 \subsubsection{Making Writers}
 As noted before the methods for writing responses from \texttt{jobs}
 back to the client cannot be used outside of the package. To allow
-for construction of custom writers the package provides writer generator
+construction of custom writers the package provides writer generator
 component similar to the \texttt{MakeComponent} function. It uses 
 functions with the following signature to generate the writers.
 \begin{lstlisting}
@@ -390,7 +390,7 @@ using very flexible rules for routing. Then I present a way how to
 safely combine multiple streams into one.
 
 \subsubsection{Conditions}
-Condition type is defined as follows:
+The Condition type is defined as follows:
 \begin{lstlisting}
 type Condition func (job Job) bool
 \end{lstlisting}
@@ -398,7 +398,7 @@ It is a function that takes a \texttt{job} and returns a boolean.
 The function shouldn't change the provided \texttt{job}.
 
 \subsubsection{Router}
-Conditions are used in Router, which is a component with the 
+The Conditions are used in Router, which is a component with the 
 following signature:
 \begin{lstlisting}
 func Router(in <-chan Job, defOut chan<- Job, 
@@ -426,16 +426,16 @@ func ErrorRouter(in <-chan Job, defOut chan<- Job,
 \end{lstlisting}
 
 \subsubsection{Collector}
-Collector is a component whose behavior is the opposite of the behavior 
+The Collector is a component whose behavior is the opposite of the behavior 
 of a router. It gets multiple input channels
-and forwards their outputs to a single output channel. Now as channels
+and forwards their outputs to a single output channel. As channels
 in Go are many-to-many we could just use a single channel to which
 multiple components would output the \texttt{jobs}. 
 
 However, when we shutdown
 one of the components, this component will close the output channel
 which will cause panic next time one of the other components tries to write
-to it. Now, \texttt{Collector} only closes its output channel, when
+to it. The \texttt{Collector} only closes its output channel, when
 all of its input channels have been closed, thus avoiding the problem 
 described above. It is acceptable to just use a single channel instead of
 the collector component, if we don't intend to shut down the network.
@@ -446,7 +446,7 @@ func Collector(ins []<-chan Job, out chan<- Job)
 
 
 \subsection{Summary}
-In this Chapter I introduced the basic elements of the toolkit. This 
+This Chapter introduced the basic elements of the toolkit. This 
 is enough to implement some simple servers. The next section introduces
 more advanced components that allow more complex behaviors.
 

@@ -4,43 +4,47 @@ In order to evaluate the performance of the \texttt{mpserver} toolkit we
 need to compare it against other server architectures.
 This chapter presents the setup and results of the performance tests
 that were carried on equivalent servers implemented in the \texttt{mpserver} toolkit,
-in plain Go, in \texttt{webpipes} toolkit by James Whitehead II~\cite{whitehead} 
+in plain Go, in the \texttt{webpipes} toolkit by James Whitehead II~\cite{whitehead} 
 and the Apache framework.
 
 \subsection{Setup}
 To compare the performance of the four server architectures, I 
 implemented a simple file server in all of them. Their performance 
-was tested on serving a 4KB static file. The code for the servers 
-that were implemented in Go is shown in Appendix~\ref{sec:testing.go}. To generate 
-the load I used \texttt{httperf} tool~\cite{httperf}. To distribute 
-the testing among multiple machines I used slightly modified version
+was tested on serving a 4KB static text file and a 2MB static image. 
+The code for the servers that were implemented in Go is shown in Appendix~\ref{sec:testing.go}. 
+
+To generate the load I used \texttt{httperf} tool~\cite{httperf}. To distribute 
+the testing among multiple machines I used a customized version
 of the \texttt{autohttperf} tool~\cite{whitehead}.
 This setup is inspired by the one used in~\cite{whitehead}.
+The clients timed out after 1~second to ensure the client machines would 
+not have too many connections open at the same time.
 
 The server was run on a virtual machine with quad core processor and 
 8GB of RAM. The machine was running CentOS Linux release 7.3.1611 (Core)
 with Linux kernel 3.10.0.
-I used 3 client machines with the same specification as the server machine, 
+I used 2 client machines with the same specification as the server machine, 
 except that they had only 4GB of RAM. The version of Go on the machines was
 1.6.3 linux/amd64. The version of Apache server used was 2.4.6 (CentOS).
 
-The server machine had all the resources to itself. As the \texttt{httperf}
-tool is single threaded, the client machines run up to 3 instances
-of this command.
+The servers were given all resources on the server machine. 
+As the \texttt{httperf} tool is single threaded, the client machines 
+ran up to 3 instances of this command.
 
 \subsection{Results}
-The table in Figure~\ref{results} shows the results of the performance tests.
-It shows the average response times in milliseconds for each server for
-a given number of requests made per second. The response time is measured from the 
-moment the last byte of the request was sent to the moment when the first 
-byte of the response was received \cite{httperfdoc}. The table also shows weighted 
+\subsubsection{Serving a small text file}
+Serving a 4KB text file is an easy and quick task, so all servers were able to
+respond to all requests within the given timeout window for all load levels.
+The table in Figure~\ref{results} shows the average response times in milliseconds 
+for each server for a given number of requests made per second. The response time is 
+measured from the moment the last byte of the request was sent to the moment when the first 
+byte of the response was received \cite{httperfdoc}. The table also shows a weighted 
 average of the response times for each implementation.
 
-\newpage
 There are results for three different versions of the servers implemented using 
 the \texttt{mpserver} toolkit. These versions are as follows:
 \begin{itemize}
-	\item \texttt{mpserver1} - uses as simple file server as 
+	\item \texttt{mpserver1} - uses a simple file server as 
 		  described in Section~\ref{sec:fileServer} without any load balancing
 
 	\item \texttt{mpserver2} - uses static load balancing with 4 instances
@@ -77,31 +81,97 @@ avg & 0.45 & 0.56 &	0.47 & 0.47 & 0.87 & 1.70 \\
 \label{results}
 \end{figure}
 
-Unexpectedly the Apache server had the worst response times. This is probably due to 
-overheads for authorization that is not present on the other servers. As one would expect
+Unexpectedly the Apache server had the worst response times. This was likely due to 
+overheads for authorization that were not present on the other servers. As expected,
 the server implemented using plain Go gives the best results out of all the Go
 implementations. 
 
-Then second best are the implementations in the \texttt{mpserver}
-toolkit, that use the simple file server and the file server with static load 
-balancing. Their performance is approximately the same as the file server is composed of 
+Then second best were the implementations in the \texttt{mpserver}
+toolkit, which used the simple file server and the file server with static load 
+balancing. Their performance was approximately the same, because the file server is composed of 
 4 parts (excluding the listener), so under a high load both implementations 
-have 4 goroutines executing at the same time. The version with static load balancing
-would be probably faster in case we were performing a more expensive operation than serving
-a small static file. In that case there could be 4 goroutines executing the expensive
-operation on the load balanced server, whereas on the simple server there would be only one goroutine 
-executing this operation.
+were executing 4 goroutines simultaneously. 
 
-The \texttt{webpipes} toolkit performs slightly worse than the best two
-\texttt{mpserver} implementations. As noted in Section~\ref{sec:relaedWork} this is probably
+The \texttt{webpipes} toolkit performed slightly worse than the two best
+\texttt{mpserver} implementations. As noted in Section~\ref{sec:relaedWork} this was probably
 due to overheads for creating the reader-writer pairs.
-The version using dynamic load balancing is the slowest one out of the Go implementations.
-This is most likely due to the fact that the load balancer is almost always ready to perform
-an operation what consumes resources, that could be otherwise used to serve requests.
+The \texttt{mpserver} version using dynamic load balancing was the slowest Go implementation.
+This was most likely due to the fact that the load balancer is almost always ready to perform
+an operation that consumes resources, which could otherwise be used to serve requests.
+
+\subsubsection{Serving a large image}
+Serving a large image is a much slower task than serving a small text file.
+Therefore the servers were not able to respond to all requests within the
+given timeout window for higher loads. The table in Figure~\ref{results2} shows
+the total number of connections made for each request rate and the total number
+of responses received within the given timeout window for each server implementation.
+
+\begin{figure}[h]
+\begin{center}
+\begin{adjustwidth}{-.5in}{-.5in} 
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+Req/s & \#connections & go    & webpipes & mpserver1 & mpserver2 & mpserver3 & Apache \\
+\hline
+100   & 16000        & 16000 & 15998    & 5859      & 10672     & 11072     & 16000 \\
+200   & 32000        & 20677 & 23378    & 6017      & 10538     & 10795     & 16981 \\
+300   & 48000        & 25628 & 24146    & 4693      & 9834      & 10929     & 24351 \\
+400   & 64000        & 28545 & 13600    & 3670      & 10989     & 9149      & 31625 \\
+500   & 80000        & 7702  & 14180    & 4391      & 10974     & 10224     & 39774 \\
+600   & 96000        & 507   & 492      & 3930      & 10794     & 8773      & 20500 \\
+700   & 112000       & 162   & 225      & 2223      & 9750      & 10342     & 20693 \\
+800   & 128000       & 104   & 122      & 3552      & 10425     & 8905      & 20668 \\
+\hline
+\end{tabular}
+\end{adjustwidth}
+\end{center}
+\caption{Total number of responses received for different file server implementations under varying loads.}
+\label{results2}
+\end{figure}
+
+In this test the Apache server significantly outperformed all other implementations under 
+high loads. This is to be expected as it is a mature framework with millions of users, and that has 
+been optimized over the years.
+
+The performance of the pure Go and the \texttt{webpipes} servers was very similar, because their implementations are nearly identical, with the exception
+that the \texttt{webpipes} version performs additional work when writing the file back to 
+the client. They were able to serve most requests for lower loads, but their performance
+rapidly decreased at 600 requests per second. They were only able to serve a few hundred requests
+out of the tens thousands made. 
+
+This was probably due to the fact that each individual request is handled by a 
+separate goroutine and so there was a very high number of goroutines being spawned
+continuously. Hence, there might have been significant delay between the arrival of 
+a request and the moment when the goroutine handling it was scheduled. 
+Also every goroutine that is responding to a request blocks on a system call to 
+access the requested file and gets descheduled. Again, there might be a significant
+delay before this goroutine is scheduled again. Therefore most of the clients 
+timeout and close the connection before the server starts sending the file.
+
+None of the \texttt{mpserver} implementations were able to respond to all requests 
+within the given timeout window, for all request rates; the maximum number 
+of request they were able to handle per second was lower than 100. 
+However, \texttt{mpserver2} and \texttt{mpserver3} were able to work on their maximum 
+capacity for all request rates. This was due to 
+the fact that goroutines handling incoming requests were almost immediately blocked
+when they tried to send their \texttt{jobs} to the pipeline. Hence, the components 
+in the network were able to perform their tasks, as they were almost always ready 
+under the high loads. Therefore if a \texttt{job} entered the pipeline early enough,
+it was most likely processed before the timeout.
+
+The simple version without any load balancing had the worst performance as results 
+can only be written to one client at a time, demonstrating the advantages of 
+load balancing. The version with dynamic load balancing performed slightly worse due
+to the overheads for the dynamic load balancer.
 
 \subsection{Summary}
-In this section I presented the setup and results of the performance tests that were carried out.
-The results for the \texttt{mpserver} toolkit are encouraging, as it is faster than
+This Chapter presented the setup and results of the performance tests carried out.
+The results for the \texttt{mpserver} toolkit are very encouraging. It is faster than
 the \texttt{webpipes} toolkit and the difference between its performance and the performance
-of the pure Go implementation is negligible. The next Chapter summarizes the achievements 
-of this project.
+of the pure Go implementation is negligible in the case of serving a small text file.
+
+The results for serving a large image show that the \texttt{mpserver} implementations can deal
+much better with high loads when performing more expensive tasks, than the \texttt{webpipes} and
+pure Go implementations. The performance of any of the Go web-servers was nowhere near as good
+as the performance of the Apache server in the second test. However, as previously noted, this was to 
+be expected as Apache is a mature framework that has become the industry standard.

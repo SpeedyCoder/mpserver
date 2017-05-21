@@ -13,8 +13,8 @@ a more complex server using the toolkit. This showed that the toolkit is
 functional and simple to use. 
 
 Finally, I also performed performance testing of the toolkit and compared
-performance of a file server implemented in the toolkit to the performance
-of file servers implemented in other frameworks.
+performance of file servers implemented in the toolkit to the performance
+of file servers implemented using other frameworks.
 
 \subsection{Critical analysis}
 As noted above the toolkit is easy to use due the fact that response 
@@ -30,17 +30,20 @@ of the server one by one, limiting the throughput. This is an issue
 in case at least one of the components in the pipeline is performing a slow operation.
 The provided tools for load balancing mitigate this problem.
 
-As one would expect the performance of the toolkit
-is worse than just using the standard library. This is due to overheads
+The performance of the toolkit is worse than just using the standard library
+on computationally cheap tasks. This is due to overheads
 for the usage of channels, creating the \texttt{Job} objects
 and switching between different goroutines. However, the performance
-penalty is very small as was demonstrated by the tests carried out.
+penalty is very small. Moreover the the performance for expensive 
+tasks is order of magnitude better under high loads than the default implementation,
+as was demonstrated by the tests carried out.
 
 The toolkit provides a lot of functionality over the
 standard library and makes implementing servers more straight forward. 
 Hence, developing servers using the toolkit should be
 significantly easier and therefore quicker. So, if this very small performance
-penalty is acceptable, then my toolkit would be the preferred alternative.
+penalty on cheap tasks is acceptable, then my toolkit should be the preferred 
+alternative.
 
 \subsection{Future Work}
 To make the toolkit production-ready I would perform  more performance 

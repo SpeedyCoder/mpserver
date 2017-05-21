@@ -17,22 +17,33 @@ httperf --server localhost --port 8080 --uri /go/testFile.txt --num-conns 60000 
 
 ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -timeout 1 -connrate 660 -requests 1 -skipheader -duration 160 -increment 120 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718 192.168.8.84:1717 192.168.8.84:1718
 
-ahpclient -server 192.168.8.81 -port 8080 -url /mpserver/testFile.txt -timeout 1 -connrate 100 -requests 1 -skipheader -duration 160 -increment 100 -repeat 8 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718
+ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -timeout 1 -connrate 100 -requests 1 -skipheader -duration 160 -increment 100 -repeat 8 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718
 
+ahpclient -server 192.168.8.81 -port 8080 -url /webpipes/image.jpg -timeout 1 -connrate 100 -requests 1 -skipheader -duration 160 -increment 100 -repeat 8 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718
+
+
+
+ahpclient -server 192.168.8.81 -port 8080 -url /mpserver/testFile.txt -timeout 1 -connrate 798 -requests 1 -skipheader -duration 160 -increment 104 -repeat 5 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.82:1719 192.168.8.83:1717 192.168.8.83:1718 192.168.8.83:1719
+
+
+ahpclient -server 192.168.8.81 -port 80 -url /apache/testFile.txt -timeout 1 -connrate 798 -requests 1 -skipheader -duration 160 -increment 104 -repeat 2 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.82:1719 192.168.8.83:1717 192.168.8.83:1718 192.168.8.83:1719
 
 
 ahpclient -server 192.168.8.81 -port 8080 -url /go/testFile.txt -timeout 1 -connrate 150 -requests 1 -skipheader -duration 200 -manual 192.168.8.84:1717 192.168.8.84:1718
 
 ahpclient -server localhost -port 8080 -url /go/testFile.txt -timeout 1 -connrate 60 -requests 1 -skipheader -duration 10 -manual localhost:1717 
 
-sudo firewall-cmd --permanent --add-port=1718/tcp
+sudo firewall-cmd --permanent --add-port=1719/tcp
 sudo firewall-cmd --reload
 
 
 192.168.8.81:8080/go/testFile.txt
 
-httperf --server 192.168.8.81 --port 8080 --uri /go/testFile.txt --rate 300 --num-conns 48000 --timeout 1 --hog
+httperf --server 192.168.8.81 --port 8080 --uri /go/testFile.txt --rate 500 --num-conns 80000 --timeout 1 --hog
 
+httperf --server 192.168.8.81 --port 80 --uri /apache/testFile.txt --rate 500 --num-conns 80000 --timeout 1 --hog
+
+httperf --server 192.168.8.81 --port 80 --uri /apache/testFile.txt --rate 334 --num-conns 80000 --timeout 1 --hog
 
 ahpclient -server 192.168.8.81 -port 80 -url /apache/testFile.txt -timeout 1 -connrate 100 -requests 1 -skipheader -duration 160 -increment 100 -repeat 8 -manual 192.168.8.82:1717 192.168.8.82:1718 192.168.8.83:1717 192.168.8.83:1718
 
